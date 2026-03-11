@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HistoryEntry, RunResult } from '~/composables/useRunnerJob';
+import type { HistoryEntry } from '~/composables/useRunnerJob';
 import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
@@ -21,51 +21,22 @@ const fontSize = ref(
 watch(fontSize, (v) => localStorage.setItem('pr-font-size', String(v)));
 const rootFontSize = computed(() => `${fontSize.value}px`);
 
-// ── History (same pattern as claude-runner) ──
-const MAX_HISTORY = 50;
-const MAX_LOG_CHARS = 40_000;
-
-function loadHistory(): HistoryEntry[] {
-  try {
-    return JSON.parse(localStorage.getItem('pr-history') || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(entries: HistoryEntry[]) {
-  const slim = entries.slice(0, MAX_HISTORY).map((e) => ({
-    id: e.id,
-    timestamp: e.timestamp,
-    issues: e.issues,
-    results: e.results.map(
-      (r): RunResult => ({
-        issueKey: r.issueKey,
-        ...(r.prUrl ? { prUrl: r.prUrl } : {}),
-        ...(r.error === undefined
-          ? {}
-          : { error: r.error.slice(0, 300) || '執行失敗' }),
-      }),
-    ),
-    log: e.log ? e.log.slice(-MAX_LOG_CHARS) : undefined,
-  }));
-  try {
-    localStorage.setItem('pr-history', JSON.stringify(slim));
-  } catch {
-    try {
-      localStorage.setItem('pr-history', JSON.stringify(slim.slice(0, 5)));
-    } catch {}
-  }
-}
-
+// ── History (DB-based) ──
 const history = ref<HistoryEntry[]>([]);
-function addHistory(entry: HistoryEntry) {
-  history.value = [entry, ...history.value].slice(0, MAX_HISTORY);
-  saveHistory(history.value);
+
+async function loadHistory() {
+  try {
+    history.value = await $fetch<HistoryEntry[]>(
+      '/api/claude-runner/jobs?type=pr-runner',
+    );
+  } catch (error) {
+    console.error('Failed to load PR history:', error);
+  }
 }
-function clearHistory() {
+
+async function clearHistory() {
+  await $fetch('/api/claude-runner/jobs?type=pr-runner', { method: 'DELETE' });
   history.value = [];
-  localStorage.removeItem('pr-history');
 }
 
 // ── Runner ──
@@ -85,19 +56,14 @@ const {
   storageKey,
 } = useRunnerJob({
   storageKey: 'pr-active-jobId',
+  apiBase: '/api/claude-runner',
   phases: [
     { label: '拉取分支 & 分析 Review' },
     { label: '實作修復' },
     { label: 'Push commits' },
   ],
-  onComplete: (jobId, job) => {
-    addHistory({
-      id: jobId,
-      timestamp: job.startedAt,
-      issues: job.issues,
-      results: job.results,
-      log: job.output,
-    });
+  onComplete: () => {
+    loadHistory();
   },
 });
 
@@ -228,7 +194,7 @@ function getPrUrl(key: string): null | string {
 }
 
 onMounted(async () => {
-  history.value = loadHistory();
+  loadHistory();
   loadPRs();
   const savedJobId = localStorage.getItem(storageKey);
   if (savedJobId) {
