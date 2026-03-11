@@ -63,17 +63,10 @@ const mode = ref<'normal' | 'smart'>(
 );
 watch(mode, (v) => localStorage.setItem('cr-mode', v));
 
-// ── Jira URL ────────────────────────────────────────────
-const jiraBaseUrl = ref(
-  typeof localStorage === 'undefined'
-    ? ''
-    : localStorage.getItem('cr-jira-url') || '',
-);
-watch(jiraBaseUrl, (v) => localStorage.setItem('cr-jira-url', v.trim()));
-
-function jiraUrl(key: string) {
-  const base = jiraBaseUrl.value.replace(/\/$/, '');
-  return base ? `${base}/browse/${key}` : null;
+// ── Jira URL helper ──────────────────────────────────────
+function jiraUrl(key: string): string | null {
+  const found = issues.value.find((i) => i.key === key);
+  return found?.url ?? null;
 }
 
 // ════════════════════════════════════════════════════════
@@ -99,6 +92,7 @@ interface JiraIssue {
   summary: string;
   status: string;
   description?: string;
+  url?: string;
 }
 
 const crHistory = ref<HistoryEntry[]>([]);
@@ -500,26 +494,6 @@ onBeforeUnmount(() => {
               一般設定
             </div>
 
-            <!-- Jira URL -->
-            <div class="flex items-center gap-2">
-              <span class="w-20 shrink-0 text-xs text-gray-500">Jira URL</span>
-              <div
-                class="flex flex-1 items-center gap-1.5 rounded-lg bg-gray-800/60 px-2.5 py-1.5"
-              >
-                <UIcon
-                  name="i-lucide-link"
-                  class="shrink-0 text-gray-600"
-                  style="font-size: 0.85em"
-                />
-                <input
-                  v-model="jiraBaseUrl"
-                  class="w-full bg-transparent text-xs text-gray-400 placeholder-gray-700 outline-none"
-                  placeholder="https://xxx.atlassian.net"
-                  spellcheck="false"
-                />
-              </div>
-            </div>
-
             <!-- Mode -->
             <div class="flex items-center gap-2">
               <span class="w-20 shrink-0 text-xs text-gray-500">模式</span>
@@ -797,19 +771,19 @@ onBeforeUnmount(() => {
                 />
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <component
-                      :is="jiraUrl(issue.key) ? 'a' : 'span'"
-                      :href="jiraUrl(issue.key) ?? undefined"
+                    <a
+                      v-if="issue.url || jiraUrl(issue.key)"
+                      :href="issue.url || jiraUrl(issue.key)!"
                       target="_blank"
                       rel="noopener"
-                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
-                      :class="{
-                        'underline-offset-2 hover:underline': jiraUrl(
-                          issue.key,
-                        ),
-                      }"
+                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
                       @click.stop
-                      >{{ issue.key }}</component
+                      >{{ issue.key }}</a
+                    >
+                    <span
+                      v-else
+                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
+                      >{{ issue.key }}</span
                     >
                     <UBadge
                       :color="statusColor[issue.status] ?? 'neutral'"
