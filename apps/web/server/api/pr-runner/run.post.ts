@@ -106,6 +106,7 @@ export default defineEventHandler(async (event) => {
       key: `#${p.number}`,
       summary: `${p.repo} — ${p.title}`,
     })),
+    'pr-runner',
   );
 
   const env: NodeJS.ProcessEnv = {
@@ -271,7 +272,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    if (job.status !== 'cancelled') finishJob(job, results, false);
+    if (job.status !== 'cancelled') finishJob(job, results);
   })();
 
   return { jobId };

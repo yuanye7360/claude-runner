@@ -4,8 +4,10 @@ import prisma from '../../../utils/prisma';
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const limit = Math.min(Number(query.limit) || 50, 200);
+  const type = (query.type as string) || undefined;
 
   const jobs = await prisma.job.findMany({
+    where: type ? { type } : undefined,
     orderBy: { startedAt: 'desc' },
     take: limit,
     include: { issues: true, results: true },
@@ -13,6 +15,7 @@ export default defineEventHandler(async (event) => {
 
   return jobs.map((job) => ({
     id: job.id,
+    type: job.type,
     status: job.status,
     timestamp: Number(job.startedAt),
     durationSecs:

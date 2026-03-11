@@ -8,6 +8,7 @@ datasource db {
 
 model Job {
   id         String      @id
+  type       String      @default("claude-runner") // 'claude-runner' | 'pr-runner'
   status     String // 'done' | 'error' | 'cancelled'
   startedAt  BigInt
   finishedAt BigInt?

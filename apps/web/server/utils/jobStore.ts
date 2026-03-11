@@ -13,8 +13,11 @@ export type JobEvent =
   | { issueKey: string; label: string; phase: number; type: 'phase' }
   | { type: 'eof' };
 
+export type JobType = 'claude-runner' | 'pr-runner';
+
 export interface Job {
   id: string;
+  type: JobType;
   status: 'cancelled' | 'done' | 'error' | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
@@ -29,9 +32,11 @@ const jobs = new Map<string, Job>();
 export function createJob(
   id: string,
   issues: { key: string; summary: string }[],
+  type: JobType = 'claude-runner',
 ): Job {
   const job: Job = {
     id,
+    type,
     status: 'running',
     startedAt: Date.now(),
     issues,
@@ -86,6 +91,7 @@ async function persistJob(job: Job) {
   await prisma.job.create({
     data: {
       id: job.id,
+      type: job.type,
       status: job.status,
       startedAt: job.startedAt,
       finishedAt: BigInt(Date.now()),

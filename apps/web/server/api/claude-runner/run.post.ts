@@ -212,6 +212,7 @@ export default defineEventHandler(async (event) => {
   const job = createJob(
     jobId,
     issues.map((i) => ({ key: i.key ?? '', summary: i.summary ?? '' })),
+    'claude-runner',
   );
 
   const env: NodeJS.ProcessEnv = {
