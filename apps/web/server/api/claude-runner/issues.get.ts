@@ -19,7 +19,7 @@ export default defineEventHandler(async () => {
   const response = await $fetch<unknown>(N8N_ISSUES_URL);
   const issues: RawIssue[] = Array.isArray(response)
     ? response
-    : ((response as Record<string, unknown>).issues as RawIssue[] ?? []);
+    : (((response as Record<string, unknown>).issues as RawIssue[]) ?? []);
 
   return issues.map((issue) => ({
     ...issue,

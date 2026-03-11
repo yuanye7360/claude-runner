@@ -64,7 +64,7 @@ const mode = ref<'normal' | 'smart'>(
 watch(mode, (v) => localStorage.setItem('cr-mode', v));
 
 // ── Jira URL helper ──────────────────────────────────────
-function jiraUrl(key: string): string | null {
+function jiraUrl(key: string): null | string {
   const found = issues.value.find((i) => i.key === key);
   return found?.url ?? null;
 }
