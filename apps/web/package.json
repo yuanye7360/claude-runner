@@ -10,7 +10,7 @@
     "preview": "nuxt preview",
     "db:generate": "prisma db generate",
     "db:studio": "prisma db studio",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null; true",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit"
   },
@@ -22,6 +22,7 @@
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@tailwindcss/typography": "catalog:",
+    "node-pty": "^1.1.0",
     "nuxt": "catalog:",
     "pg": "^8.20.0",
     "vue": "catalog:",
