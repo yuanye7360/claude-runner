@@ -289,7 +289,7 @@ async function loadPRs() {
 
 // Check if a PR was created by the last Claude Runner run
 function isFromClaudeRunner(htmlUrl: string): boolean {
-  return crCreatedPrUrls.value.some((u) => u === htmlUrl);
+  return crCreatedPrUrls.value.includes(htmlUrl);
 }
 
 function getSelectedPRItems() {
@@ -348,9 +348,7 @@ const activeJobForPanel = computed(() =>
   activeRunner.value === 'claude' ? cr.activeJob.value : pr.activeJob.value,
 );
 const activeIsRunning = computed(() =>
-  activeRunner.value === 'claude'
-    ? cr.isRunning.value
-    : pr.isRunning.value,
+  activeRunner.value === 'claude' ? cr.isRunning.value : pr.isRunning.value,
 );
 const activeElapsed = computed(() =>
   activeRunner.value === 'claude' ? cr.elapsed.value : pr.elapsed.value,
@@ -361,15 +359,11 @@ const activeSuccessCount = computed(() =>
     : pr.successCount.value,
 );
 const activeErrorCount = computed(() =>
-  activeRunner.value === 'claude'
-    ? cr.errorCount.value
-    : pr.errorCount.value,
+  activeRunner.value === 'claude' ? cr.errorCount.value : pr.errorCount.value,
 );
 const activeRowExpanded = computed({
   get: () =>
-    activeRunner.value === 'claude'
-      ? crRowExpanded.value
-      : prRowExpanded.value,
+    activeRunner.value === 'claude' ? crRowExpanded.value : prRowExpanded.value,
   set: (v) => {
     if (activeRunner.value === 'claude') crRowExpanded.value = v;
     else prRowExpanded.value = v;
@@ -650,10 +644,7 @@ onBeforeUnmount(() => {
                 1
               </div>
               <span class="font-medium text-gray-200">修復 JIRA Issue</span>
-              <span
-                v-if="!crLoading && issues.length > 0"
-                class="text-muted"
-              >
+              <span v-if="!crLoading && issues.length > 0" class="text-muted">
                 {{ issues.length }} 個
               </span>
               <div class="ml-auto flex items-center gap-1">
@@ -822,9 +813,7 @@ onBeforeUnmount(() => {
                 "
                 class="text-muted"
               >
-                {{
-                  filteredGroups.reduce((a, g) => a + g.prs.length, 0)
-                }}
+                {{ filteredGroups.reduce((a, g) => a + g.prs.length, 0) }}
                 個
               </span>
               <div class="ml-auto flex items-center gap-1">
@@ -878,10 +867,7 @@ onBeforeUnmount(() => {
                 v-else-if="filteredGroups.length === 0"
                 class="p-6 text-center text-gray-600"
               >
-                <UIcon
-                  name="i-lucide-git-pull-request"
-                  class="mb-2 text-2xl"
-                />
+                <UIcon name="i-lucide-git-pull-request" class="mb-2 text-2xl" />
                 <p class="text-xs">沒有待處理的 PR</p>
               </div>
 
@@ -985,12 +971,10 @@ onBeforeUnmount(() => {
       <!-- ══════ Right: Detail Panel ══════ -->
       <div class="flex flex-1 flex-col overflow-hidden">
         <!-- Runner selector tabs + panel tabs -->
-        <div
-          class="flex shrink-0 items-center border-b border-gray-800 px-1"
-        >
+        <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
           <!-- Runner toggle -->
           <div
-            class="ml-2 mr-2 flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
+            class="mr-2 ml-2 flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
           >
             <button
               class="rounded-md px-3 py-1.5 text-xs transition-colors"

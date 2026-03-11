@@ -167,9 +167,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       const issuePhases = activeJob.value.phasesByIssue[issueKey];
       if (!issuePhases) return;
       applyPhase(issuePhases, phase);
-      const pi = issuePhases.find(
-        (ph) => ph.phase === phase,
-      );
+      const pi = issuePhases.find((ph) => ph.phase === phase);
       if (pi) pi.label = label;
     });
 
