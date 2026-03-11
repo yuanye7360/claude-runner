@@ -24,9 +24,12 @@
     "reinstall": "pnpm clean --del-lock && pnpm install",
     "prepare": "lefthook install",
     "lefthook:install": "lefthook install",
-    "lefthook:run": "lefthook run"
+    "lefthook:run": "lefthook run",
+    "changeset": "changeset",
+    "version-packages": "changeset version"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "@commitlint/cli": "catalog:",
     "@nuxtship/commitlint-config": "workspace:*",
     "@nuxtship/eslint-config": "workspace:*",
