@@ -1,0 +1,31 @@
+// apps/web/server/api/claude-runner/jobs/index.get.ts
+import prisma from '../../../utils/prisma';
+
+export default defineEventHandler(async (event) => {
+  const query = getQuery(event);
+  const limit = Math.min(Number(query.limit) || 50, 200);
+
+  const jobs = await prisma.job.findMany({
+    orderBy: { startedAt: 'desc' },
+    take: limit,
+    include: { issues: true, results: true },
+  });
+
+  return jobs.map((job) => ({
+    id: job.id,
+    status: job.status,
+    timestamp: Number(job.startedAt),
+    durationSecs:
+      job.finishedAt === null
+        ? undefined
+        : Math.floor((Number(job.finishedAt) - Number(job.startedAt)) / 1000),
+    issues: job.issues.map((i) => ({ key: i.key, summary: i.summary })),
+    results: job.results.map((r) => ({
+      issueKey: r.issueKey,
+      ...(r.output === null ? {} : { output: r.output }),
+      ...(r.error === null ? {} : { error: r.error }),
+      ...(r.prUrl === null ? {} : { prUrl: r.prUrl }),
+    })),
+    log: job.log || undefined,
+  }));
+});

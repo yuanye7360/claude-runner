@@ -74,7 +74,7 @@ export default defineNuxtConfig({
     compressPublicAssets: true,
     minify: true,
     externals: {
-      external: ['@prisma/client', '@prisma/adapter-pg'],
+      external: ['node-pty', '@prisma/client', '@prisma/adapter-pg'],
     },
   },
 
