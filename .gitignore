@@ -63,3 +63,7 @@ Thumbs.db
 .pm2
 *.log
 logs/
+
+#
+docs/
+.superpowers/
