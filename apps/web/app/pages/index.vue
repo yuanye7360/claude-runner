@@ -87,8 +87,8 @@ const activeFeature = ref<'jira' | 'pr'>(
 watch(activeFeature, (v) => localStorage.setItem('cr-active-feature', v));
 
 // Per-feature right panel tab
-const jiraRightTab = ref<'progress' | 'history'>('progress');
-const prRightTab = ref<'progress' | 'history'>('progress');
+const jiraRightTab = ref<'history' | 'progress'>('progress');
+const prRightTab = ref<'history' | 'progress'>('progress');
 
 // ════════════════════════════════════════════════════════
 // JIRA RUNNER (Stage 1)
@@ -413,7 +413,7 @@ onBeforeUnmount(() => {
           <!-- Active underline -->
           <span
             v-if="activeFeature === 'jira'"
-            class="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-blue-500"
+            class="absolute right-2 bottom-0 left-2 h-0.5 rounded-full bg-blue-500"
           ></span>
         </button>
 
@@ -436,7 +436,7 @@ onBeforeUnmount(() => {
           <!-- Active underline -->
           <span
             v-if="activeFeature === 'pr'"
-            class="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-green-500"
+            class="absolute right-2 bottom-0 left-2 h-0.5 rounded-full bg-green-500"
           ></span>
         </button>
       </div>
@@ -494,7 +494,9 @@ onBeforeUnmount(() => {
         <div class="grid grid-cols-2 gap-6">
           <!-- Left column: General settings -->
           <div class="space-y-3">
-            <div class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+            <div
+              class="text-xs font-medium tracking-wide text-gray-500 uppercase"
+            >
               一般設定
             </div>
 
@@ -575,7 +577,9 @@ onBeforeUnmount(() => {
 
           <!-- Right column: Repo management -->
           <div class="space-y-3">
-            <div class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+            <div
+              class="text-xs font-medium tracking-wide text-gray-500 uppercase"
+            >
               Repo 管理
             </div>
 
@@ -590,10 +594,7 @@ onBeforeUnmount(() => {
                     : 'bg-gray-800/40'
                 "
               >
-                <button
-                  class="flex-1 text-left"
-                  @click="selectedRepoId = c.id"
-                >
+                <button class="flex-1 text-left" @click="selectedRepoId = c.id">
                   <span class="text-sm font-medium text-gray-200">{{
                     c.name
                   }}</span>
@@ -848,9 +849,7 @@ onBeforeUnmount(() => {
         <!-- Right: JIRA detail panel -->
         <div class="flex flex-1 flex-col overflow-hidden">
           <!-- Tab bar -->
-          <div
-            class="flex shrink-0 items-center border-b border-gray-800 px-1"
-          >
+          <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
             <button
               class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
               :class="
@@ -1110,9 +1109,7 @@ onBeforeUnmount(() => {
         <!-- Right: PR detail panel -->
         <div class="flex flex-1 flex-col overflow-hidden">
           <!-- Tab bar -->
-          <div
-            class="flex shrink-0 items-center border-b border-gray-800 px-1"
-          >
+          <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
             <button
               class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
               :class="
