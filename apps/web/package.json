@@ -8,8 +8,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "db:generate": "prisma db generate",
-    "db:studio": "prisma db studio",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
     "postinstall": "nuxt prepare && chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null; true",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit"
@@ -35,6 +35,7 @@
     "@iconify-json/uil": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@types/pg": "^8.18.0",
+    "dotenv": "^17.3.1",
     "postcss": "catalog:",
     "prisma": "^7.4.2",
     "tailwindcss": "catalog:",
