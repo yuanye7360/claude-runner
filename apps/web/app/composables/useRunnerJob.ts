@@ -20,6 +20,7 @@ export interface ActiveJob {
   output: string;
   results: RunResult[];
   phases: PhaseInfo[];
+  phasesByIssue: Record<string, PhaseInfo[]>;
   currentIssueKey: string;
 }
 
@@ -34,6 +35,7 @@ export interface JobApiResponse {
 
 export interface HistoryEntry {
   id: string;
+  type?: string;
   timestamp: number;
   durationSecs?: number;
   issues: Array<{ key: string; summary: string }>;
@@ -42,6 +44,7 @@ export interface HistoryEntry {
 }
 
 interface UseRunnerJobOptions {
+  apiBase?: string;
   onComplete?: (jobId: string, job: ActiveJob) => void;
   phases?: { label: string }[];
   storageKey?: string;
@@ -49,6 +52,7 @@ interface UseRunnerJobOptions {
 
 export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   const storageKey = options.storageKey ?? 'cr-active-jobId';
+  const apiBase = options.apiBase ?? '/api/claude-runner';
 
   const activeJob = ref<ActiveJob | null>(null);
   const elapsed = ref('');
@@ -110,7 +114,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         (Date.now() - activeJob.value.startedAt) / 1000,
       );
     }
-    $fetch<JobApiResponse>(`/api/claude-runner/jobs/${jobId}`)
+    $fetch<JobApiResponse>(`${apiBase}/jobs/${jobId}`)
       .then((data) => {
         if (activeJob.value) {
           activeJob.value.status = data.status;
@@ -123,6 +127,9 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
             return prMatch ? { ...r, prUrl: prMatch[1] } : r;
           });
           for (const p of activeJob.value.phases) p.status = 'done';
+          for (const phases of Object.values(activeJob.value.phasesByIssue)) {
+            for (const p of phases) p.status = 'done';
+          }
           options.onComplete?.(jobId, activeJob.value);
         }
         localStorage.removeItem(storageKey);
@@ -135,7 +142,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
 
   function connectSSE(jobId: string) {
     if (sseSource) sseSource.close();
-    sseSource = new EventSource(`/api/claude-runner/jobs/${jobId}/stream`);
+    sseSource = new EventSource(`${apiBase}/jobs/${jobId}/stream`);
 
     sseSource.addEventListener('message', (e) => {
       if (activeJob.value) activeJob.value.output += `${e.data}\n`;
@@ -149,9 +156,21 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         phase: number;
       };
       activeJob.value.currentIssueKey = issueKey;
+      // Update global phases
       applyPhase(activeJob.value.phases, phase);
       const p = activeJob.value.phases.find((ph) => ph.phase === phase);
       if (p) p.label = label;
+      // Update per-issue phases
+      if (!activeJob.value.phasesByIssue[issueKey]) {
+        activeJob.value.phasesByIssue[issueKey] = buildPhaseList();
+      }
+      const issuePhases = activeJob.value.phasesByIssue[issueKey];
+      if (!issuePhases) return;
+      applyPhase(issuePhases, phase);
+      const pi = issuePhases.find(
+        (ph) => ph.phase === phase,
+      );
+      if (pi) pi.label = label;
     });
 
     sseSource.addEventListener('eof', () => {
@@ -167,7 +186,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   async function cancelJob() {
     if (!activeJob.value || activeJob.value.status !== 'running') return;
     try {
-      await $fetch(`/api/claude-runner/jobs/${activeJob.value.id}`, {
+      await $fetch(`${apiBase}/jobs/${activeJob.value.id}`, {
         // @ts-expect-error: DELETE method not in generated nitro types for this route
         method: 'DELETE' as const,
       });
@@ -181,6 +200,10 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   }
 
   function startJob(jobId: string, issues: { key: string; summary: string }[]) {
+    const phasesByIssue: Record<string, PhaseInfo[]> = {};
+    for (const issue of issues) {
+      phasesByIssue[issue.key] = buildPhaseList();
+    }
     activeJob.value = {
       id: jobId,
       status: 'running',
@@ -189,6 +212,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       output: '',
       results: [],
       phases: buildPhaseList(),
+      phasesByIssue,
       currentIssueKey: issues[0]?.key ?? '',
     };
     localStorage.setItem(storageKey, jobId);
@@ -198,7 +222,11 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
 
   async function restoreJob(jobId: string) {
     try {
-      const data = await $fetch<ActiveJob>(`/api/claude-runner/jobs/${jobId}`);
+      const data = await $fetch<ActiveJob>(`${apiBase}/jobs/${jobId}`);
+      const phasesByIssue: Record<string, PhaseInfo[]> = {};
+      for (const issue of data.issues) {
+        phasesByIssue[issue.key] = buildPhaseList();
+      }
       activeJob.value = {
         id: data.id,
         status: data.status,
@@ -207,6 +235,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         output: data.output,
         results: data.results,
         phases: buildPhaseList(),
+        phasesByIssue,
         currentIssueKey: data.issues[0]?.key ?? '',
       };
       if (data.status === 'running') {
