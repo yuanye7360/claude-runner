@@ -1,0 +1,49 @@
+{
+  "name": "@nuxtship/eslint-config",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "stub": "pnpm unbuild --stub"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "dependencies": {
+    "eslint-config-turbo": "^2.6.1",
+    "eslint-plugin-command": "^3.3.1",
+    "eslint-plugin-import-x": "^4.16.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/eslint": "^9.6.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "eslint": "^9.39.1",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-jsdoc": "^61.2.1",
+    "eslint-plugin-jsonc": "^2.21.0",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "eslint-plugin-perfectionist": "^4.15.1",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-regexp": "^2.10.0",
+    "eslint-plugin-unicorn": "^62.0.0",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "eslint-plugin-vitest": "^0.5.4",
+    "eslint-plugin-vue": "^10.5.1",
+    "globals": "^16.3.0",
+    "jsonc-eslint-parser": "^2.4.1",
+    "vue-eslint-parser": "^10.2.0"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "folders": [
+    {
+      "name": "web",
+      "path": "apps/web",
+    },
+    {
+      "name": "@nuxtship/commitlint-config",
+      "path": "internal/lint-configs/commitlint-config",
+    },
+    {
+      "name": "@nuxtship/eslint-config",
+      "path": "internal/lint-configs/eslint-config",
+    },
+    {
+      "name": "@nuxtship/prettier-config",
+      "path": "internal/lint-configs/prettier-config",
+    },
+    {
+      "name": "@nuxtship/stylelint-config",
+      "path": "internal/lint-configs/stylelint-config",
+    },
+    {
+      "name": "@nuxtship/node-utils",
+      "path": "internal/node-utils",
+    },
+    {
+      "name": "@nuxtship/tsconfig",
+      "path": "internal/tsconfig",
+    },
+    {
+      "name": "@nuxtship/turbo-run",
+      "path": "scripts/turbo-run",
+    },
+    {
+      "name": "@nuxtship/vsh",
+      "path": "scripts/vsh",
+    },
+  ],
+}

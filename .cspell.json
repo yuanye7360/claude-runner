@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "ACMR",
+    "commitlint",
+    "disableds",
+    "embla",
+    "ependencies",
+    "iconoir",
+    "lefthook",
+    "manypkg",
+    "nonwords",
+    "nuxtjs",
+    "nuxtship",
+    "pkglintcache",
+    "prerender",
+    "Sectionhead",
+    "Turborepo",
+    "yeyuan"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/.nuxt/**",
+    "**/.output/**",
+    "**/pnpm-lock.yaml",
+    "**/package-lock.json",
+    "**/yarn.lock"
+  ],
+  "overrides": [
+    {
+      "filename": "**/*.d.ts",
+      "ignoreWords": ["nuxtship"]
+    }
+  ]
+}

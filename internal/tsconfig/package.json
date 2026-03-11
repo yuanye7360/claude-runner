@@ -1,0 +1,19 @@
+{
+  "name": "@nuxtship/tsconfig",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "nuxt prepare"
+  },
+  "files": [
+    "base.json",
+    "library.json",
+    "node.json",
+    "web.json"
+  ],
+  "dependencies": {
+    "nuxt": "^4.0.0",
+    "vite": "^7.3.1"
+  }
+}

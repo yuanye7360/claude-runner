@@ -1,0 +1,90 @@
+{
+  "name": "nuxtship-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo-run dev",
+    "dev:clean": "pnpm clean && pnpm install && pnpm dev",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 turbo build",
+    "build:web": "pnpm -F web build",
+    "check": "pnpm run check:circular && pnpm run check:dep && pnpm run check:type && pnpm check:cspell",
+    "check:all": "pnpm check && pnpm lint",
+    "check:circular": "vsh check-circular",
+    "check:cspell": "cspell lint **/*.ts **/*.md --no-progress",
+    "check:dep": "vsh check-dep",
+    "check:type": "turbo run typecheck",
+    "clean": "node ./scripts/clean.mjs",
+    "format": "vsh lint --format",
+    "lint": "vsh lint",
+    "prepare:dev": "pnpm install && pnpm -r run stub --if-present",
+    "postinstall": "pnpm -r run stub --if-present && lefthook install",
+    "preinstall": "npx only-allow pnpm",
+    "publint": "vsh publint",
+    "reinstall": "pnpm clean --del-lock && pnpm install",
+    "prepare": "lefthook install",
+    "lefthook:install": "lefthook install",
+    "lefthook:run": "lefthook run"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "catalog:",
+    "@nuxtship/commitlint-config": "workspace:*",
+    "@nuxtship/eslint-config": "workspace:*",
+    "@nuxtship/prettier-config": "workspace:*",
+    "@nuxtship/stylelint-config": "workspace:*",
+    "@nuxtship/tsconfig": "workspace:*",
+    "@nuxtship/turbo-run": "workspace:*",
+    "@nuxtship/vsh": "workspace:*",
+    "@types/node": "^25.0.9",
+    "cross-env": "^7.0.3",
+    "cspell": "^8.19.4",
+    "eslint": "^9.39.0",
+    "lefthook": "^1.13.6",
+    "prettier": "catalog:",
+    "prettier-plugin-tailwindcss": "catalog:",
+    "stylelint": "^16.21.0",
+    "turbo": "^2.6.1",
+    "unbuild": "^3.3.1",
+    "vue-tsc": "catalog:"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint": "*"
+      }
+    },
+    "overrides": {
+      "@ast-grep/napi": "catalog:",
+      "@ctrl/tinycolor": "catalog:",
+      "@iconify-json/bx": "catalog:",
+      "@iconify-json/heroicons": "catalog:",
+      "@iconify-json/simple-icons": "catalog:",
+      "@iconify-json/uil": "catalog:",
+      "@nuxt/image": "catalog:",
+      "@nuxt/ui": "catalog:",
+      "@nuxtjs/i18n": "catalog:",
+      "@tailwindcss/postcss": "catalog:",
+      "@tailwindcss/typography": "catalog:",
+      "cac": "catalog:",
+      "clsx": "catalog:",
+      "esbuild": "catalog:",
+      "jiti": "catalog:",
+      "nuxt": "catalog:",
+      "postcss": "catalog:",
+      "prettier": "catalog:",
+      "tailwindcss": "catalog:",
+      "vue": "catalog:",
+      "vue-router": "catalog:",
+      "vue-tsc": "catalog:"
+    },
+    "neverBuiltDependencies": [
+      "canvas",
+      "node-gyp"
+    ]
+  }
+}

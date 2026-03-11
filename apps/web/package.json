@@ -1,0 +1,35 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build --dotenv .env.production",
+    "build:test": "nuxt build --dotenv .env.test",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@nuxt/fonts": "^0.12.1",
+    "@nuxt/image": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@nuxtjs/i18n": "catalog:",
+    "@tailwindcss/typography": "catalog:",
+    "nuxt": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  },
+  "devDependencies": {
+    "@iconify-json/bx": "catalog:",
+    "@iconify-json/heroicons": "catalog:",
+    "@iconify-json/simple-icons": "catalog:",
+    "@iconify-json/uil": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "postcss": "catalog:",
+    "tailwindcss": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

@@ -1,0 +1,50 @@
+packages:
+  - internal/*
+  - internal/lint-configs/*
+  - apps/*
+  - scripts/*
+
+catalog:
+  # Build tools
+  '@ast-grep/napi': ^0.39.9
+  '@ctrl/tinycolor': ^4.1.0
+  'clsx': ^2.1.1
+  'esbuild': ^0.25.3
+  'jiti': ^2.6.1
+  'unbuild': ^3.3.1
+
+  # Vue ecosystem
+  'vue': ^3.4.3
+  'vue-router': ^4.2.5
+  'vue-tsc': ^3.2.2
+
+  # Nuxt ecosystem
+  'nuxt': ^4.0.0
+  '@nuxt/image': ^2.0.0
+  '@nuxt/ui': ^4.0.0
+  '@nuxtjs/i18n': ^9.0.0
+
+  # Tailwind CSS
+  'tailwindcss': ^4.0.0
+  '@tailwindcss/postcss': ^4.0.0
+  '@tailwindcss/typography': ^0.5.15
+  'postcss': ^8.4.32
+
+  # Iconify
+  '@iconify-json/bx': ^1.2.2
+  '@iconify-json/heroicons': ^1.2.3
+  '@iconify-json/simple-icons': ^1.2.66
+  '@iconify-json/uil': ^1.2.3
+
+  # CLI tools
+  # Note: @clack/prompts is managed by Nuxt CLI, not in catalog to avoid conflicts
+  'cac': ^6.7.14
+
+  # Code quality
+  'prettier': ^3.8.0
+  'prettier-plugin-tailwindcss': ^0.7.1
+  'eslint': ^9.39.0
+  'typescript': ^5.7.2
+
+  # Commitlint
+  '@commitlint/cli': ^19.8.1
