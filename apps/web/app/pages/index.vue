@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import type { HistoryEntry, RunResult } from '~/composables/useRunnerJob';
+import type { HistoryEntry } from '~/composables/useRunnerJob';
 import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
 
-useHead({ title: 'Claude Runner' });
+useHead({ title: 'Claude Runner — Pipeline' });
 
-// ── Active tab ──────────────────────────────────────────────
-const activeTab = ref<'claude' | 'pr'>(
+// ── Font size ───────────────────────────────────────────
+const FONT_SIZES = [
+  { label: '小', value: 14 },
+  { label: '中', value: 16 },
+  { label: '大', value: 18 },
+] as const;
+
+const fontSize = ref(
   typeof localStorage === 'undefined'
-    ? 'claude'
-    : (localStorage.getItem('home-active-tab') as 'claude' | 'pr') || 'claude',
+    ? 16
+    : Number(localStorage.getItem('cr-font-size') || 16),
 );
-watch(activeTab, (v) => localStorage.setItem('home-active-tab', v));
+watch(fontSize, (v) => localStorage.setItem('cr-font-size', String(v)));
+const rootFontSize = computed(() => `${fontSize.value}px`);
 
-// ── Shared: repo configs ────────────────────────────────────
+// ── Repo configs ────────────────────────────────────────
 const {
   repoConfigs,
   editingConfig,
@@ -26,9 +33,58 @@ const {
   deleteConfig: _deleteConfig,
 } = useRepoConfigs();
 
-// ════════════════════════════════════════════════════════════
-// CLAUDE RUNNER
-// ════════════════════════════════════════════════════════════
+const selectedRepoId = ref<string>(
+  typeof localStorage === 'undefined'
+    ? ''
+    : (localStorage.getItem('cr-selected-repo') ?? ''),
+);
+watch(selectedRepoId, (v) => localStorage.setItem('cr-selected-repo', v));
+
+const selectedRepo = computed(
+  () => repoConfigs.value.find((c) => c.id === selectedRepoId.value) ?? null,
+);
+const showRepoSettings = ref(false);
+
+function saveConfig() {
+  const isNew = !editingConfig.value?.id;
+  const entry = _saveConfig();
+  if (entry && isNew) selectedRepoId.value = entry.id;
+}
+function deleteRepoConfig(id: string) {
+  _deleteConfig(id);
+  if (selectedRepoId.value === id) selectedRepoId.value = '';
+}
+
+// ── Mode ────────────────────────────────────────────────
+const mode = ref<'normal' | 'smart'>(
+  typeof localStorage === 'undefined'
+    ? 'smart'
+    : (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart',
+);
+watch(mode, (v) => localStorage.setItem('cr-mode', v));
+
+// ── Jira URL ────────────────────────────────────────────
+const jiraBaseUrl = ref(
+  typeof localStorage === 'undefined'
+    ? ''
+    : localStorage.getItem('cr-jira-url') || '',
+);
+watch(jiraBaseUrl, (v) => localStorage.setItem('cr-jira-url', v.trim()));
+
+function jiraUrl(key: string) {
+  const base = jiraBaseUrl.value.replace(/\/$/, '');
+  return base ? `${base}/browse/${key}` : null;
+}
+
+// ════════════════════════════════════════════════════════
+// RIGHT PANEL STATE
+// ════════════════════════════════════════════════════════
+const rightTab = ref<'history' | 'progress' | 'result'>('result');
+const activeRunner = ref<'claude' | 'pr'>('claude');
+
+// ════════════════════════════════════════════════════════
+// STAGE 1: CLAUDE RUNNER
+// ════════════════════════════════════════════════════════
 
 interface JiraIssue {
   key: string;
@@ -37,56 +93,51 @@ interface JiraIssue {
   description?: string;
 }
 
-const FONT_SIZES = [
-  { label: '小', value: 14 },
-  { label: '中', value: 16 },
-  { label: '大', value: 18 },
-] as const;
-
-const crFontSize = ref(16);
-watch(crFontSize, (v) => localStorage.setItem('cr-font-size', String(v)));
-const crRootFontSize = computed(() => `${crFontSize.value}px`);
-
-const crSelectedRepoId = ref<string>('');
-watch(crSelectedRepoId, (v) => localStorage.setItem('cr-selected-repo', v));
-const crSelectedRepo = computed(
-  () => repoConfigs.value.find((c) => c.id === crSelectedRepoId.value) ?? null,
-);
-const crShowRepoSettings = ref(false);
-
-const crMode = ref<'normal' | 'smart'>('smart');
-watch(crMode, (v) => localStorage.setItem('cr-mode', v));
-
-const jiraBaseUrl = ref('');
-watch(jiraBaseUrl, (v) => localStorage.setItem('cr-jira-url', v.trim()));
-
-function jiraUrl(key: string) {
-  const base = jiraBaseUrl.value.replace(/\/$/, '');
-  return base ? `${base}/browse/${key}` : null;
-}
-
 const crHistory = ref<HistoryEntry[]>([]);
+const crRowExpanded = ref(false);
+
+// PRs created by last Claude Runner run (for auto-chain)
+const crCreatedPrUrls = ref<string[]>([]);
+
+const cr = useRunnerJob({
+  storageKey: 'cr-active-jobId',
+  apiBase: '/api/claude-runner',
+  onComplete: (_jobId, job) => {
+    loadCrHistory();
+    // Extract PR URLs from results for auto-chain
+    const prUrls = job.results
+      .map((r) => r.prUrl)
+      .filter((u): u is string => !!u);
+    if (prUrls.length > 0) {
+      crCreatedPrUrls.value = prUrls;
+      // Auto-refresh PR list to show newly created PRs
+      loadPRs();
+    }
+  },
+});
 
 async function loadCrHistory() {
   try {
-    const data = await $fetch<HistoryEntry[]>('/api/claude-runner/jobs');
-    crHistory.value = data;
+    crHistory.value = await $fetch<HistoryEntry[]>(
+      '/api/claude-runner/jobs?type=claude-runner',
+    );
   } catch (error) {
     console.error('Failed to load CR history:', error);
   }
 }
 
 async function clearCrHistory() {
-  await $fetch('/api/claude-runner/jobs', { method: 'DELETE' });
+  await $fetch('/api/claude-runner/jobs?type=claude-runner', {
+    method: 'DELETE',
+  });
   crHistory.value = [];
 }
 
+// ── Jira Issues ──
 const issues = ref<JiraIssue[]>([]);
 const crSelected = ref<Set<string>>(new Set());
 const crLoading = ref(true);
 const crLoadError = ref('');
-const crRightTab = ref<'history' | 'progress' | 'result'>('result');
-const crRowExpanded = ref(false);
 
 const crSelectedCount = computed(() => crSelected.value.size);
 const crAllChecked = computed(
@@ -97,33 +148,6 @@ const crIndeterminate = computed(
   () =>
     crSelected.value.size > 0 && crSelected.value.size < issues.value.length,
 );
-
-const {
-  activeJob: crActiveJob,
-  elapsed: crElapsed,
-  isRunning: crIsRunning,
-  successCount: crSuccessCount,
-  errorCount: crErrorCount,
-  startJob: crStartJob,
-  restoreJob: crRestoreJob,
-  cancelJob: crCancelJob,
-  cleanup: crCleanup,
-  storageKey: crJobStorageKey,
-} = useRunnerJob({
-  storageKey: 'cr-active-jobId',
-  onComplete: () => loadCrHistory(),
-});
-
-function crSaveConfig() {
-  const isNew = !editingConfig.value?.id;
-  const entry = _saveConfig();
-  if (entry && isNew) crSelectedRepoId.value = entry.id;
-}
-
-function crDeleteConfig(id: string) {
-  _deleteConfig(id);
-  if (crSelectedRepoId.value === id) crSelectedRepoId.value = '';
-}
 
 async function loadIssues() {
   crLoading.value = true;
@@ -139,24 +163,25 @@ async function loadIssues() {
 }
 
 function toggleIssue(key: string) {
-  if (crIsRunning.value) return;
+  if (cr.isRunning.value) return;
   const next = new Set(crSelected.value);
   next.has(key) ? next.delete(key) : next.add(key);
   crSelected.value = next;
 }
 
 function toggleAllIssues() {
-  if (crIsRunning.value) return;
+  if (cr.isRunning.value) return;
   crSelected.value =
     crSelected.value.size === issues.value.length
       ? new Set()
       : new Set(issues.value.map((i) => i.key));
 }
 
-async function crRunSelected() {
+async function runClaude() {
   const picked = issues.value.filter((i) => crSelected.value.has(i.key));
-  if (picked.length === 0 || crIsRunning.value) return;
-  crRightTab.value = 'progress';
+  if (picked.length === 0 || cr.isRunning.value) return;
+  activeRunner.value = 'claude';
+  rightTab.value = 'progress';
   try {
     const { jobId } = await $fetch<{ jobId: string }>(
       '/api/claude-runner/run',
@@ -164,197 +189,90 @@ async function crRunSelected() {
         method: 'POST',
         body: {
           issues: picked,
-          repoConfig: crSelectedRepo.value
-            ? { cwd: crSelectedRepo.value.cwd }
+          repoConfig: selectedRepo.value
+            ? { cwd: selectedRepo.value.cwd }
             : undefined,
-          mode: crMode.value,
+          mode: mode.value,
         },
       },
     );
     crRowExpanded.value = true;
-    crStartJob(
+    cr.startJob(
       jobId,
       picked.map((i) => ({ key: i.key, summary: i.summary })),
     );
   } catch (error) {
-    console.error('Failed to start CR job:', error);
+    console.error('Failed to start Claude Runner:', error);
   }
 }
 
-const crStatusColor: Record<string, 'info' | 'neutral' | 'success'> = {
+const statusColor: Record<string, 'info' | 'neutral' | 'success'> = {
   'To Do': 'neutral',
   'In Progress': 'info',
   Done: 'success',
 };
 
-interface DescAnalysis {
-  time: null | string;
-  type: null | string;
-  files: null | number;
-}
-
-function parseDescription(desc?: string): DescAnalysis {
-  if (!desc) return { time: null, type: null, files: null };
-  const timeMatch = /預估工時[：:]\s*\*{0,2}(\d+\s*[mh分鐘小時]+)\*{0,2}/i.exec(
-    desc,
-  );
-  const typeMap: [RegExp, string][] = [
-    [/hotfix/i, 'hotfix'],
-    [/bug\s*fix|修復|修 bug/i, 'bug fix'],
-    [/重構|refactor/i, 'refactor'],
-    [/小型/, '小型'],
-    [/中型/, '中型'],
-    [/大型/, '大型'],
-    [/feature|功能/i, 'feature'],
-  ];
-  const typeLabel = typeMap.find(([re]) => re.test(desc))?.[1] ?? null;
-  const filesMatch = /(\d+)\s*[^\d。，,\n]{0,20}檔案/.exec(desc);
-  return {
-    time: timeMatch?.[1]?.trim() ?? null,
-    type: typeLabel,
-    files: filesMatch?.[1] ? Number(filesMatch[1]) : null,
-  };
-}
-
-const issuesWithAnalysis = computed(() =>
-  issues.value.map((i) => ({
-    ...i,
-    _analysis: parseDescription(i.description),
-  })),
-);
-
-// ════════════════════════════════════════════════════════════
-// PR RUNNER
-// ════════════════════════════════════════════════════════════
-
-const PR_MAX_HISTORY = 50;
-const PR_MAX_LOG_CHARS = 40_000;
-
-function prLoadHistory(): HistoryEntry[] {
-  try {
-    return JSON.parse(localStorage.getItem('pr-history') || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function prSaveHistory(entries: HistoryEntry[]) {
-  const slim = entries.slice(0, PR_MAX_HISTORY).map((e) => ({
-    id: e.id,
-    timestamp: e.timestamp,
-    durationSecs: e.durationSecs,
-    issues: e.issues,
-    results: e.results.map(
-      (r): RunResult => ({
-        issueKey: r.issueKey,
-        ...(r.prUrl ? { prUrl: r.prUrl } : {}),
-        ...(r.error === undefined
-          ? {}
-          : { error: r.error.slice(0, 300) || '執行失敗' }),
-      }),
-    ),
-    log: e.log ? e.log.slice(-PR_MAX_LOG_CHARS) : undefined,
-  }));
-  try {
-    localStorage.setItem('pr-history', JSON.stringify(slim));
-  } catch {
-    try {
-      localStorage.setItem('pr-history', JSON.stringify(slim.slice(0, 5)));
-    } catch {}
-  }
-}
+// ════════════════════════════════════════════════════════
+// STAGE 2: PR RUNNER
+// ════════════════════════════════════════════════════════
 
 const prHistory = ref<HistoryEntry[]>([]);
-
-function prAddHistory(entry: HistoryEntry) {
-  prHistory.value = [entry, ...prHistory.value].slice(0, PR_MAX_HISTORY);
-  prSaveHistory(prHistory.value);
-}
-
-function prClearHistory() {
-  prHistory.value = [];
-  localStorage.removeItem('pr-history');
-}
-
-const prFontSize = ref(16);
-watch(prFontSize, (v) => localStorage.setItem('pr-font-size', String(v)));
-const prRootFontSize = computed(() => `${prFontSize.value}px`);
-
-const prSelectedRepoId = ref<string>('');
-watch(prSelectedRepoId, (v) => localStorage.setItem('pr-selected-repo', v));
-const prSelectedRepo = computed(
-  () => repoConfigs.value.find((c) => c.id === prSelectedRepoId.value) ?? null,
-);
-const prShowRepoSettings = ref(false);
-
-const repoGroups = ref<PrsByRepo[]>([]);
-const prSelected = ref<Set<string>>(new Set());
-const prLoading = ref(true);
-const prLoadError = ref('');
-const prRightTab = ref<'history' | 'progress' | 'result'>('result');
 const prRowExpanded = ref(false);
 
-const prFilteredGroups = computed(() => {
-  if (!prSelectedRepo.value?.githubRepo) return repoGroups.value;
-  return repoGroups.value.filter(
-    (g) => g.repo === prSelectedRepo.value?.githubRepo,
-  );
-});
-
-const prSelectedCount = computed(() => prSelected.value.size);
-
-const {
-  activeJob: prActiveJob,
-  elapsed: prElapsed,
-  isRunning: prIsRunning,
-  successCount: prSuccessCount,
-  errorCount: prErrorCount,
-  startJob: prStartJob,
-  restoreJob: prRestoreJob,
-  cancelJob: prCancelJob,
-  cleanup: prCleanup,
-  storageKey: prJobStorageKey,
-} = useRunnerJob({
+const pr = useRunnerJob({
   storageKey: 'pr-active-jobId',
+  apiBase: '/api/claude-runner',
   phases: [
     { label: '拉取分支 & 分析 Review' },
     { label: '實作修復' },
     { label: 'Push commits' },
   ],
-  onComplete: (jobId, job) => {
-    prAddHistory({
-      id: jobId,
-      timestamp: job.startedAt,
-      durationSecs: job.durationSecs,
-      issues: job.issues,
-      results: job.results,
-      log: job.output,
-    });
+  onComplete: () => {
+    loadPrHistory();
   },
 });
 
-function prSaveConfig() {
-  const isNew = !editingConfig.value?.id;
-  const entry = _saveConfig();
-  if (entry && isNew) prSelectedRepoId.value = entry.id;
+async function loadPrHistory() {
+  try {
+    prHistory.value = await $fetch<HistoryEntry[]>(
+      '/api/claude-runner/jobs?type=pr-runner',
+    );
+  } catch (error) {
+    console.error('Failed to load PR history:', error);
+  }
 }
 
-function prDeleteConfig(id: string) {
-  _deleteConfig(id);
-  if (prSelectedRepoId.value === id) prSelectedRepoId.value = '';
+async function clearPrHistory() {
+  await $fetch('/api/claude-runner/jobs?type=pr-runner', { method: 'DELETE' });
+  prHistory.value = [];
 }
+
+// ── PR Data ──
+const repoGroups = ref<PrsByRepo[]>([]);
+const prSelected = ref<Set<string>>(new Set());
+const prLoading = ref(true);
+const prLoadError = ref('');
+
+const filteredGroups = computed(() => {
+  if (!selectedRepo.value?.githubRepo) return repoGroups.value;
+  return repoGroups.value.filter(
+    (g) => g.repo === selectedRepo.value?.githubRepo,
+  );
+});
 
 function prKey(repo: string, number: number) {
   return `${repo}#${number}`;
 }
 
 function togglePR(repo: string, number: number) {
-  if (prIsRunning.value) return;
+  if (pr.isRunning.value) return;
   const key = prKey(repo, number);
   const next = new Set(prSelected.value);
   next.has(key) ? next.delete(key) : next.add(key);
   prSelected.value = next;
 }
+
+const prSelectedCount = computed(() => prSelected.value.size);
 
 async function loadPRs() {
   prLoading.value = true;
@@ -369,374 +287,296 @@ async function loadPRs() {
   }
 }
 
+// Check if a PR was created by the last Claude Runner run
+function isFromClaudeRunner(htmlUrl: string): boolean {
+  return crCreatedPrUrls.value.some((u) => u === htmlUrl);
+}
+
 function getSelectedPRItems() {
-  return prFilteredGroups.value.flatMap((g) =>
+  return filteredGroups.value.flatMap((g) =>
     g.prs
-      .filter((pr) => prSelected.value.has(prKey(g.repo, pr.number)))
-      .map((pr) => ({
-        number: pr.number,
-        title: pr.title,
+      .filter((p_) => prSelected.value.has(prKey(g.repo, p_.number)))
+      .map((p_) => ({
+        number: p_.number,
+        title: p_.title,
         repo: g.repo,
-        branch: pr.head.ref,
-        html_url: pr.html_url,
+        branch: p_.head.ref,
+        html_url: p_.html_url,
       })),
   );
 }
 
-async function prRunSelected() {
+async function runPR() {
   const prs = getSelectedPRItems();
-  if (prs.length === 0 || prIsRunning.value) return;
-  prRightTab.value = 'progress';
+  if (prs.length === 0 || pr.isRunning.value) return;
+  activeRunner.value = 'pr';
+  rightTab.value = 'progress';
   try {
     const { jobId } = await $fetch<{ jobId: string }>('/api/pr-runner/run', {
       method: 'POST',
       body: {
         prs,
-        repoConfig: prSelectedRepo.value
-          ? { cwd: prSelectedRepo.value.cwd }
+        repoConfig: selectedRepo.value
+          ? { cwd: selectedRepo.value.cwd }
           : undefined,
       },
     });
     prRowExpanded.value = true;
-    prStartJob(
+    pr.startJob(
       jobId,
-      prs.map((p) => ({
-        key: `#${p.number}`,
-        summary: `${p.repo} — ${p.title}`,
+      prs.map((p_) => ({
+        key: `#${p_.number}`,
+        summary: `${p_.repo} — ${p_.title}`,
       })),
     );
   } catch (error) {
-    console.error('Failed to start PR job:', error);
+    console.error('Failed to start PR Runner:', error);
   }
 }
 
 function getPrUrl(key: string): null | string {
   const num = Number(key.replace('#', ''));
-  for (const group of prFilteredGroups.value) {
-    const pr = group.prs.find((p) => p.number === num);
-    if (pr) return pr.html_url;
+  for (const group of filteredGroups.value) {
+    const p_ = group.prs.find((p) => p.number === num);
+    if (p_) return p_.html_url;
   }
   return null;
 }
 
-// ── Lifecycle ───────────────────────────────────────────────
+// ── Computed: active runner state ──
+const activeJobForPanel = computed(() =>
+  activeRunner.value === 'claude' ? cr.activeJob.value : pr.activeJob.value,
+);
+const activeIsRunning = computed(() =>
+  activeRunner.value === 'claude'
+    ? cr.isRunning.value
+    : pr.isRunning.value,
+);
+const activeElapsed = computed(() =>
+  activeRunner.value === 'claude' ? cr.elapsed.value : pr.elapsed.value,
+);
+const activeSuccessCount = computed(() =>
+  activeRunner.value === 'claude'
+    ? cr.successCount.value
+    : pr.successCount.value,
+);
+const activeErrorCount = computed(() =>
+  activeRunner.value === 'claude'
+    ? cr.errorCount.value
+    : pr.errorCount.value,
+);
+const activeRowExpanded = computed({
+  get: () =>
+    activeRunner.value === 'claude'
+      ? crRowExpanded.value
+      : prRowExpanded.value,
+  set: (v) => {
+    if (activeRunner.value === 'claude') crRowExpanded.value = v;
+    else prRowExpanded.value = v;
+  },
+});
+const activeHistory = computed(() =>
+  activeRunner.value === 'claude' ? crHistory.value : prHistory.value,
+);
+const activeGetItemUrl = computed(() =>
+  activeRunner.value === 'claude' ? jiraUrl : getPrUrl,
+);
+
+function activeCancelJob() {
+  if (activeRunner.value === 'claude') cr.cancelJob();
+  else pr.cancelJob();
+}
+function activeClearHistory() {
+  if (activeRunner.value === 'claude') clearCrHistory();
+  else clearPrHistory();
+}
+
+// ── Lifecycle ──
 onMounted(async () => {
-  // Init from localStorage
-  crFontSize.value = Number(localStorage.getItem('cr-font-size') || 16);
-  crSelectedRepoId.value = localStorage.getItem('cr-selected-repo') ?? '';
-  crMode.value =
-    (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart';
-  jiraBaseUrl.value = localStorage.getItem('cr-jira-url') || '';
-
-  prFontSize.value = Number(localStorage.getItem('pr-font-size') || 16);
-  prSelectedRepoId.value = localStorage.getItem('pr-selected-repo') ?? '';
-
-  prHistory.value = prLoadHistory();
-
-  // Load data
   loadCrHistory();
+  loadPrHistory();
   loadIssues();
   loadPRs();
-
-  // Restore active jobs
-  const crSavedJobId = localStorage.getItem(crJobStorageKey);
-  if (crSavedJobId) {
-    await crRestoreJob(crSavedJobId);
-    if (crActiveJob.value) crRowExpanded.value = true;
+  // Restore Claude Runner job
+  const crJobId = localStorage.getItem(cr.storageKey);
+  if (crJobId) {
+    await cr.restoreJob(crJobId);
+    if (cr.activeJob.value) {
+      activeRunner.value = 'claude';
+      crRowExpanded.value = true;
+    }
   }
-
-  const prSavedJobId = localStorage.getItem(prJobStorageKey);
-  if (prSavedJobId) {
-    await prRestoreJob(prSavedJobId);
-    if (prActiveJob.value) prRowExpanded.value = true;
+  // Restore PR Runner job
+  const prJobId = localStorage.getItem(pr.storageKey);
+  if (prJobId) {
+    await pr.restoreJob(prJobId);
+    if (pr.activeJob.value) {
+      activeRunner.value = 'pr';
+      prRowExpanded.value = true;
+    }
   }
 });
 
 onBeforeUnmount(() => {
-  crCleanup();
-  prCleanup();
+  cr.cleanup();
+  pr.cleanup();
 });
 </script>
 
 <template>
-  <div
-    class="flex h-screen flex-col bg-gray-950 text-gray-100"
-    style="font-family: 'JetBrains Mono', ui-monospace, monospace"
-  >
-    <!-- ── Unified top nav ─────────────────────────────────── -->
+  <div class="runner flex h-screen flex-col bg-gray-950 text-gray-100">
+    <!-- ══════ Top nav ══════ -->
     <div
       class="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 px-5"
     >
-      <!-- Logo + tab switcher -->
-      <div class="flex shrink-0 items-center gap-2">
-        <span class="text-primary-400">⚡</span>
+      <div class="flex items-center gap-2">
+        <span class="text-primary-400 text-lg">⚡</span>
         <span class="font-semibold text-white">Claude Runner</span>
       </div>
+      <span class="text-gray-700">|</span>
+      <span class="text-muted">Pipeline</span>
 
+      <!-- Jira base URL -->
+      <div
+        class="ml-2 flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
+      >
+        <UIcon name="i-lucide-link" class="shrink-0 text-gray-600" />
+        <input
+          v-model="jiraBaseUrl"
+          class="text-muted w-48 bg-transparent placeholder-gray-700 outline-none"
+          placeholder="https://xxx.atlassian.net"
+          spellcheck="false"
+        />
+      </div>
+
+      <!-- Repo selector -->
+      <div
+        class="flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
+      >
+        <UIcon name="i-lucide-folder-git-2" class="shrink-0 text-gray-600" />
+        <select
+          v-model="selectedRepoId"
+          class="text-muted cursor-pointer bg-transparent outline-none"
+          style="max-width: 13rem"
+        >
+          <option value="">env 預設</option>
+          <option v-for="c in repoConfigs" :key="c.id" :value="c.id">
+            {{ c.name }}
+          </option>
+        </select>
+      </div>
+      <button
+        class="text-muted flex items-center rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-800 hover:text-gray-300"
+        :class="{ 'text-primary-400': showRepoSettings }"
+        @click="showRepoSettings = !showRepoSettings"
+      >
+        <UIcon name="i-lucide-settings-2" />
+      </button>
+
+      <!-- Mode toggle -->
       <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
         <button
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
+          class="rounded-md px-2.5 py-1 transition-colors"
           :class="
-            activeTab === 'claude'
+            mode === 'normal'
               ? 'bg-gray-700 font-medium text-white'
-              : 'text-gray-500 hover:text-gray-300'
+              : 'text-muted hover:text-gray-300'
           "
-          @click="activeTab = 'claude'"
+          @click="mode = 'normal'"
         >
-          <UIcon name="i-lucide-bug" style="font-size: 0.85em" />
-          Jira 修復
+          普通
         </button>
         <button
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors"
+          class="flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors"
           :class="
-            activeTab === 'pr'
-              ? 'bg-gray-700 font-medium text-white'
-              : 'text-gray-500 hover:text-gray-300'
+            mode === 'smart'
+              ? 'bg-primary-600 font-medium text-white'
+              : 'text-muted hover:text-gray-300'
           "
-          @click="activeTab = 'pr'"
+          @click="mode = 'smart'"
         >
-          <UIcon name="i-lucide-git-pull-request" style="font-size: 0.85em" />
-          PR Review
+          <UIcon name="i-lucide-sparkles" style="font-size: 0.85em" />
+          智能
         </button>
       </div>
 
-      <!-- Claude Runner controls -->
-      <template v-if="activeTab === 'claude'">
-        <div
-          class="ml-2 flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
-        >
-          <UIcon name="i-lucide-link" class="shrink-0 text-gray-600" />
-          <input
-            v-model="jiraBaseUrl"
-            class="w-52 bg-transparent text-sm text-gray-400 placeholder-gray-700 outline-none"
-            placeholder="https://xxx.atlassian.net"
-            spellcheck="false"
-          />
-        </div>
-        <div
-          class="flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
-        >
-          <UIcon name="i-lucide-folder-git-2" class="shrink-0 text-gray-600" />
-          <select
-            v-model="crSelectedRepoId"
-            class="cursor-pointer bg-transparent text-sm text-gray-400 outline-none"
-            style="max-width: 13rem"
-          >
-            <option value="">env 預設</option>
-            <option v-for="c in repoConfigs" :key="c.id" :value="c.id">
-              {{ c.name }}
-            </option>
-          </select>
-        </div>
-        <button
-          class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-          :class="{ 'text-primary-400': crShowRepoSettings }"
-          @click="
-            crShowRepoSettings = !crShowRepoSettings;
-            prShowRepoSettings = false;
-          "
-        >
-          <UIcon name="i-lucide-settings-2" />
-        </button>
-        <div class="ml-2 flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
+      <div class="ml-auto flex items-center gap-3">
+        <!-- Font size picker -->
+        <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
+          <span class="text-muted px-1">字體</span>
           <button
-            class="rounded-md px-2.5 py-1 text-sm transition-colors"
+            v-for="s in FONT_SIZES"
+            :key="s.value"
+            class="rounded-md px-2.5 py-1 transition-colors"
             :class="
-              crMode === 'normal'
+              fontSize === s.value
                 ? 'bg-gray-700 font-medium text-white'
-                : 'text-gray-500 hover:text-gray-300'
+                : 'text-muted hover:text-gray-300'
             "
-            @click="crMode = 'normal'"
+            @click="fontSize = s.value"
           >
-            普通
-          </button>
-          <button
-            class="flex items-center gap-1 rounded-md px-2.5 py-1 text-sm transition-colors"
-            :class="
-              crMode === 'smart'
-                ? 'bg-primary-600 font-medium text-white'
-                : 'text-gray-500 hover:text-gray-300'
-            "
-            @click="crMode = 'smart'"
-          >
-            <UIcon name="i-lucide-sparkles" style="font-size: 0.85em" />
-            智能
+            {{ s.label }}
           </button>
         </div>
-        <div class="ml-auto flex items-center gap-3">
-          <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
-            <span class="px-1 text-sm text-gray-500">字體</span>
-            <button
-              v-for="s in FONT_SIZES"
-              :key="s.value"
-              class="rounded-md px-2.5 py-1 text-sm transition-colors"
-              :class="
-                crFontSize === s.value
-                  ? 'bg-gray-700 font-medium text-white'
-                  : 'text-gray-500 hover:text-gray-300'
-              "
-              @click="crFontSize = s.value"
-            >
-              {{ s.label }}
-            </button>
-          </div>
-          <span
-            v-if="!crLoading && issues.length > 0"
-            class="text-sm text-gray-500"
-            >{{ issues.length }} 個任務</span
-          >
-          <button
-            class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-            :class="{ 'pointer-events-none opacity-50': crLoading }"
-            @click="loadIssues"
-          >
-            <UIcon
-              name="i-lucide-refresh-cw"
-              :class="{ 'animate-spin': crLoading }"
-            />
-            重新整理
-          </button>
-        </div>
-      </template>
-
-      <!-- PR Runner controls -->
-      <template v-if="activeTab === 'pr'">
-        <div
-          class="ml-2 flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
-        >
-          <UIcon name="i-lucide-folder-git-2" class="shrink-0 text-gray-600" />
-          <select
-            v-model="prSelectedRepoId"
-            class="cursor-pointer bg-transparent text-sm text-gray-400 outline-none"
-            style="max-width: 13rem"
-          >
-            <option value="">全部 (env 預設)</option>
-            <option v-for="c in repoConfigs" :key="c.id" :value="c.id">
-              {{ c.name }}
-            </option>
-          </select>
-        </div>
-        <button
-          class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-          :class="{ 'text-primary-400': prShowRepoSettings }"
-          @click="
-            prShowRepoSettings = !prShowRepoSettings;
-            crShowRepoSettings = false;
-          "
-        >
-          <UIcon name="i-lucide-settings-2" />
-        </button>
-        <div class="ml-auto flex items-center gap-3">
-          <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
-            <span class="px-1 text-sm text-gray-500">字體</span>
-            <button
-              v-for="s in FONT_SIZES"
-              :key="s.value"
-              class="rounded-md px-2.5 py-1 text-sm transition-colors"
-              :class="
-                prFontSize === s.value
-                  ? 'bg-gray-700 font-medium text-white'
-                  : 'text-gray-500 hover:text-gray-300'
-              "
-              @click="prFontSize = s.value"
-            >
-              {{ s.label }}
-            </button>
-          </div>
-          <span
-            v-if="!prLoading && prFilteredGroups.length > 0"
-            class="text-sm text-gray-500"
-          >
-            {{ prFilteredGroups.reduce((acc, g) => acc + g.prs.length, 0) }} 個
-            PR
-          </span>
-          <button
-            class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-            :class="{ 'pointer-events-none opacity-50': prLoading }"
-            @click="loadPRs"
-          >
-            <UIcon
-              name="i-lucide-refresh-cw"
-              :class="{ 'animate-spin': prLoading }"
-            />
-            重新整理
-          </button>
-        </div>
-      </template>
+      </div>
     </div>
 
-    <!-- ── Repo settings panel ─────────────────────────────── -->
+    <!-- ══════ Repo settings panel ══════ -->
     <div
-      v-if="
-        (activeTab === 'claude' && crShowRepoSettings) ||
-        (activeTab === 'pr' && prShowRepoSettings)
-      "
+      v-if="showRepoSettings"
       class="shrink-0 border-b border-gray-800 bg-gray-900/80 p-4"
     >
       <div class="mx-auto max-w-2xl">
         <div class="mb-3 flex items-center justify-between">
           <span class="font-medium text-gray-300">Repo 設定</span>
           <button
-            class="text-gray-500 hover:text-gray-300"
-            @click="
-              crShowRepoSettings = false;
-              prShowRepoSettings = false;
-            "
+            class="text-muted hover:text-gray-300"
+            @click="showRepoSettings = false"
           >
             <UIcon name="i-lucide-x" />
           </button>
         </div>
+
         <div v-if="repoConfigs.length > 0" class="mb-3 space-y-1">
           <div
             v-for="c in repoConfigs"
             :key="c.id"
             class="flex items-center gap-2 rounded-lg px-3 py-2"
             :class="
-              (activeTab === 'claude' ? crSelectedRepoId : prSelectedRepoId) ===
-              c.id
+              selectedRepoId === c.id
                 ? 'ring-primary-500/30 bg-gray-800 ring-1'
                 : 'bg-gray-800/40'
             "
           >
-            <button
-              class="flex-1 text-left"
-              @click="
-                activeTab === 'claude'
-                  ? (crSelectedRepoId = c.id)
-                  : (prSelectedRepoId = c.id)
-              "
-            >
+            <button class="flex-1 text-left" @click="selectedRepoId = c.id">
               <span class="font-medium text-gray-200">{{ c.name }}</span>
               <span
                 v-if="c.githubRepo"
-                class="ml-2 font-mono text-xs text-gray-500"
+                class="text-muted ml-2 font-mono text-xs"
                 >{{ c.githubRepo }}</span
               >
-              <span class="ml-2 font-mono text-xs text-gray-600">{{
+              <span class="text-muted ml-2 font-mono text-xs text-gray-600">{{
                 c.cwd
               }}</span>
             </button>
             <button
-              class="px-1 text-gray-500 hover:text-gray-300"
+              class="text-muted px-1 hover:text-gray-300"
               @click="startEditConfig(c)"
             >
               <UIcon name="i-lucide-pencil" />
             </button>
             <button
-              class="px-1 text-gray-500 hover:text-red-400"
-              @click="
-                activeTab === 'claude'
-                  ? crDeleteConfig(c.id)
-                  : prDeleteConfig(c.id)
-              "
+              class="text-muted px-1 hover:text-red-400"
+              @click="deleteRepoConfig(c.id)"
             >
               <UIcon name="i-lucide-trash-2" />
             </button>
           </div>
         </div>
-        <p v-else-if="!editingConfig" class="mb-3 text-sm text-gray-500">
-          尚無設定，點「新增」加入 Repo 設定。留空則使用環境變數。
+        <p v-else-if="!editingConfig" class="text-muted mb-3 text-sm">
+          尚無設定，點「新增」加入 Repo。
         </p>
+
         <div
           v-if="editingConfig"
           class="rounded-lg border border-gray-700 bg-gray-800 p-3"
@@ -746,25 +586,23 @@ onBeforeUnmount(() => {
           </div>
           <div class="grid gap-2">
             <div class="flex items-center gap-2">
-              <span class="w-28 shrink-0 text-sm text-gray-500">名稱</span>
+              <span class="text-muted w-28 shrink-0 text-sm">名稱</span>
               <input
                 v-model="editingConfig.name"
-                placeholder="my-project"
+                placeholder="kkday-mobile"
                 class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 text-sm text-gray-100 outline-none focus:ring-1"
               />
             </div>
             <div class="flex items-center gap-2">
-              <span class="w-28 shrink-0 text-sm text-gray-500"
-                >GitHub Repo</span
-              >
+              <span class="text-muted w-28 shrink-0 text-sm">GitHub Repo</span>
               <input
                 v-model="editingConfig.githubRepo"
-                placeholder="owner/repo"
+                placeholder="kkday-it/kkday-mobile-member-ci"
                 class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
               />
             </div>
             <div class="flex items-center gap-2">
-              <span class="w-28 shrink-0 text-sm text-gray-500">本地路徑</span>
+              <span class="text-muted w-28 shrink-0 text-sm">本地路徑</span>
               <input
                 v-model="editingConfig.cwd"
                 placeholder="/Users/you/project"
@@ -773,11 +611,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="mt-3 flex gap-2">
-            <UButton
-              size="xs"
-              @click="activeTab === 'claude' ? crSaveConfig() : prSaveConfig()"
-              >儲存</UButton
-            >
+            <UButton size="xs" @click="saveConfig">儲存</UButton>
             <UButton
               size="xs"
               color="neutral"
@@ -787,9 +621,10 @@ onBeforeUnmount(() => {
             >
           </div>
         </div>
+
         <button
           v-if="!editingConfig"
-          class="mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+          class="text-muted mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-800 hover:text-gray-300"
           @click="newConfig"
         >
           <UIcon name="i-lucide-plus" />
@@ -798,179 +633,422 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- ════════════════════════════════════════════════════════
-         CLAUDE RUNNER BODY
-    ════════════════════════════════════════════════════════ -->
-    <div
-      v-show="activeTab === 'claude'"
-      class="flex flex-1 overflow-hidden"
-      :style="{ fontSize: crRootFontSize }"
-    >
-      <!-- Left: issue list -->
+    <!-- ══════ Body: pipeline (left) + detail (right) ══════ -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- ══════ Left: Pipeline Sidebar ══════ -->
       <div
-        class="flex w-84 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+        class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
       >
-        <div
-          class="flex h-11 shrink-0 items-center gap-3 border-b border-gray-800 px-4"
-        >
-          <label
-            class="flex cursor-pointer items-center gap-2 select-none"
-            :class="{
-              'pointer-events-none opacity-40': crIsRunning || crLoading,
-            }"
-          >
-            <UCheckbox
-              :model-value="crAllChecked"
-              :indeterminate="crIndeterminate"
-              @change="toggleAllIssues"
-            />
-            <span class="text-sm text-gray-500">全選</span>
-          </label>
-          <span
-            v-if="crSelectedCount"
-            class="text-primary-400 ml-auto text-sm font-medium"
-            >已選 {{ crSelectedCount }}</span
-          >
-        </div>
         <div class="flex-1 overflow-y-auto">
-          <div v-if="crLoading" class="space-y-2 p-3">
-            <div
-              v-for="n in 6"
-              :key="n"
-              class="h-16 animate-pulse rounded-lg bg-gray-800/50"
-            ></div>
-          </div>
-          <div v-else-if="crLoadError" class="p-6 text-center">
-            <UIcon
-              name="i-lucide-wifi-off"
-              class="mb-3 text-2xl text-red-500"
-            />
-            <p class="mb-4 text-sm text-gray-500">{{ crLoadError }}</p>
-            <UButton size="sm" @click="loadIssues">重試</UButton>
-          </div>
-          <div
-            v-else-if="issues.length === 0"
-            class="p-8 text-center text-gray-600"
-          >
-            <UIcon name="i-lucide-inbox" class="mb-3 text-3xl" />
-            <p>沒有待處理的 Issue</p>
-          </div>
-          <div v-else class="space-y-1 p-2">
-            <button
-              v-for="issue in issuesWithAnalysis"
-              :key="issue.key"
-              class="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors duration-100"
-              :class="[
-                crIsRunning
-                  ? 'cursor-default opacity-70'
-                  : 'cursor-pointer hover:bg-gray-800/60',
-                crSelected.has(issue.key)
-                  ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
-                  : '',
-              ]"
-              @click="toggleIssue(issue.key)"
-            >
-              <UCheckbox
-                :model-value="crSelected.has(issue.key)"
-                class="pointer-events-none mt-0.5 shrink-0"
-              />
-              <div class="min-w-0 flex-1">
-                <div class="mb-1 flex items-center gap-2">
-                  <component
-                    :is="jiraUrl(issue.key) ? 'a' : 'span'"
-                    :href="jiraUrl(issue.key) ?? undefined"
-                    target="_blank"
-                    rel="noopener"
-                    class="text-primary-400 shrink-0 font-mono font-semibold"
-                    :class="{
-                      'underline-offset-2 hover:underline': jiraUrl(issue.key),
-                    }"
-                    @click.stop
-                    >{{ issue.key }}</component
-                  >
-                </div>
-                <p class="truncate text-sm leading-snug text-gray-500">
-                  {{ issue.summary }}
-                </p>
-                <div class="mt-1.5 flex flex-wrap items-center gap-1">
-                  <UBadge
-                    :color="crStatusColor[issue.status] ?? 'neutral'"
-                    variant="soft"
-                    size="sm"
-                    >{{ issue.status }}</UBadge
-                  >
-                  <UBadge
-                    v-if="issue._analysis.type"
-                    color="violet"
-                    variant="soft"
-                    size="sm"
-                    >{{ issue._analysis.type }}</UBadge
-                  >
-                  <UBadge
-                    v-if="issue._analysis.files"
-                    color="sky"
-                    variant="soft"
-                    size="sm"
-                  >
-                    <UIcon name="i-lucide-file-code" />
-                    {{ issue._analysis.files }}
-                  </UBadge>
-                  <UBadge
-                    v-if="issue._analysis.time"
-                    color="amber"
-                    variant="soft"
-                    size="sm"
-                  >
-                    <UIcon name="i-lucide-timer" />
-                    {{ issue._analysis.time }}
-                  </UBadge>
-                </div>
+          <!-- ─── Stage 1: Fix JIRA Issues ─── -->
+          <div class="border-b border-gray-800">
+            <!-- Stage header -->
+            <div class="flex items-center gap-2 bg-gray-900/60 px-4 py-2.5">
+              <div
+                class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+              >
+                1
               </div>
-            </button>
+              <span class="font-medium text-gray-200">修復 JIRA Issue</span>
+              <span
+                v-if="!crLoading && issues.length > 0"
+                class="text-muted"
+              >
+                {{ issues.length }} 個
+              </span>
+              <div class="ml-auto flex items-center gap-1">
+                <button
+                  class="text-muted flex items-center rounded px-1.5 py-1 transition-colors hover:bg-gray-800 hover:text-gray-300"
+                  :class="{ 'pointer-events-none opacity-50': crLoading }"
+                  @click="loadIssues"
+                >
+                  <UIcon
+                    name="i-lucide-refresh-cw"
+                    :class="{ 'animate-spin': crLoading }"
+                    style="font-size: 0.85em"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <!-- Select all -->
+            <div
+              class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+            >
+              <label
+                class="flex cursor-pointer items-center gap-2 select-none"
+                :class="{
+                  'pointer-events-none opacity-40':
+                    cr.isRunning.value || crLoading,
+                }"
+              >
+                <UCheckbox
+                  :model-value="crAllChecked"
+                  :indeterminate="crIndeterminate"
+                  @change="toggleAllIssues"
+                />
+                <span class="text-muted text-xs">全選</span>
+              </label>
+              <span
+                v-if="crSelectedCount"
+                class="text-primary-400 ml-auto text-xs font-medium"
+              >
+                已選 {{ crSelectedCount }}
+              </span>
+            </div>
+
+            <!-- Issue list -->
+            <div class="max-h-64 overflow-y-auto">
+              <div v-if="crLoading" class="space-y-1.5 p-2">
+                <div
+                  v-for="n in 3"
+                  :key="n"
+                  class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+                ></div>
+              </div>
+
+              <div v-else-if="crLoadError" class="p-4 text-center">
+                <UIcon
+                  name="i-lucide-wifi-off"
+                  class="mb-2 text-xl text-red-500"
+                />
+                <p class="text-muted mb-2 text-xs">{{ crLoadError }}</p>
+                <UButton size="xs" @click="loadIssues">重試</UButton>
+              </div>
+
+              <div
+                v-else-if="issues.length === 0"
+                class="p-6 text-center text-gray-600"
+              >
+                <UIcon name="i-lucide-inbox" class="mb-2 text-2xl" />
+                <p class="text-xs">沒有待處理的 Issue</p>
+              </div>
+
+              <div v-else class="space-y-0.5 p-1.5">
+                <button
+                  v-for="issue in issues"
+                  :key="issue.key"
+                  class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
+                  :class="[
+                    cr.isRunning.value
+                      ? 'cursor-default opacity-70'
+                      : 'cursor-pointer hover:bg-gray-800/60',
+                    crSelected.has(issue.key)
+                      ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
+                      : '',
+                  ]"
+                  @click="toggleIssue(issue.key)"
+                >
+                  <UCheckbox
+                    :model-value="crSelected.has(issue.key)"
+                    class="pointer-events-none mt-0.5 shrink-0"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <component
+                        :is="jiraUrl(issue.key) ? 'a' : 'span'"
+                        :href="jiraUrl(issue.key) ?? undefined"
+                        target="_blank"
+                        rel="noopener"
+                        class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
+                        :class="{
+                          'underline-offset-2 hover:underline': jiraUrl(
+                            issue.key,
+                          ),
+                        }"
+                        @click.stop
+                        >{{ issue.key }}</component
+                      >
+                      <UBadge
+                        :color="statusColor[issue.status] ?? 'neutral'"
+                        variant="soft"
+                        size="xs"
+                      >
+                        {{ issue.status }}
+                      </UBadge>
+                    </div>
+                    <p class="text-muted mt-0.5 truncate text-xs leading-snug">
+                      {{ issue.summary }}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Run button -->
+            <div class="px-3 py-2">
+              <UButton
+                class="w-full justify-center"
+                size="sm"
+                :disabled="!crSelectedCount || cr.isRunning.value"
+                :loading="cr.isRunning.value"
+                icon="i-lucide-zap"
+                @click="runClaude"
+              >
+                {{
+                  cr.isRunning.value
+                    ? '修復中...'
+                    : `開始修復${crSelectedCount ? ` (${crSelectedCount})` : ''}`
+                }}
+              </UButton>
+            </div>
           </div>
-        </div>
-        <div class="shrink-0 border-t border-gray-800 p-3">
-          <UButton
-            class="w-full justify-center"
-            :disabled="!crSelectedCount || crIsRunning"
-            :loading="crIsRunning"
-            icon="i-lucide-zap"
-            @click="crRunSelected"
-          >
-            {{
-              crIsRunning
-                ? '執行中...'
-                : `開始修復${crSelectedCount ? ` (${crSelectedCount})` : ''}`
-            }}
-          </UButton>
+
+          <!-- ─── Pipeline Arrow ─── -->
+          <div class="flex items-center justify-center gap-2 py-3">
+            <div class="h-px flex-1 bg-gray-800"></div>
+            <div class="flex items-center gap-1.5 text-gray-500">
+              <UIcon name="i-lucide-arrow-down" />
+              <span class="text-xs font-medium">PR 建立後</span>
+              <UIcon name="i-lucide-arrow-down" />
+            </div>
+            <div class="h-px flex-1 bg-gray-800"></div>
+          </div>
+
+          <!-- ─── Stage 2: Fix PR Reviews ─── -->
+          <div>
+            <!-- Stage header -->
+            <div class="flex items-center gap-2 bg-gray-900/60 px-4 py-2.5">
+              <div
+                class="flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white"
+              >
+                2
+              </div>
+              <span class="font-medium text-gray-200">修復 PR Review</span>
+              <span
+                v-if="
+                  !prLoading &&
+                  filteredGroups.reduce((a, g) => a + g.prs.length, 0) > 0
+                "
+                class="text-muted"
+              >
+                {{
+                  filteredGroups.reduce((a, g) => a + g.prs.length, 0)
+                }}
+                個
+              </span>
+              <div class="ml-auto flex items-center gap-1">
+                <button
+                  class="text-muted flex items-center rounded px-1.5 py-1 transition-colors hover:bg-gray-800 hover:text-gray-300"
+                  :class="{ 'pointer-events-none opacity-50': prLoading }"
+                  @click="loadPRs"
+                >
+                  <UIcon
+                    name="i-lucide-refresh-cw"
+                    :class="{ 'animate-spin': prLoading }"
+                    style="font-size: 0.85em"
+                  />
+                </button>
+              </div>
+            </div>
+
+            <!-- PR list header -->
+            <div
+              class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+            >
+              <span class="text-muted text-xs">PR 列表</span>
+              <span
+                v-if="prSelectedCount"
+                class="text-primary-400 ml-auto text-xs font-medium"
+              >
+                已選 {{ prSelectedCount }}
+              </span>
+            </div>
+
+            <!-- PR list -->
+            <div class="max-h-64 overflow-y-auto">
+              <div v-if="prLoading" class="space-y-1.5 p-2">
+                <div
+                  v-for="n in 3"
+                  :key="n"
+                  class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+                ></div>
+              </div>
+
+              <div v-else-if="prLoadError" class="p-4 text-center">
+                <UIcon
+                  name="i-lucide-wifi-off"
+                  class="mb-2 text-xl text-red-500"
+                />
+                <p class="text-muted mb-2 text-xs">{{ prLoadError }}</p>
+                <UButton size="xs" @click="loadPRs">重試</UButton>
+              </div>
+
+              <div
+                v-else-if="filteredGroups.length === 0"
+                class="p-6 text-center text-gray-600"
+              >
+                <UIcon
+                  name="i-lucide-git-pull-request"
+                  class="mb-2 text-2xl"
+                />
+                <p class="text-xs">沒有待處理的 PR</p>
+              </div>
+
+              <div v-else class="space-y-0.5 p-1.5">
+                <template v-for="group in filteredGroups" :key="group.repo">
+                  <div
+                    class="flex items-center gap-2 px-2.5 py-1.5 text-gray-500"
+                  >
+                    <UIcon
+                      name="i-lucide-git-branch"
+                      class="shrink-0"
+                      style="font-size: 0.75em"
+                    />
+                    <span
+                      class="truncate font-mono tracking-wide uppercase"
+                      style="font-size: 0.65em"
+                    >
+                      {{ group.repo }}
+                    </span>
+                  </div>
+                  <button
+                    v-for="prItem in group.prs"
+                    :key="prItem.number"
+                    class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
+                    :class="[
+                      pr.isRunning.value
+                        ? 'cursor-default opacity-70'
+                        : 'cursor-pointer hover:bg-gray-800/60',
+                      prSelected.has(prKey(group.repo, prItem.number))
+                        ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
+                        : '',
+                    ]"
+                    @click="togglePR(group.repo, prItem.number)"
+                  >
+                    <UCheckbox
+                      :model-value="
+                        prSelected.has(prKey(group.repo, prItem.number))
+                      "
+                      class="pointer-events-none mt-0.5 shrink-0"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <a
+                          :href="prItem.html_url"
+                          target="_blank"
+                          rel="noopener"
+                          class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
+                          @click.stop
+                          >#{{ prItem.number }}</a
+                        >
+                        <UBadge
+                          v-if="prItem.draft"
+                          color="neutral"
+                          variant="soft"
+                          size="xs"
+                        >
+                          Draft
+                        </UBadge>
+                        <UBadge
+                          v-if="isFromClaudeRunner(prItem.html_url)"
+                          color="warning"
+                          variant="soft"
+                          size="xs"
+                        >
+                          from Stage 1
+                        </UBadge>
+                      </div>
+                      <p
+                        class="text-muted mt-0.5 truncate text-xs leading-snug"
+                      >
+                        {{ prItem.title }}
+                      </p>
+                    </div>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- Run button -->
+            <div class="px-3 py-2">
+              <UButton
+                class="w-full justify-center"
+                size="sm"
+                color="success"
+                :disabled="!prSelectedCount || pr.isRunning.value"
+                :loading="pr.isRunning.value"
+                icon="i-lucide-git-pull-request"
+                @click="runPR"
+              >
+                {{
+                  pr.isRunning.value
+                    ? '修復中...'
+                    : `修復 Review${prSelectedCount ? ` (${prSelectedCount})` : ''}`
+                }}
+              </UButton>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Right panel -->
+      <!-- ══════ Right: Detail Panel ══════ -->
       <div class="flex flex-1 flex-col overflow-hidden">
-        <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
+        <!-- Runner selector tabs + panel tabs -->
+        <div
+          class="flex shrink-0 items-center border-b border-gray-800 px-1"
+        >
+          <!-- Runner toggle -->
+          <div
+            class="ml-2 mr-2 flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
+          >
+            <button
+              class="rounded-md px-3 py-1.5 text-xs transition-colors"
+              :class="
+                activeRunner === 'claude'
+                  ? 'bg-blue-600 font-medium text-white'
+                  : 'text-muted hover:text-gray-300'
+              "
+              @click="activeRunner = 'claude'"
+            >
+              JIRA
+              <span
+                v-if="cr.isRunning.value"
+                class="ml-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400"
+              ></span>
+            </button>
+            <button
+              class="rounded-md px-3 py-1.5 text-xs transition-colors"
+              :class="
+                activeRunner === 'pr'
+                  ? 'bg-green-600 font-medium text-white'
+                  : 'text-muted hover:text-gray-300'
+              "
+              @click="activeRunner = 'pr'"
+            >
+              PR
+              <span
+                v-if="pr.isRunning.value"
+                class="ml-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-400"
+              ></span>
+            </button>
+          </div>
+
+          <div class="mx-2 h-5 w-px bg-gray-800"></div>
+
+          <!-- Panel tabs -->
           <button
-            class="-mb-px border-b-2 px-4 py-3 text-sm transition-colors"
+            class="-mb-px border-b-2 px-4 py-3 transition-colors"
             :class="
-              crRightTab === 'result'
+              rightTab === 'result'
                 ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
+                : 'text-muted border-transparent hover:text-gray-300'
             "
-            @click="crRightTab = 'result'"
+            @click="rightTab = 'result'"
           >
             本次結果
           </button>
           <button
-            class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
+            class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 transition-colors"
             :class="
-              crRightTab === 'progress'
+              rightTab === 'progress'
                 ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
+                : 'text-muted border-transparent hover:text-gray-300'
             "
-            @click="crRightTab = 'progress'"
+            @click="rightTab = 'progress'"
           >
             <UIcon
-              v-if="crIsRunning"
+              v-if="activeIsRunning"
               name="i-lucide-loader-circle"
               class="text-primary-400 animate-spin"
               style="font-size: 0.8em"
@@ -978,261 +1056,52 @@ onBeforeUnmount(() => {
             執行過程
           </button>
           <button
-            class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
+            class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 transition-colors"
             :class="
-              crRightTab === 'history'
+              rightTab === 'history'
                 ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
+                : 'text-muted border-transparent hover:text-gray-300'
             "
-            @click="crRightTab = 'history'"
+            @click="rightTab = 'history'"
           >
             執行紀錄
             <span
-              v-if="crHistory.length > 0"
-              class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-500"
-              >{{ crHistory.length }}</span
+              v-if="activeHistory.length > 0"
+              class="text-muted rounded-full bg-gray-700 px-1.5 py-0.5 leading-none"
+              style="font-size: 0.75em"
             >
+              {{ activeHistory.length }}
+            </span>
           </button>
         </div>
+
+        <!-- Status row -->
         <RunnerStatusRow
-          v-if="crActiveJob"
-          :active-job="crActiveJob"
-          :is-running="crIsRunning"
-          :success-count="crSuccessCount"
-          :error-count="crErrorCount"
-          :elapsed="crElapsed"
-          :expanded="crRowExpanded"
-          :get-item-url="jiraUrl"
-          @update:expanded="crRowExpanded = $event"
-          @cancel="crCancelJob"
+          v-if="activeJobForPanel"
+          :active-job="activeJobForPanel"
+          :is-running="activeIsRunning"
+          :success-count="activeSuccessCount"
+          :error-count="activeErrorCount"
+          :elapsed="activeElapsed"
+          :expanded="activeRowExpanded"
+          :get-item-url="activeGetItemUrl"
+          @update:expanded="activeRowExpanded = $event"
+          @cancel="activeCancelJob"
         />
-        <template v-if="crRightTab === 'result'">
+
+        <!-- 本次結果 -->
+        <template v-if="rightTab === 'result'">
           <div
-            v-if="!crActiveJob"
+            v-if="!activeJobForPanel"
             class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
           >
             <UIcon name="i-lucide-terminal" class="text-5xl" />
             <div class="text-center">
               <p class="font-medium text-gray-600">
-                選擇 Issue，點「開始修復」
+                從左側選擇任務，開始自動修復
               </p>
-              <p class="mt-1 text-sm text-gray-500">
-                Claude Code 會自動修 bug 並建立 PR
-              </p>
-            </div>
-          </div>
-          <div
-            v-else
-            class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-600 select-none"
-          >
-            <UIcon name="i-lucide-arrow-up" class="text-2xl" />
-            <p>狀態列顯示於上方，點擊可展開</p>
-          </div>
-        </template>
-        <template v-else-if="crRightTab === 'progress'">
-          <RunnerJobProgress
-            :active-job="crActiveJob"
-            class="flex-1 overflow-hidden"
-          />
-        </template>
-        <template v-else-if="crRightTab === 'history'">
-          <RunnerJobHistory
-            :history="crHistory"
-            :get-item-url="jiraUrl"
-            @clear="clearCrHistory"
-          />
-        </template>
-      </div>
-    </div>
-
-    <!-- ════════════════════════════════════════════════════════
-         PR RUNNER BODY
-    ════════════════════════════════════════════════════════ -->
-    <div
-      v-show="activeTab === 'pr'"
-      class="flex flex-1 overflow-hidden"
-      :style="{ fontSize: prRootFontSize }"
-    >
-      <!-- Left: PR list -->
-      <div
-        class="flex w-84 shrink-0 flex-col overflow-hidden border-r border-gray-800"
-      >
-        <div
-          class="flex h-11 shrink-0 items-center gap-3 border-b border-gray-800 px-4"
-        >
-          <span class="text-sm text-gray-500">PR 列表</span>
-          <span
-            v-if="prSelectedCount"
-            class="text-primary-400 ml-auto text-sm font-medium"
-            >已選 {{ prSelectedCount }}</span
-          >
-        </div>
-        <div class="flex-1 overflow-y-auto">
-          <div v-if="prLoading" class="space-y-2 p-3">
-            <div
-              v-for="n in 6"
-              :key="n"
-              class="h-16 animate-pulse rounded-lg bg-gray-800/50"
-            ></div>
-          </div>
-          <div v-else-if="prLoadError" class="p-6 text-center">
-            <UIcon
-              name="i-lucide-wifi-off"
-              class="mb-3 text-2xl text-red-500"
-            />
-            <p class="mb-4 text-sm text-gray-500">{{ prLoadError }}</p>
-            <UButton size="sm" @click="loadPRs">重試</UButton>
-          </div>
-          <div
-            v-else-if="prFilteredGroups.length === 0"
-            class="p-8 text-center text-gray-600"
-          >
-            <UIcon name="i-lucide-git-pull-request" class="mb-3 text-3xl" />
-            <p>沒有待處理的 PR</p>
-          </div>
-          <div v-else class="space-y-1 p-2">
-            <template v-for="group in prFilteredGroups" :key="group.repo">
-              <div class="flex items-center gap-2 px-3 py-2 text-gray-500">
-                <UIcon name="i-lucide-git-branch" class="shrink-0 text-sm" />
-                <span
-                  class="truncate font-mono text-xs font-semibold tracking-wide uppercase"
-                  >{{ group.repo }}</span
-                >
-              </div>
-              <button
-                v-for="pr in group.prs"
-                :key="pr.number"
-                class="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors duration-100"
-                :class="[
-                  prIsRunning
-                    ? 'cursor-default opacity-70'
-                    : 'cursor-pointer hover:bg-gray-800/60',
-                  prSelected.has(prKey(group.repo, pr.number))
-                    ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
-                    : '',
-                ]"
-                @click="togglePR(group.repo, pr.number)"
-              >
-                <UCheckbox
-                  :model-value="prSelected.has(prKey(group.repo, pr.number))"
-                  class="pointer-events-none mt-0.5 shrink-0"
-                />
-                <div class="min-w-0 flex-1">
-                  <div class="mb-1 flex items-center gap-2">
-                    <a
-                      :href="pr.html_url"
-                      target="_blank"
-                      rel="noopener"
-                      class="text-primary-400 shrink-0 font-mono font-semibold underline-offset-2 hover:underline"
-                      @click.stop
-                      >#{{ pr.number }}</a
-                    >
-                    <UBadge
-                      v-if="pr.draft"
-                      color="neutral"
-                      variant="soft"
-                      size="sm"
-                      >Draft</UBadge
-                    >
-                  </div>
-                  <p class="truncate text-sm leading-snug text-gray-500">
-                    {{ pr.title }}
-                  </p>
-                  <p class="mt-1 truncate font-mono text-xs text-gray-600">
-                    {{ pr.head.ref }}
-                  </p>
-                </div>
-              </button>
-            </template>
-          </div>
-        </div>
-        <div class="shrink-0 border-t border-gray-800 p-3">
-          <UButton
-            class="w-full justify-center"
-            :disabled="!prSelectedCount || prIsRunning"
-            :loading="prIsRunning"
-            icon="i-lucide-zap"
-            @click="prRunSelected"
-          >
-            {{
-              prIsRunning
-                ? '執行中...'
-                : `開始修復${prSelectedCount ? ` (${prSelectedCount})` : ''}`
-            }}
-          </UButton>
-        </div>
-      </div>
-
-      <!-- Right panel -->
-      <div class="flex flex-1 flex-col overflow-hidden">
-        <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
-          <button
-            class="-mb-px border-b-2 px-4 py-3 text-sm transition-colors"
-            :class="
-              prRightTab === 'result'
-                ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
-            "
-            @click="prRightTab = 'result'"
-          >
-            本次結果
-          </button>
-          <button
-            class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
-            :class="
-              prRightTab === 'progress'
-                ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
-            "
-            @click="prRightTab = 'progress'"
-          >
-            <UIcon
-              v-if="prIsRunning"
-              name="i-lucide-loader-circle"
-              class="text-primary-400 animate-spin"
-              style="font-size: 0.8em"
-            />
-            執行過程
-          </button>
-          <button
-            class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
-            :class="
-              prRightTab === 'history'
-                ? 'border-primary-500 font-medium text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
-            "
-            @click="prRightTab = 'history'"
-          >
-            執行紀錄
-            <span
-              v-if="prHistory.length > 0"
-              class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-500"
-              >{{ prHistory.length }}</span
-            >
-          </button>
-        </div>
-        <RunnerStatusRow
-          v-if="prActiveJob"
-          :active-job="prActiveJob"
-          :is-running="prIsRunning"
-          :success-count="prSuccessCount"
-          :error-count="prErrorCount"
-          :elapsed="prElapsed"
-          :expanded="prRowExpanded"
-          :get-item-url="getPrUrl"
-          @update:expanded="prRowExpanded = $event"
-          @cancel="prCancelJob"
-        />
-        <template v-if="prRightTab === 'result'">
-          <div
-            v-if="!prActiveJob"
-            class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
-          >
-            <UIcon name="i-lucide-git-pull-request" class="text-5xl" />
-            <div class="text-center">
-              <p class="font-medium text-gray-600">選擇 PR，點「開始修復」</p>
-              <p class="mt-1 text-sm text-gray-500">
-                Claude Code 會自動處理 Review 並 Push 修復
+              <p class="text-muted mt-1">
+                Stage 1 修復 JIRA Issue → Stage 2 修復 PR Review
               </p>
             </div>
           </div>
@@ -1244,17 +1113,21 @@ onBeforeUnmount(() => {
             <p>狀態列顯示於上方，點擊可展開</p>
           </div>
         </template>
-        <template v-else-if="prRightTab === 'progress'">
+
+        <!-- 執行過程 -->
+        <template v-else-if="rightTab === 'progress'">
           <RunnerJobProgress
-            :active-job="prActiveJob"
+            :active-job="activeJobForPanel"
             class="flex-1 overflow-hidden"
           />
         </template>
-        <template v-else-if="prRightTab === 'history'">
+
+        <!-- 執行紀錄 -->
+        <template v-else-if="rightTab === 'history'">
           <RunnerJobHistory
-            :history="prHistory"
-            :get-item-url="getPrUrl"
-            @clear="prClearHistory"
+            :history="activeHistory"
+            :get-item-url="activeGetItemUrl"
+            @clear="activeClearHistory"
           />
         </template>
       </div>
@@ -1263,7 +1136,18 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.w-84 {
-  width: 21rem;
+/* stylelint-disable declaration-property-value-no-unknown, value-keyword-case */
+.runner {
+  font-size: v-bind(rootFontSize);
+}
+/* stylelint-enable declaration-property-value-no-unknown, value-keyword-case */
+
+.text-muted {
+  font-size: 0.875em;
+  color: rgb(107 114 128);
+}
+
+.text-log {
+  font-size: 0.875em;
 }
 </style>
