@@ -8,6 +8,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "db:generate": "prisma db generate",
+    "db:studio": "prisma db studio",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit"
@@ -17,8 +19,11 @@
     "@nuxt/image": "catalog:",
     "@nuxt/ui": "catalog:",
     "@nuxtjs/i18n": "catalog:",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
     "@tailwindcss/typography": "catalog:",
     "nuxt": "catalog:",
+    "pg": "^8.20.0",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },
@@ -28,7 +33,9 @@
     "@iconify-json/simple-icons": "catalog:",
     "@iconify-json/uil": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "@types/pg": "^8.18.0",
     "postcss": "catalog:",
+    "prisma": "^7.4.2",
     "tailwindcss": "catalog:",
     "vue-tsc": "catalog:"
   }

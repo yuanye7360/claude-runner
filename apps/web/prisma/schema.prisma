@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Job {
+  id         String      @id
+  status     String // 'done' | 'error' | 'cancelled'
+  startedAt  BigInt
+  finishedAt BigInt?
+  log        String      @default("")
+  issues     JobIssue[]
+  results    JobResult[]
+}
+
+model JobIssue {
+  id      Int    @id @default(autoincrement())
+  job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId   String
+  key     String
+  summary String
+}
+
+model JobResult {
+  id       Int     @id @default(autoincrement())
+  job      Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId    String
+  issueKey String
+  output   String?
+  error    String?
+  prUrl    String?
+}
