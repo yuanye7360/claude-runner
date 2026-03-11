@@ -43,7 +43,7 @@ watch(selectedRepoId, (v) => localStorage.setItem('cr-selected-repo', v));
 const selectedRepo = computed(
   () => repoConfigs.value.find((c) => c.id === selectedRepoId.value) ?? null,
 );
-const showRepoSettings = ref(false);
+const showSettings = ref(false);
 
 function saveConfig() {
   const isNew = !editingConfig.value?.id;
@@ -77,13 +77,21 @@ function jiraUrl(key: string) {
 }
 
 // ════════════════════════════════════════════════════════
-// RIGHT PANEL STATE
+// TOP-LEVEL TAB: which feature is active
 // ════════════════════════════════════════════════════════
-const rightTab = ref<'history' | 'progress' | 'result'>('result');
-const activeRunner = ref<'claude' | 'pr'>('claude');
+const activeFeature = ref<'jira' | 'pr'>(
+  typeof localStorage === 'undefined'
+    ? 'jira'
+    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr') || 'jira',
+);
+watch(activeFeature, (v) => localStorage.setItem('cr-active-feature', v));
+
+// Per-feature right panel tab
+const jiraRightTab = ref<'progress' | 'history'>('progress');
+const prRightTab = ref<'progress' | 'history'>('progress');
 
 // ════════════════════════════════════════════════════════
-// STAGE 1: CLAUDE RUNNER
+// JIRA RUNNER (Stage 1)
 // ════════════════════════════════════════════════════════
 
 interface JiraIssue {
@@ -180,8 +188,7 @@ function toggleAllIssues() {
 async function runClaude() {
   const picked = issues.value.filter((i) => crSelected.value.has(i.key));
   if (picked.length === 0 || cr.isRunning.value) return;
-  activeRunner.value = 'claude';
-  rightTab.value = 'progress';
+  jiraRightTab.value = 'progress';
   try {
     const { jobId } = await $fetch<{ jobId: string }>(
       '/api/claude-runner/run',
@@ -213,7 +220,7 @@ const statusColor: Record<string, 'info' | 'neutral' | 'success'> = {
 };
 
 // ════════════════════════════════════════════════════════
-// STAGE 2: PR RUNNER
+// PR RUNNER (Stage 2)
 // ════════════════════════════════════════════════════════
 
 const prHistory = ref<HistoryEntry[]>([]);
@@ -309,8 +316,7 @@ function getSelectedPRItems() {
 async function runPR() {
   const prs = getSelectedPRItems();
   if (prs.length === 0 || pr.isRunning.value) return;
-  activeRunner.value = 'pr';
-  rightTab.value = 'progress';
+  prRightTab.value = 'progress';
   try {
     const { jobId } = await $fetch<{ jobId: string }>('/api/pr-runner/run', {
       method: 'POST',
@@ -343,48 +349,6 @@ function getPrUrl(key: string): null | string {
   return null;
 }
 
-// ── Computed: active runner state ──
-const activeJobForPanel = computed(() =>
-  activeRunner.value === 'claude' ? cr.activeJob.value : pr.activeJob.value,
-);
-const activeIsRunning = computed(() =>
-  activeRunner.value === 'claude' ? cr.isRunning.value : pr.isRunning.value,
-);
-const activeElapsed = computed(() =>
-  activeRunner.value === 'claude' ? cr.elapsed.value : pr.elapsed.value,
-);
-const activeSuccessCount = computed(() =>
-  activeRunner.value === 'claude'
-    ? cr.successCount.value
-    : pr.successCount.value,
-);
-const activeErrorCount = computed(() =>
-  activeRunner.value === 'claude' ? cr.errorCount.value : pr.errorCount.value,
-);
-const activeRowExpanded = computed({
-  get: () =>
-    activeRunner.value === 'claude' ? crRowExpanded.value : prRowExpanded.value,
-  set: (v) => {
-    if (activeRunner.value === 'claude') crRowExpanded.value = v;
-    else prRowExpanded.value = v;
-  },
-});
-const activeHistory = computed(() =>
-  activeRunner.value === 'claude' ? crHistory.value : prHistory.value,
-);
-const activeGetItemUrl = computed(() =>
-  activeRunner.value === 'claude' ? jiraUrl : getPrUrl,
-);
-
-function activeCancelJob() {
-  if (activeRunner.value === 'claude') cr.cancelJob();
-  else pr.cancelJob();
-}
-function activeClearHistory() {
-  if (activeRunner.value === 'claude') clearCrHistory();
-  else clearPrHistory();
-}
-
 // ── Lifecycle ──
 onMounted(async () => {
   loadCrHistory();
@@ -396,7 +360,7 @@ onMounted(async () => {
   if (crJobId) {
     await cr.restoreJob(crJobId);
     if (cr.activeJob.value) {
-      activeRunner.value = 'claude';
+      activeFeature.value = 'jira';
       crRowExpanded.value = true;
     }
   }
@@ -405,7 +369,7 @@ onMounted(async () => {
   if (prJobId) {
     await pr.restoreJob(prJobId);
     if (pr.activeJob.value) {
-      activeRunner.value = 'pr';
+      activeFeature.value = 'pr';
       prRowExpanded.value = true;
     }
   }
@@ -421,700 +385,817 @@ onBeforeUnmount(() => {
   <div class="runner flex h-screen flex-col bg-gray-950 text-gray-100">
     <!-- ══════ Top nav ══════ -->
     <div
-      class="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 px-5"
+      class="flex h-12 shrink-0 items-center gap-3 border-b border-gray-800 px-4"
     >
       <div class="flex items-center gap-2">
         <span class="text-primary-400 text-lg">⚡</span>
         <span class="font-semibold text-white">Claude Runner</span>
       </div>
-      <span class="text-gray-700">|</span>
-      <span class="text-muted">Pipeline</span>
 
-      <!-- Jira base URL -->
-      <div
-        class="ml-2 flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
-      >
-        <UIcon name="i-lucide-link" class="shrink-0 text-gray-600" />
-        <input
-          v-model="jiraBaseUrl"
-          class="text-muted w-48 bg-transparent placeholder-gray-700 outline-none"
-          placeholder="https://xxx.atlassian.net"
-          spellcheck="false"
-        />
-      </div>
-
-      <!-- Repo selector -->
-      <div
-        class="flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-3 py-1.5"
-      >
-        <UIcon name="i-lucide-folder-git-2" class="shrink-0 text-gray-600" />
-        <select
-          v-model="selectedRepoId"
-          class="text-muted cursor-pointer bg-transparent outline-none"
-          style="max-width: 13rem"
-        >
-          <option value="">env 預設</option>
-          <option v-for="c in repoConfigs" :key="c.id" :value="c.id">
-            {{ c.name }}
-          </option>
-        </select>
-      </div>
-      <button
-        class="text-muted flex items-center rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-800 hover:text-gray-300"
-        :class="{ 'text-primary-400': showRepoSettings }"
-        @click="showRepoSettings = !showRepoSettings"
-      >
-        <UIcon name="i-lucide-settings-2" />
-      </button>
-
-      <!-- Mode toggle -->
-      <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
+      <!-- ── Feature Tabs ── -->
+      <div class="ml-4 flex items-center">
         <button
-          class="rounded-md px-2.5 py-1 transition-colors"
+          class="relative flex items-center gap-2 px-4 py-3 text-sm transition-colors"
           :class="
-            mode === 'normal'
-              ? 'bg-gray-700 font-medium text-white'
-              : 'text-muted hover:text-gray-300'
+            activeFeature === 'jira'
+              ? 'font-semibold text-white'
+              : 'text-gray-500 hover:text-gray-300'
           "
-          @click="mode = 'normal'"
+          @click="activeFeature = 'jira'"
         >
-          普通
+          <UIcon name="i-lucide-bug" style="font-size: 1em" />
+          修復 JIRA Issue
+          <!-- Running indicator -->
+          <span
+            v-if="cr.isRunning.value"
+            class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400"
+          ></span>
+          <!-- Active underline -->
+          <span
+            v-if="activeFeature === 'jira'"
+            class="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-blue-500"
+          ></span>
         </button>
+
         <button
-          class="flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors"
+          class="relative flex items-center gap-2 px-4 py-3 text-sm transition-colors"
           :class="
-            mode === 'smart'
-              ? 'bg-primary-600 font-medium text-white'
-              : 'text-muted hover:text-gray-300'
+            activeFeature === 'pr'
+              ? 'font-semibold text-white'
+              : 'text-gray-500 hover:text-gray-300'
           "
-          @click="mode = 'smart'"
+          @click="activeFeature = 'pr'"
         >
-          <UIcon name="i-lucide-sparkles" style="font-size: 0.85em" />
-          智能
+          <UIcon name="i-lucide-git-pull-request" style="font-size: 1em" />
+          修復 PR Review
+          <!-- Running indicator -->
+          <span
+            v-if="pr.isRunning.value"
+            class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-400"
+          ></span>
+          <!-- Active underline -->
+          <span
+            v-if="activeFeature === 'pr'"
+            class="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-green-500"
+          ></span>
         </button>
       </div>
 
-      <div class="ml-auto flex items-center gap-3">
-        <!-- Font size picker -->
-        <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
-          <span class="text-muted px-1">字體</span>
-          <button
-            v-for="s in FONT_SIZES"
-            :key="s.value"
-            class="rounded-md px-2.5 py-1 transition-colors"
-            :class="
-              fontSize === s.value
-                ? 'bg-gray-700 font-medium text-white'
-                : 'text-muted hover:text-gray-300'
-            "
-            @click="fontSize = s.value"
+      <!-- ── Right side controls ── -->
+      <div class="ml-auto flex items-center gap-2">
+        <!-- Repo selector (compact) -->
+        <div
+          class="flex items-center gap-1.5 rounded-lg bg-gray-800/60 px-2.5 py-1.5"
+        >
+          <UIcon
+            name="i-lucide-folder-git-2"
+            class="shrink-0 text-gray-600"
+            style="font-size: 0.85em"
+          />
+          <select
+            v-model="selectedRepoId"
+            class="cursor-pointer bg-transparent text-xs text-gray-400 outline-none"
+            style="max-width: 10rem"
           >
-            {{ s.label }}
-          </button>
+            <option value="">env 預設</option>
+            <option v-for="c in repoConfigs" :key="c.id" :value="c.id">
+              {{ c.name }}
+            </option>
+          </select>
         </div>
+
+        <!-- Settings button -->
+        <button
+          class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+          :class="{ 'text-primary-400': showSettings }"
+          @click="showSettings = !showSettings"
+        >
+          <UIcon name="i-lucide-settings-2" style="font-size: 1em" />
+        </button>
       </div>
     </div>
 
-    <!-- ══════ Repo settings panel ══════ -->
+    <!-- ══════ Settings panel (collapsible) ══════ -->
     <div
-      v-if="showRepoSettings"
-      class="shrink-0 border-b border-gray-800 bg-gray-900/80 p-4"
+      v-if="showSettings"
+      class="shrink-0 border-b border-gray-800 bg-gray-900/80 px-5 py-4"
     >
-      <div class="mx-auto max-w-2xl">
-        <div class="mb-3 flex items-center justify-between">
-          <span class="font-medium text-gray-300">Repo 設定</span>
+      <div class="mx-auto max-w-3xl">
+        <div class="mb-4 flex items-center justify-between">
+          <span class="font-medium text-gray-300">設定</span>
           <button
-            class="text-muted hover:text-gray-300"
-            @click="showRepoSettings = false"
+            class="text-gray-500 hover:text-gray-300"
+            @click="showSettings = false"
           >
             <UIcon name="i-lucide-x" />
           </button>
         </div>
 
-        <div v-if="repoConfigs.length > 0" class="mb-3 space-y-1">
-          <div
-            v-for="c in repoConfigs"
-            :key="c.id"
-            class="flex items-center gap-2 rounded-lg px-3 py-2"
-            :class="
-              selectedRepoId === c.id
-                ? 'ring-primary-500/30 bg-gray-800 ring-1'
-                : 'bg-gray-800/40'
-            "
-          >
-            <button class="flex-1 text-left" @click="selectedRepoId = c.id">
-              <span class="font-medium text-gray-200">{{ c.name }}</span>
-              <span
-                v-if="c.githubRepo"
-                class="text-muted ml-2 font-mono text-xs"
-                >{{ c.githubRepo }}</span
-              >
-              <span class="text-muted ml-2 font-mono text-xs text-gray-600">{{
-                c.cwd
-              }}</span>
-            </button>
-            <button
-              class="text-muted px-1 hover:text-gray-300"
-              @click="startEditConfig(c)"
-            >
-              <UIcon name="i-lucide-pencil" />
-            </button>
-            <button
-              class="text-muted px-1 hover:text-red-400"
-              @click="deleteRepoConfig(c.id)"
-            >
-              <UIcon name="i-lucide-trash-2" />
-            </button>
-          </div>
-        </div>
-        <p v-else-if="!editingConfig" class="text-muted mb-3 text-sm">
-          尚無設定，點「新增」加入 Repo。
-        </p>
-
-        <div
-          v-if="editingConfig"
-          class="rounded-lg border border-gray-700 bg-gray-800 p-3"
-        >
-          <div class="mb-2 text-sm font-medium text-gray-300">
-            {{ editingConfig.id ? '編輯 Repo' : '新增 Repo' }}
-          </div>
-          <div class="grid gap-2">
-            <div class="flex items-center gap-2">
-              <span class="text-muted w-28 shrink-0 text-sm">名稱</span>
-              <input
-                v-model="editingConfig.name"
-                placeholder="kkday-mobile"
-                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 text-sm text-gray-100 outline-none focus:ring-1"
-              />
+        <div class="grid grid-cols-2 gap-6">
+          <!-- Left column: General settings -->
+          <div class="space-y-3">
+            <div class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+              一般設定
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-muted w-28 shrink-0 text-sm">GitHub Repo</span>
-              <input
-                v-model="editingConfig.githubRepo"
-                placeholder="kkday-it/kkday-mobile-member-ci"
-                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
-              />
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-muted w-28 shrink-0 text-sm">本地路徑</span>
-              <input
-                v-model="editingConfig.cwd"
-                placeholder="/Users/you/project"
-                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
-              />
-            </div>
-          </div>
-          <div class="mt-3 flex gap-2">
-            <UButton size="xs" @click="saveConfig">儲存</UButton>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              @click="cancelEdit"
-              >取消</UButton
-            >
-          </div>
-        </div>
 
-        <button
-          v-if="!editingConfig"
-          class="text-muted mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-800 hover:text-gray-300"
-          @click="newConfig"
-        >
-          <UIcon name="i-lucide-plus" />
-          新增
-        </button>
-      </div>
-    </div>
-
-    <!-- ══════ Body: pipeline (left) + detail (right) ══════ -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- ══════ Left: Pipeline Sidebar ══════ -->
-      <div
-        class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
-      >
-        <div class="flex-1 overflow-y-auto">
-          <!-- ─── Stage 1: Fix JIRA Issues ─── -->
-          <div class="border-b border-gray-800">
-            <!-- Stage header -->
-            <div class="flex items-center gap-2 bg-gray-900/60 px-4 py-2.5">
+            <!-- Jira URL -->
+            <div class="flex items-center gap-2">
+              <span class="w-20 shrink-0 text-xs text-gray-500">Jira URL</span>
               <div
-                class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+                class="flex flex-1 items-center gap-1.5 rounded-lg bg-gray-800/60 px-2.5 py-1.5"
               >
-                1
+                <UIcon
+                  name="i-lucide-link"
+                  class="shrink-0 text-gray-600"
+                  style="font-size: 0.85em"
+                />
+                <input
+                  v-model="jiraBaseUrl"
+                  class="w-full bg-transparent text-xs text-gray-400 placeholder-gray-700 outline-none"
+                  placeholder="https://xxx.atlassian.net"
+                  spellcheck="false"
+                />
               </div>
-              <span class="font-medium text-gray-200">修復 JIRA Issue</span>
-              <span v-if="!crLoading && issues.length > 0" class="text-muted">
-                {{ issues.length }} 個
-              </span>
-              <div class="ml-auto flex items-center gap-1">
+            </div>
+
+            <!-- Mode -->
+            <div class="flex items-center gap-2">
+              <span class="w-20 shrink-0 text-xs text-gray-500">模式</span>
+              <div
+                class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
+              >
                 <button
-                  class="text-muted flex items-center rounded px-1.5 py-1 transition-colors hover:bg-gray-800 hover:text-gray-300"
-                  :class="{ 'pointer-events-none opacity-50': crLoading }"
-                  @click="loadIssues"
+                  class="rounded-md px-2.5 py-1 text-xs transition-colors"
+                  :class="
+                    mode === 'normal'
+                      ? 'bg-gray-700 font-medium text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  "
+                  @click="mode = 'normal'"
                 >
-                  <UIcon
-                    name="i-lucide-refresh-cw"
-                    :class="{ 'animate-spin': crLoading }"
-                    style="font-size: 0.85em"
-                  />
+                  普通
+                </button>
+                <button
+                  class="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-colors"
+                  :class="
+                    mode === 'smart'
+                      ? 'bg-primary-600 font-medium text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  "
+                  @click="mode = 'smart'"
+                >
+                  <UIcon name="i-lucide-sparkles" style="font-size: 0.85em" />
+                  智能
                 </button>
               </div>
             </div>
 
-            <!-- Select all -->
-            <div
-              class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
-            >
-              <label
-                class="flex cursor-pointer items-center gap-2 select-none"
-                :class="{
-                  'pointer-events-none opacity-40':
-                    cr.isRunning.value || crLoading,
-                }"
+            <!-- Font size -->
+            <div class="flex items-center gap-2">
+              <span class="w-20 shrink-0 text-xs text-gray-500">字體大小</span>
+              <div
+                class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
               >
-                <UCheckbox
-                  :model-value="crAllChecked"
-                  :indeterminate="crIndeterminate"
-                  @change="toggleAllIssues"
-                />
-                <span class="text-muted text-xs">全選</span>
-              </label>
-              <span
-                v-if="crSelectedCount"
-                class="text-primary-400 ml-auto text-xs font-medium"
-              >
-                已選 {{ crSelectedCount }}
-              </span>
+                <button
+                  v-for="s in FONT_SIZES"
+                  :key="s.value"
+                  class="rounded-md px-2.5 py-1 text-xs transition-colors"
+                  :class="
+                    fontSize === s.value
+                      ? 'bg-gray-700 font-medium text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  "
+                  @click="fontSize = s.value"
+                >
+                  {{ s.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column: Repo management -->
+          <div class="space-y-3">
+            <div class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+              Repo 管理
             </div>
 
-            <!-- Issue list -->
-            <div class="max-h-64 overflow-y-auto">
-              <div v-if="crLoading" class="space-y-1.5 p-2">
-                <div
-                  v-for="n in 3"
-                  :key="n"
-                  class="h-12 animate-pulse rounded-lg bg-gray-800/50"
-                ></div>
-              </div>
-
-              <div v-else-if="crLoadError" class="p-4 text-center">
-                <UIcon
-                  name="i-lucide-wifi-off"
-                  class="mb-2 text-xl text-red-500"
-                />
-                <p class="text-muted mb-2 text-xs">{{ crLoadError }}</p>
-                <UButton size="xs" @click="loadIssues">重試</UButton>
-              </div>
-
+            <div v-if="repoConfigs.length > 0" class="space-y-1">
               <div
-                v-else-if="issues.length === 0"
-                class="p-6 text-center text-gray-600"
+                v-for="c in repoConfigs"
+                :key="c.id"
+                class="flex items-center gap-2 rounded-lg px-3 py-2"
+                :class="
+                  selectedRepoId === c.id
+                    ? 'ring-primary-500/30 bg-gray-800 ring-1'
+                    : 'bg-gray-800/40'
+                "
               >
-                <UIcon name="i-lucide-inbox" class="mb-2 text-2xl" />
-                <p class="text-xs">沒有待處理的 Issue</p>
-              </div>
-
-              <div v-else class="space-y-0.5 p-1.5">
                 <button
-                  v-for="issue in issues"
-                  :key="issue.key"
+                  class="flex-1 text-left"
+                  @click="selectedRepoId = c.id"
+                >
+                  <span class="text-sm font-medium text-gray-200">{{
+                    c.name
+                  }}</span>
+                  <span
+                    v-if="c.githubRepo"
+                    class="ml-2 font-mono text-xs text-gray-500"
+                    >{{ c.githubRepo }}</span
+                  >
+                  <span class="ml-2 font-mono text-xs text-gray-600">{{
+                    c.cwd
+                  }}</span>
+                </button>
+                <button
+                  class="px-1 text-gray-500 hover:text-gray-300"
+                  @click="startEditConfig(c)"
+                >
+                  <UIcon name="i-lucide-pencil" />
+                </button>
+                <button
+                  class="px-1 text-gray-500 hover:text-red-400"
+                  @click="deleteRepoConfig(c.id)"
+                >
+                  <UIcon name="i-lucide-trash-2" />
+                </button>
+              </div>
+            </div>
+            <p v-else-if="!editingConfig" class="text-xs text-gray-600">
+              尚無設定，點「新增」加入 Repo。
+            </p>
+
+            <div
+              v-if="editingConfig"
+              class="rounded-lg border border-gray-700 bg-gray-800 p-3"
+            >
+              <div class="mb-2 text-sm font-medium text-gray-300">
+                {{ editingConfig.id ? '編輯 Repo' : '新增 Repo' }}
+              </div>
+              <div class="grid gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-24 shrink-0 text-xs text-gray-500">名稱</span>
+                  <input
+                    v-model="editingConfig.name"
+                    placeholder="kkday-mobile"
+                    class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 text-sm text-gray-100 outline-none focus:ring-1"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-24 shrink-0 text-xs text-gray-500"
+                    >GitHub Repo</span
+                  >
+                  <input
+                    v-model="editingConfig.githubRepo"
+                    placeholder="kkday-it/kkday-mobile-member-ci"
+                    class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-24 shrink-0 text-xs text-gray-500"
+                    >本地路徑</span
+                  >
+                  <input
+                    v-model="editingConfig.cwd"
+                    placeholder="/Users/you/project"
+                    class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
+                  />
+                </div>
+              </div>
+              <div class="mt-3 flex gap-2">
+                <UButton size="xs" @click="saveConfig">儲存</UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="cancelEdit"
+                  >取消</UButton
+                >
+              </div>
+            </div>
+
+            <button
+              v-if="!editingConfig"
+              class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+              @click="newConfig"
+            >
+              <UIcon name="i-lucide-plus" />
+              新增
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ Body: left list + right detail ══════ -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- ══════════════════════════════════════════════ -->
+      <!-- JIRA Feature Panel                            -->
+      <!-- ══════════════════════════════════════════════ -->
+      <template v-if="activeFeature === 'jira'">
+        <!-- Left: Issue list (full height) -->
+        <div
+          class="flex w-80 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+        >
+          <!-- Header -->
+          <div
+            class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-800 px-4"
+          >
+            <span class="text-sm font-medium text-gray-300">JIRA Issues</span>
+            <span
+              v-if="!crLoading && issues.length > 0"
+              class="text-xs text-gray-600"
+            >
+              {{ issues.length }} 個
+            </span>
+            <div class="ml-auto flex items-center gap-1">
+              <button
+                class="flex items-center rounded px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+                :class="{ 'pointer-events-none opacity-50': crLoading }"
+                @click="loadIssues"
+              >
+                <UIcon
+                  name="i-lucide-refresh-cw"
+                  :class="{ 'animate-spin': crLoading }"
+                  style="font-size: 0.85em"
+                />
+              </button>
+            </div>
+          </div>
+
+          <!-- Select all -->
+          <div
+            class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+          >
+            <label
+              class="flex cursor-pointer items-center gap-2 select-none"
+              :class="{
+                'pointer-events-none opacity-40':
+                  cr.isRunning.value || crLoading,
+              }"
+            >
+              <UCheckbox
+                :model-value="crAllChecked"
+                :indeterminate="crIndeterminate"
+                @change="toggleAllIssues"
+              />
+              <span class="text-xs text-gray-500">全選</span>
+            </label>
+            <span
+              v-if="crSelectedCount"
+              class="text-primary-400 ml-auto text-xs font-medium"
+            >
+              已選 {{ crSelectedCount }}
+            </span>
+          </div>
+
+          <!-- Issue list (full remaining height) -->
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="crLoading" class="space-y-1.5 p-2">
+              <div
+                v-for="n in 5"
+                :key="n"
+                class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+              ></div>
+            </div>
+
+            <div v-else-if="crLoadError" class="p-4 text-center">
+              <UIcon
+                name="i-lucide-wifi-off"
+                class="mb-2 text-xl text-red-500"
+              />
+              <p class="mb-2 text-xs text-gray-500">{{ crLoadError }}</p>
+              <UButton size="xs" @click="loadIssues">重試</UButton>
+            </div>
+
+            <div
+              v-else-if="issues.length === 0"
+              class="p-6 text-center text-gray-600"
+            >
+              <UIcon name="i-lucide-inbox" class="mb-2 text-2xl" />
+              <p class="text-xs">沒有待處理的 Issue</p>
+            </div>
+
+            <div v-else class="space-y-0.5 p-1.5">
+              <button
+                v-for="issue in issues"
+                :key="issue.key"
+                class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
+                :class="[
+                  cr.isRunning.value
+                    ? 'cursor-default opacity-70'
+                    : 'cursor-pointer hover:bg-gray-800/60',
+                  crSelected.has(issue.key)
+                    ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
+                    : '',
+                ]"
+                @click="toggleIssue(issue.key)"
+              >
+                <UCheckbox
+                  :model-value="crSelected.has(issue.key)"
+                  class="pointer-events-none mt-0.5 shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <component
+                      :is="jiraUrl(issue.key) ? 'a' : 'span'"
+                      :href="jiraUrl(issue.key) ?? undefined"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
+                      :class="{
+                        'underline-offset-2 hover:underline': jiraUrl(
+                          issue.key,
+                        ),
+                      }"
+                      @click.stop
+                      >{{ issue.key }}</component
+                    >
+                    <UBadge
+                      :color="statusColor[issue.status] ?? 'neutral'"
+                      variant="soft"
+                      size="xs"
+                    >
+                      {{ issue.status }}
+                    </UBadge>
+                  </div>
+                  <p class="mt-0.5 truncate text-xs leading-snug text-gray-500">
+                    {{ issue.summary }}
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Run button (pinned to bottom) -->
+          <div class="shrink-0 border-t border-gray-800 px-3 py-2">
+            <UButton
+              class="w-full justify-center"
+              size="sm"
+              :disabled="!crSelectedCount || cr.isRunning.value"
+              :loading="cr.isRunning.value"
+              icon="i-lucide-zap"
+              @click="runClaude"
+            >
+              {{
+                cr.isRunning.value
+                  ? '修復中...'
+                  : `開始修復${crSelectedCount ? ` (${crSelectedCount})` : ''}`
+              }}
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Right: JIRA detail panel -->
+        <div class="flex flex-1 flex-col overflow-hidden">
+          <!-- Tab bar -->
+          <div
+            class="flex shrink-0 items-center border-b border-gray-800 px-1"
+          >
+            <button
+              class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
+              :class="
+                jiraRightTab === 'progress'
+                  ? 'border-primary-500 font-medium text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              "
+              @click="jiraRightTab = 'progress'"
+            >
+              <UIcon
+                v-if="cr.isRunning.value"
+                name="i-lucide-loader-circle"
+                class="text-primary-400 animate-spin"
+                style="font-size: 0.8em"
+              />
+              執行過程
+            </button>
+            <button
+              class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
+              :class="
+                jiraRightTab === 'history'
+                  ? 'border-primary-500 font-medium text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              "
+              @click="jiraRightTab = 'history'"
+            >
+              執行紀錄
+              <span
+                v-if="crHistory.length > 0"
+                class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-400"
+              >
+                {{ crHistory.length }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Status row -->
+          <RunnerStatusRow
+            v-if="cr.activeJob.value"
+            :active-job="cr.activeJob.value"
+            :is-running="cr.isRunning.value"
+            :success-count="cr.successCount.value"
+            :error-count="cr.errorCount.value"
+            :elapsed="cr.elapsed.value"
+            :expanded="crRowExpanded"
+            :get-item-url="jiraUrl"
+            @update:expanded="crRowExpanded = $event"
+            @cancel="cr.cancelJob"
+          />
+
+          <!-- Progress -->
+          <template v-if="jiraRightTab === 'progress'">
+            <RunnerJobProgress
+              v-if="cr.activeJob.value"
+              :active-job="cr.activeJob.value"
+              class="flex-1 overflow-hidden"
+            />
+            <div
+              v-else
+              class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
+            >
+              <UIcon name="i-lucide-bug" class="text-5xl" />
+              <div class="text-center">
+                <p class="font-medium text-gray-600">
+                  從左側選擇 JIRA Issue，開始自動修復
+                </p>
+                <p class="mt-1 text-xs text-gray-600">
+                  Claude 會自動分析 Issue、修復程式碼並建立 PR
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- History -->
+          <template v-else-if="jiraRightTab === 'history'">
+            <RunnerJobHistory
+              :history="crHistory"
+              :get-item-url="jiraUrl"
+              @clear="clearCrHistory"
+            />
+          </template>
+        </div>
+      </template>
+
+      <!-- ══════════════════════════════════════════════ -->
+      <!-- PR Feature Panel                              -->
+      <!-- ══════════════════════════════════════════════ -->
+      <template v-else-if="activeFeature === 'pr'">
+        <!-- Left: PR list (full height) -->
+        <div
+          class="flex w-80 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+        >
+          <!-- Header -->
+          <div
+            class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-800 px-4"
+          >
+            <span class="text-sm font-medium text-gray-300">PR Reviews</span>
+            <span
+              v-if="
+                !prLoading &&
+                filteredGroups.reduce((a, g) => a + g.prs.length, 0) > 0
+              "
+              class="text-xs text-gray-600"
+            >
+              {{ filteredGroups.reduce((a, g) => a + g.prs.length, 0) }} 個
+            </span>
+            <div class="ml-auto flex items-center gap-1">
+              <button
+                class="flex items-center rounded px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+                :class="{ 'pointer-events-none opacity-50': prLoading }"
+                @click="loadPRs"
+              >
+                <UIcon
+                  name="i-lucide-refresh-cw"
+                  :class="{ 'animate-spin': prLoading }"
+                  style="font-size: 0.85em"
+                />
+              </button>
+            </div>
+          </div>
+
+          <!-- PR list header -->
+          <div
+            class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+          >
+            <span class="text-xs text-gray-500">PR 列表</span>
+            <span
+              v-if="prSelectedCount"
+              class="text-primary-400 ml-auto text-xs font-medium"
+            >
+              已選 {{ prSelectedCount }}
+            </span>
+          </div>
+
+          <!-- PR list (full remaining height) -->
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="prLoading" class="space-y-1.5 p-2">
+              <div
+                v-for="n in 5"
+                :key="n"
+                class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+              ></div>
+            </div>
+
+            <div v-else-if="prLoadError" class="p-4 text-center">
+              <UIcon
+                name="i-lucide-wifi-off"
+                class="mb-2 text-xl text-red-500"
+              />
+              <p class="mb-2 text-xs text-gray-500">{{ prLoadError }}</p>
+              <UButton size="xs" @click="loadPRs">重試</UButton>
+            </div>
+
+            <div
+              v-else-if="filteredGroups.length === 0"
+              class="p-6 text-center text-gray-600"
+            >
+              <UIcon name="i-lucide-git-pull-request" class="mb-2 text-2xl" />
+              <p class="text-xs">沒有待處理的 PR</p>
+            </div>
+
+            <div v-else class="space-y-0.5 p-1.5">
+              <template v-for="group in filteredGroups" :key="group.repo">
+                <div
+                  class="flex items-center gap-2 px-2.5 py-1.5 text-gray-500"
+                >
+                  <UIcon
+                    name="i-lucide-git-branch"
+                    class="shrink-0"
+                    style="font-size: 0.75em"
+                  />
+                  <span
+                    class="truncate font-mono tracking-wide uppercase"
+                    style="font-size: 0.65em"
+                  >
+                    {{ group.repo }}
+                  </span>
+                </div>
+                <button
+                  v-for="prItem in group.prs"
+                  :key="prItem.number"
                   class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
                   :class="[
-                    cr.isRunning.value
+                    pr.isRunning.value
                       ? 'cursor-default opacity-70'
                       : 'cursor-pointer hover:bg-gray-800/60',
-                    crSelected.has(issue.key)
+                    prSelected.has(prKey(group.repo, prItem.number))
                       ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
                       : '',
                   ]"
-                  @click="toggleIssue(issue.key)"
+                  @click="togglePR(group.repo, prItem.number)"
                 >
                   <UCheckbox
-                    :model-value="crSelected.has(issue.key)"
+                    :model-value="
+                      prSelected.has(prKey(group.repo, prItem.number))
+                    "
                     class="pointer-events-none mt-0.5 shrink-0"
                   />
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
-                      <component
-                        :is="jiraUrl(issue.key) ? 'a' : 'span'"
-                        :href="jiraUrl(issue.key) ?? undefined"
+                      <a
+                        :href="prItem.html_url"
                         target="_blank"
                         rel="noopener"
-                        class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
-                        :class="{
-                          'underline-offset-2 hover:underline': jiraUrl(
-                            issue.key,
-                          ),
-                        }"
+                        class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
                         @click.stop
-                        >{{ issue.key }}</component
+                        >#{{ prItem.number }}</a
                       >
                       <UBadge
-                        :color="statusColor[issue.status] ?? 'neutral'"
+                        v-if="prItem.draft"
+                        color="neutral"
                         variant="soft"
                         size="xs"
                       >
-                        {{ issue.status }}
+                        Draft
+                      </UBadge>
+                      <UBadge
+                        v-if="isFromClaudeRunner(prItem.html_url)"
+                        color="warning"
+                        variant="soft"
+                        size="xs"
+                      >
+                        from JIRA
                       </UBadge>
                     </div>
-                    <p class="text-muted mt-0.5 truncate text-xs leading-snug">
-                      {{ issue.summary }}
+                    <p
+                      class="mt-0.5 truncate text-xs leading-snug text-gray-500"
+                    >
+                      {{ prItem.title }}
                     </p>
                   </div>
                 </button>
-              </div>
-            </div>
-
-            <!-- Run button -->
-            <div class="px-3 py-2">
-              <UButton
-                class="w-full justify-center"
-                size="sm"
-                :disabled="!crSelectedCount || cr.isRunning.value"
-                :loading="cr.isRunning.value"
-                icon="i-lucide-zap"
-                @click="runClaude"
-              >
-                {{
-                  cr.isRunning.value
-                    ? '修復中...'
-                    : `開始修復${crSelectedCount ? ` (${crSelectedCount})` : ''}`
-                }}
-              </UButton>
+              </template>
             </div>
           </div>
 
-          <!-- ─── Pipeline Arrow ─── -->
-          <div class="flex items-center justify-center gap-2 py-3">
-            <div class="h-px flex-1 bg-gray-800"></div>
-            <div class="flex items-center gap-1.5 text-gray-500">
-              <UIcon name="i-lucide-arrow-down" />
-              <span class="text-xs font-medium">PR 建立後</span>
-              <UIcon name="i-lucide-arrow-down" />
-            </div>
-            <div class="h-px flex-1 bg-gray-800"></div>
-          </div>
-
-          <!-- ─── Stage 2: Fix PR Reviews ─── -->
-          <div>
-            <!-- Stage header -->
-            <div class="flex items-center gap-2 bg-gray-900/60 px-4 py-2.5">
-              <div
-                class="flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white"
-              >
-                2
-              </div>
-              <span class="font-medium text-gray-200">修復 PR Review</span>
-              <span
-                v-if="
-                  !prLoading &&
-                  filteredGroups.reduce((a, g) => a + g.prs.length, 0) > 0
-                "
-                class="text-muted"
-              >
-                {{ filteredGroups.reduce((a, g) => a + g.prs.length, 0) }}
-                個
-              </span>
-              <div class="ml-auto flex items-center gap-1">
-                <button
-                  class="text-muted flex items-center rounded px-1.5 py-1 transition-colors hover:bg-gray-800 hover:text-gray-300"
-                  :class="{ 'pointer-events-none opacity-50': prLoading }"
-                  @click="loadPRs"
-                >
-                  <UIcon
-                    name="i-lucide-refresh-cw"
-                    :class="{ 'animate-spin': prLoading }"
-                    style="font-size: 0.85em"
-                  />
-                </button>
-              </div>
-            </div>
-
-            <!-- PR list header -->
-            <div
-              class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+          <!-- Run button (pinned to bottom) -->
+          <div class="shrink-0 border-t border-gray-800 px-3 py-2">
+            <UButton
+              class="w-full justify-center"
+              size="sm"
+              color="success"
+              :disabled="!prSelectedCount || pr.isRunning.value"
+              :loading="pr.isRunning.value"
+              icon="i-lucide-git-pull-request"
+              @click="runPR"
             >
-              <span class="text-muted text-xs">PR 列表</span>
-              <span
-                v-if="prSelectedCount"
-                class="text-primary-400 ml-auto text-xs font-medium"
-              >
-                已選 {{ prSelectedCount }}
-              </span>
-            </div>
-
-            <!-- PR list -->
-            <div class="max-h-64 overflow-y-auto">
-              <div v-if="prLoading" class="space-y-1.5 p-2">
-                <div
-                  v-for="n in 3"
-                  :key="n"
-                  class="h-12 animate-pulse rounded-lg bg-gray-800/50"
-                ></div>
-              </div>
-
-              <div v-else-if="prLoadError" class="p-4 text-center">
-                <UIcon
-                  name="i-lucide-wifi-off"
-                  class="mb-2 text-xl text-red-500"
-                />
-                <p class="text-muted mb-2 text-xs">{{ prLoadError }}</p>
-                <UButton size="xs" @click="loadPRs">重試</UButton>
-              </div>
-
-              <div
-                v-else-if="filteredGroups.length === 0"
-                class="p-6 text-center text-gray-600"
-              >
-                <UIcon name="i-lucide-git-pull-request" class="mb-2 text-2xl" />
-                <p class="text-xs">沒有待處理的 PR</p>
-              </div>
-
-              <div v-else class="space-y-0.5 p-1.5">
-                <template v-for="group in filteredGroups" :key="group.repo">
-                  <div
-                    class="flex items-center gap-2 px-2.5 py-1.5 text-gray-500"
-                  >
-                    <UIcon
-                      name="i-lucide-git-branch"
-                      class="shrink-0"
-                      style="font-size: 0.75em"
-                    />
-                    <span
-                      class="truncate font-mono tracking-wide uppercase"
-                      style="font-size: 0.65em"
-                    >
-                      {{ group.repo }}
-                    </span>
-                  </div>
-                  <button
-                    v-for="prItem in group.prs"
-                    :key="prItem.number"
-                    class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
-                    :class="[
-                      pr.isRunning.value
-                        ? 'cursor-default opacity-70'
-                        : 'cursor-pointer hover:bg-gray-800/60',
-                      prSelected.has(prKey(group.repo, prItem.number))
-                        ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
-                        : '',
-                    ]"
-                    @click="togglePR(group.repo, prItem.number)"
-                  >
-                    <UCheckbox
-                      :model-value="
-                        prSelected.has(prKey(group.repo, prItem.number))
-                      "
-                      class="pointer-events-none mt-0.5 shrink-0"
-                    />
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <a
-                          :href="prItem.html_url"
-                          target="_blank"
-                          rel="noopener"
-                          class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
-                          @click.stop
-                          >#{{ prItem.number }}</a
-                        >
-                        <UBadge
-                          v-if="prItem.draft"
-                          color="neutral"
-                          variant="soft"
-                          size="xs"
-                        >
-                          Draft
-                        </UBadge>
-                        <UBadge
-                          v-if="isFromClaudeRunner(prItem.html_url)"
-                          color="warning"
-                          variant="soft"
-                          size="xs"
-                        >
-                          from Stage 1
-                        </UBadge>
-                      </div>
-                      <p
-                        class="text-muted mt-0.5 truncate text-xs leading-snug"
-                      >
-                        {{ prItem.title }}
-                      </p>
-                    </div>
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <!-- Run button -->
-            <div class="px-3 py-2">
-              <UButton
-                class="w-full justify-center"
-                size="sm"
-                color="success"
-                :disabled="!prSelectedCount || pr.isRunning.value"
-                :loading="pr.isRunning.value"
-                icon="i-lucide-git-pull-request"
-                @click="runPR"
-              >
-                {{
-                  pr.isRunning.value
-                    ? '修復中...'
-                    : `修復 Review${prSelectedCount ? ` (${prSelectedCount})` : ''}`
-                }}
-              </UButton>
-            </div>
+              {{
+                pr.isRunning.value
+                  ? '修復中...'
+                  : `修復 Review${prSelectedCount ? ` (${prSelectedCount})` : ''}`
+              }}
+            </UButton>
           </div>
         </div>
-      </div>
 
-      <!-- ══════ Right: Detail Panel ══════ -->
-      <div class="flex flex-1 flex-col overflow-hidden">
-        <!-- Runner selector tabs + panel tabs -->
-        <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
-          <!-- Runner toggle -->
+        <!-- Right: PR detail panel -->
+        <div class="flex flex-1 flex-col overflow-hidden">
+          <!-- Tab bar -->
           <div
-            class="mr-2 ml-2 flex items-center gap-1 rounded-lg bg-gray-800/60 p-0.5"
+            class="flex shrink-0 items-center border-b border-gray-800 px-1"
           >
             <button
-              class="rounded-md px-3 py-1.5 text-xs transition-colors"
+              class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
               :class="
-                activeRunner === 'claude'
-                  ? 'bg-blue-600 font-medium text-white'
-                  : 'text-muted hover:text-gray-300'
+                prRightTab === 'progress'
+                  ? 'border-primary-500 font-medium text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
               "
-              @click="activeRunner = 'claude'"
+              @click="prRightTab = 'progress'"
             >
-              JIRA
-              <span
-                v-if="cr.isRunning.value"
-                class="ml-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400"
-              ></span>
-            </button>
-            <button
-              class="rounded-md px-3 py-1.5 text-xs transition-colors"
-              :class="
-                activeRunner === 'pr'
-                  ? 'bg-green-600 font-medium text-white'
-                  : 'text-muted hover:text-gray-300'
-              "
-              @click="activeRunner = 'pr'"
-            >
-              PR
-              <span
+              <UIcon
                 v-if="pr.isRunning.value"
-                class="ml-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-400"
-              ></span>
+                name="i-lucide-loader-circle"
+                class="text-primary-400 animate-spin"
+                style="font-size: 0.8em"
+              />
+              執行過程
+            </button>
+            <button
+              class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
+              :class="
+                prRightTab === 'history'
+                  ? 'border-primary-500 font-medium text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              "
+              @click="prRightTab = 'history'"
+            >
+              執行紀錄
+              <span
+                v-if="prHistory.length > 0"
+                class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-400"
+              >
+                {{ prHistory.length }}
+              </span>
             </button>
           </div>
 
-          <div class="mx-2 h-5 w-px bg-gray-800"></div>
+          <!-- Status row -->
+          <RunnerStatusRow
+            v-if="pr.activeJob.value"
+            :active-job="pr.activeJob.value"
+            :is-running="pr.isRunning.value"
+            :success-count="pr.successCount.value"
+            :error-count="pr.errorCount.value"
+            :elapsed="pr.elapsed.value"
+            :expanded="prRowExpanded"
+            :get-item-url="getPrUrl"
+            @update:expanded="prRowExpanded = $event"
+            @cancel="pr.cancelJob"
+          />
 
-          <!-- Panel tabs -->
-          <button
-            class="-mb-px border-b-2 px-4 py-3 transition-colors"
-            :class="
-              rightTab === 'result'
-                ? 'border-primary-500 font-medium text-white'
-                : 'text-muted border-transparent hover:text-gray-300'
-            "
-            @click="rightTab = 'result'"
-          >
-            本次結果
-          </button>
-          <button
-            class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 transition-colors"
-            :class="
-              rightTab === 'progress'
-                ? 'border-primary-500 font-medium text-white'
-                : 'text-muted border-transparent hover:text-gray-300'
-            "
-            @click="rightTab = 'progress'"
-          >
-            <UIcon
-              v-if="activeIsRunning"
-              name="i-lucide-loader-circle"
-              class="text-primary-400 animate-spin"
-              style="font-size: 0.8em"
+          <!-- Progress -->
+          <template v-if="prRightTab === 'progress'">
+            <RunnerJobProgress
+              v-if="pr.activeJob.value"
+              :active-job="pr.activeJob.value"
+              class="flex-1 overflow-hidden"
             />
-            執行過程
-          </button>
-          <button
-            class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 transition-colors"
-            :class="
-              rightTab === 'history'
-                ? 'border-primary-500 font-medium text-white'
-                : 'text-muted border-transparent hover:text-gray-300'
-            "
-            @click="rightTab = 'history'"
-          >
-            執行紀錄
-            <span
-              v-if="activeHistory.length > 0"
-              class="text-muted rounded-full bg-gray-700 px-1.5 py-0.5 leading-none"
-              style="font-size: 0.75em"
+            <div
+              v-else
+              class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
             >
-              {{ activeHistory.length }}
-            </span>
-          </button>
-        </div>
-
-        <!-- Status row -->
-        <RunnerStatusRow
-          v-if="activeJobForPanel"
-          :active-job="activeJobForPanel"
-          :is-running="activeIsRunning"
-          :success-count="activeSuccessCount"
-          :error-count="activeErrorCount"
-          :elapsed="activeElapsed"
-          :expanded="activeRowExpanded"
-          :get-item-url="activeGetItemUrl"
-          @update:expanded="activeRowExpanded = $event"
-          @cancel="activeCancelJob"
-        />
-
-        <!-- 本次結果 -->
-        <template v-if="rightTab === 'result'">
-          <div
-            v-if="!activeJobForPanel"
-            class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
-          >
-            <UIcon name="i-lucide-terminal" class="text-5xl" />
-            <div class="text-center">
-              <p class="font-medium text-gray-600">
-                從左側選擇任務，開始自動修復
-              </p>
-              <p class="text-muted mt-1">
-                Stage 1 修復 JIRA Issue → Stage 2 修復 PR Review
-              </p>
+              <UIcon name="i-lucide-git-pull-request" class="text-5xl" />
+              <div class="text-center">
+                <p class="font-medium text-gray-600">
+                  從左側選擇 PR，開始自動修復 Review
+                </p>
+                <p class="mt-1 text-xs text-gray-600">
+                  Claude 會自動分析 Review 意見、修復程式碼並 Push
+                </p>
+              </div>
             </div>
-          </div>
-          <div
-            v-else
-            class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-600 select-none"
-          >
-            <UIcon name="i-lucide-arrow-up" class="text-2xl" />
-            <p>狀態列顯示於上方，點擊可展開</p>
-          </div>
-        </template>
+          </template>
 
-        <!-- 執行過程 -->
-        <template v-else-if="rightTab === 'progress'">
-          <RunnerJobProgress
-            :active-job="activeJobForPanel"
-            class="flex-1 overflow-hidden"
-          />
-        </template>
-
-        <!-- 執行紀錄 -->
-        <template v-else-if="rightTab === 'history'">
-          <RunnerJobHistory
-            :history="activeHistory"
-            :get-item-url="activeGetItemUrl"
-            @clear="activeClearHistory"
-          />
-        </template>
-      </div>
+          <!-- History -->
+          <template v-else-if="prRightTab === 'history'">
+            <RunnerJobHistory
+              :history="prHistory"
+              :get-item-url="getPrUrl"
+              @clear="clearPrHistory"
+            />
+          </template>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -1125,13 +1206,4 @@ onBeforeUnmount(() => {
   font-size: v-bind(rootFontSize);
 }
 /* stylelint-enable declaration-property-value-no-unknown, value-keyword-case */
-
-.text-muted {
-  font-size: 0.875em;
-  color: rgb(107 114 128);
-}
-
-.text-log {
-  font-size: 0.875em;
-}
 </style>

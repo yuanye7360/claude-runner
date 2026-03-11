@@ -17,7 +17,8 @@
       "Bash(npx prisma:*)",
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"proceed with reset\" npx prisma migrate reset --force)",
       "Bash(git restore:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx nuxi:*)"
     ]
   }
 }
