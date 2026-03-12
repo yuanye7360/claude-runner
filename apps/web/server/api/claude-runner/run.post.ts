@@ -1,8 +1,13 @@
-import type { Phases } from '../../utils/claude-runner.config';
+import type { Phases, SkillContentMap } from '../../utils/claude-runner.config';
 import type { RunResult } from '../../utils/jobStore';
 
 import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
+
+import matter from 'gray-matter';
 
 import pty from 'node-pty';
 
@@ -29,6 +34,32 @@ interface RunRequest {
   issues: JiraIssue[];
   repoConfig?: { cwd: string };
   mode?: 'normal' | 'smart';
+  enabledSkills?: string[];
+}
+
+const DEFAULT_SKILLS = [
+  'kkday-jira-branch-checkout',
+  'kkday-pr-convention',
+  'kkday-jira-worklog',
+];
+
+function loadSkillContent(enabledSkills: string[]): SkillContentMap {
+  const map: SkillContentMap = {};
+  const dirs = [
+    resolve(new URL('.', import.meta.url).pathname, '../../skills'),
+    join(homedir(), '.claude', 'skills'),
+  ];
+  for (const name of enabledSkills) {
+    for (const dir of dirs) {
+      const file = join(dir, name, 'SKILL.md');
+      if (existsSync(file)) {
+        const { content } = matter(readFileSync(file, 'utf8'));
+        map[name] = content.trim();
+        break; // internal (first dir) wins
+      }
+    }
+  }
+  return map;
 }
 
 function detectPhaseTransition(
@@ -201,13 +232,18 @@ export default defineEventHandler(async (event) => {
     issues,
     repoConfig,
     mode = 'normal',
+    enabledSkills,
   } = await readBody<RunRequest>(event);
 
   const repoCwd = repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD;
   if (!repoCwd) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
   const phases = mode === 'smart' ? PHASES_SMART : PHASES_NORMAL;
-  const buildPrompt = mode === 'smart' ? PROMPT_SMART : PROMPT_NORMAL;
+  const skills = loadSkillContent(enabledSkills ?? DEFAULT_SKILLS);
+  const buildPrompt =
+    mode === 'smart'
+      ? (i: JiraIssue) => PROMPT_SMART(i, skills)
+      : (i: JiraIssue) => PROMPT_NORMAL(i, skills);
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const job = createJob(
