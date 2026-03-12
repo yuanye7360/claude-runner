@@ -20,7 +20,9 @@
       "Bash(git log:*)",
       "Bash(npx nuxi:*)",
       "mcp__n8n-mcp__n8n_get_workflow",
-      "mcp__n8n-mcp__n8n_update_partial_workflow"
+      "mcp__n8n-mcp__n8n_update_partial_workflow",
+      "Bash(find /Users/yeyuan/home/ClaudeRunner -name *.prisma -o -name schema.prisma)",
+      "Bash(grep -r \"JobResult\\\\|Job.*model\\\\|execution\" /Users/yeyuan/home/ClaudeRunner/apps/web --include=*.ts --include=*.vue --include=*.prisma)"
     ]
   }
 }

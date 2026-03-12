@@ -51,10 +51,11 @@ const ANSI_RE =
 
 function getMainBranch(cwd: string): string {
   try {
-    return execSync(
+    const branch = execSync(
       `git remote show origin | grep 'HEAD branch' | awk '{print $NF}'`,
       { cwd, encoding: 'utf8', timeout: 10_000 },
     ).trim();
+    return branch || 'main';
   } catch {
     return 'main';
   }
@@ -274,9 +275,14 @@ export default defineEventHandler(async (event) => {
             killFns,
           );
           if (job.status !== 'cancelled') {
+            const prMatch =
+              /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i.exec(
+                output.text,
+              );
             results.push({
               issueKey: issue.key ?? '',
               ...(output.ok ? { output: output.text } : { error: output.text }),
+              ...(prMatch ? { prUrl: prMatch[1] } : {}),
             });
           }
         } finally {
