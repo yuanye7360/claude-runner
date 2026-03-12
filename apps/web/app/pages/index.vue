@@ -960,14 +960,22 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-else class="space-y-1 p-2">
-              <div v-for="group in filteredGroups" :key="group.repo" class="mb-2">
+              <div
+                v-for="group in filteredGroups"
+                :key="group.repo"
+                class="mb-2"
+              >
                 <!-- Repo group header -->
                 <button
                   class="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-800/50"
                   @click="toggleRepoCollapse(group.repo)"
                 >
                   <UIcon
-                    :name="collapsedRepos.has(group.repo) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                    :name="
+                      collapsedRepos.has(group.repo)
+                        ? 'i-lucide-chevron-right'
+                        : 'i-lucide-chevron-down'
+                    "
                     class="shrink-0 text-sm text-gray-500 transition-transform duration-150"
                   />
                   <span class="truncate text-xs font-medium text-gray-300">
@@ -976,7 +984,9 @@ onBeforeUnmount(() => {
                   <span class="truncate text-xs text-gray-600">
                     {{ group.repo.split('/')[0] }}
                   </span>
-                  <span class="ml-auto rounded-full bg-gray-800 px-2 py-0.5 text-xs tabular-nums text-gray-500">
+                  <span
+                    class="ml-auto rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-500 tabular-nums"
+                  >
                     {{ group.prs.length }}
                   </span>
                 </button>
@@ -984,7 +994,7 @@ onBeforeUnmount(() => {
                 <!-- PR items (indented) -->
                 <div
                   v-show="!collapsedRepos.has(group.repo)"
-                  class="ml-3 space-y-1 border-l border-gray-800/60 pl-2 pt-1"
+                  class="ml-3 space-y-1 border-l border-gray-800/60 pt-1 pl-2"
                 >
                   <div
                     v-for="prItem in group.prs"
