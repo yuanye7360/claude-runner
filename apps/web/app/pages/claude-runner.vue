@@ -3,6 +3,7 @@ import type { HistoryEntry } from '~/composables/useRunnerJob';
 
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
+import { useSkills } from '~/composables/useSkills';
 
 useHead({ title: 'Claude Runner' });
 
@@ -53,6 +54,16 @@ const selectedRepo = computed(
 
 const showRepoSettings = ref(false);
 
+const {
+  skills: skillList,
+  enabledSkillNames,
+  fetchSkills,
+  toggle: toggleSkill,
+  applyPreset: applySkillPreset,
+} = useSkills();
+
+const showSkillSettings = ref(false);
+
 function saveConfig() {
   const isNew = !editingConfig.value?.id;
   const entry = _saveConfig();
@@ -70,7 +81,10 @@ const mode = ref<'normal' | 'smart'>(
     ? 'smart'
     : (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart',
 );
-watch(mode, (v) => localStorage.setItem('cr-mode', v));
+watch(mode, (v) => {
+  localStorage.setItem('cr-mode', v);
+  applySkillPreset(v);
+});
 
 // ── Jira URL ───────────────────────────────────────────────
 const jiraBaseUrl = ref(
@@ -184,6 +198,7 @@ async function runSelected() {
             ? { cwd: selectedRepo.value.cwd }
             : undefined,
           mode: mode.value,
+          enabledSkills: enabledSkillNames.value,
         },
       },
     );
@@ -207,6 +222,7 @@ const statusColor: Record<string, 'info' | 'neutral' | 'success'> = {
 onMounted(async () => {
   loadHistory();
   loadIssues();
+  fetchSkills();
   const savedJobId = localStorage.getItem(jobStorageKey);
   if (savedJobId) {
     await restoreJob(savedJobId);
@@ -265,6 +281,13 @@ onBeforeUnmount(() => cleanup());
         @click="showRepoSettings = !showRepoSettings"
       >
         <UIcon name="i-lucide-settings-2" />
+      </button>
+      <button
+        class="text-muted flex items-center rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-800 hover:text-gray-300"
+        :class="{ 'text-primary-400': showSkillSettings }"
+        @click="showSkillSettings = !showSkillSettings"
+      >
+        <UIcon name="i-lucide-puzzle" />
       </button>
 
       <!-- Mode toggle -->
@@ -427,6 +450,55 @@ onBeforeUnmount(() => cleanup());
           <UIcon name="i-lucide-plus" />
           新增
         </button>
+      </div>
+    </div>
+
+    <!-- Skill settings panel -->
+    <div
+      v-if="showSkillSettings"
+      class="shrink-0 border-b border-gray-800 bg-gray-900/80 p-4"
+    >
+      <div class="mx-auto max-w-2xl">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-medium text-gray-300">Skills 管理</span>
+          <button
+            class="text-muted hover:text-gray-300"
+            @click="showSkillSettings = false"
+          >
+            <UIcon name="i-lucide-x" />
+          </button>
+        </div>
+
+        <div v-if="skillList.length === 0" class="text-muted text-sm">
+          載入中...
+        </div>
+
+        <div v-else class="space-y-2">
+          <div
+            v-for="skill in skillList"
+            :key="skill.name"
+            class="flex items-center gap-3 rounded-lg px-3 py-2"
+            :class="skill.enabled ? 'bg-gray-800' : 'bg-gray-800/40'"
+          >
+            <UCheckbox
+              :model-value="skill.enabled"
+              @change="toggleSkill(skill.name)"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-gray-200">{{ skill.name }}</span>
+                <UBadge
+                  :color="skill.source === 'internal' ? 'primary' : 'neutral'"
+                  variant="soft"
+                  size="sm"
+                >
+                  {{ skill.source === 'internal' ? '內建' : '外部' }}
+                </UBadge>
+              </div>
+              <p class="text-muted mt-0.5 truncate">{{ skill.description }}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
