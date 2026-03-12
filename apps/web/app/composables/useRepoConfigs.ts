@@ -2,7 +2,6 @@ export interface RepoConfig {
   id: string;
   name: string;
   cwd: string;
-  githubRepo?: string; // "owner/repo" — used by pr-runner for filtering
 }
 
 const STORAGE_KEY = 'runner-repo-configs';
@@ -26,11 +25,11 @@ const editingConfig = ref<null | (RepoConfig & { id: string })>(null);
 
 export function useRepoConfigs() {
   function newConfig() {
-    editingConfig.value = { id: '', name: '', cwd: '', githubRepo: '' };
+    editingConfig.value = { id: '', name: '', cwd: '' };
   }
 
   function startEditConfig(c: RepoConfig) {
-    editingConfig.value = { ...c, githubRepo: c.githubRepo ?? '' };
+    editingConfig.value = { ...c };
   }
 
   function saveConfig() {
@@ -42,7 +41,6 @@ export function useRepoConfigs() {
       id: form.id || Date.now().toString(36),
       name: form.name,
       cwd: form.cwd,
-      ...(form.githubRepo ? { githubRepo: form.githubRepo } : {}),
     };
 
     repoConfigs.value = form.id

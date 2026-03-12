@@ -254,12 +254,14 @@ const prSelected = ref<Set<string>>(new Set());
 const prLoading = ref(true);
 const prLoadError = ref('');
 
-const filteredGroups = computed(() => {
-  if (!selectedRepo.value?.githubRepo) return repoGroups.value;
-  return repoGroups.value.filter(
-    (g) => g.repo === selectedRepo.value?.githubRepo,
-  );
-});
+const filteredGroups = computed(() => repoGroups.value);
+const collapsedRepos = ref<Set<string>>(new Set());
+
+function toggleRepoCollapse(repo: string) {
+  const next = new Set(collapsedRepos.value);
+  next.has(repo) ? next.delete(repo) : next.add(repo);
+  collapsedRepos.value = next;
+}
 
 function prKey(repo: string, number: number) {
   return `${repo}#${number}`;
@@ -387,50 +389,38 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- ── Feature Tabs ── -->
-      <div class="ml-4 flex items-center">
+      <div class="ml-4 flex items-center gap-1">
         <button
-          class="relative flex items-center gap-2 px-4 py-3 text-sm transition-colors"
+          class="relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-all duration-150"
           :class="
             activeFeature === 'jira'
-              ? 'font-semibold text-white'
-              : 'text-gray-500 hover:text-gray-300'
+              ? 'bg-blue-500/10 font-semibold text-blue-400'
+              : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'
           "
           @click="activeFeature = 'jira'"
         >
-          <UIcon name="i-lucide-bug" style="font-size: 1em" />
-          修復 JIRA Issue
-          <!-- Running indicator -->
+          <UIcon name="i-lucide-bug" style="font-size: 1.1em" />
+          JIRA Issues
           <span
             v-if="cr.isRunning.value"
             class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400"
           ></span>
-          <!-- Active underline -->
-          <span
-            v-if="activeFeature === 'jira'"
-            class="absolute right-2 bottom-0 left-2 h-0.5 rounded-full bg-blue-500"
-          ></span>
         </button>
 
         <button
-          class="relative flex items-center gap-2 px-4 py-3 text-sm transition-colors"
+          class="relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-all duration-150"
           :class="
             activeFeature === 'pr'
-              ? 'font-semibold text-white'
-              : 'text-gray-500 hover:text-gray-300'
+              ? 'bg-green-500/10 font-semibold text-green-400'
+              : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'
           "
           @click="activeFeature = 'pr'"
         >
-          <UIcon name="i-lucide-git-pull-request" style="font-size: 1em" />
-          修復 PR Review
-          <!-- Running indicator -->
+          <UIcon name="i-lucide-git-pull-request" style="font-size: 1.1em" />
+          PR Reviews
           <span
             v-if="pr.isRunning.value"
             class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-400"
-          ></span>
-          <!-- Active underline -->
-          <span
-            v-if="activeFeature === 'pr'"
-            class="absolute right-2 bottom-0 left-2 h-0.5 rounded-full bg-green-500"
           ></span>
         </button>
       </div>
@@ -572,11 +562,6 @@ onBeforeUnmount(() => {
                   <span class="text-sm font-medium text-gray-200">{{
                     c.name
                   }}</span>
-                  <span
-                    v-if="c.githubRepo"
-                    class="ml-2 font-mono text-xs text-gray-500"
-                    >{{ c.githubRepo }}</span
-                  >
                   <span class="ml-2 font-mono text-xs text-gray-600">{{
                     c.cwd
                   }}</span>
@@ -613,16 +598,6 @@ onBeforeUnmount(() => {
                     v-model="editingConfig.name"
                     placeholder="kkday-mobile"
                     class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 text-sm text-gray-100 outline-none focus:ring-1"
-                  />
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="w-24 shrink-0 text-xs text-gray-500"
-                    >GitHub Repo</span
-                  >
-                  <input
-                    v-model="editingConfig.githubRepo"
-                    placeholder="kkday-it/kkday-mobile-member-ci"
-                    class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1 font-mono text-sm text-gray-100 outline-none focus:ring-1"
                   />
                 </div>
                 <div class="flex items-center gap-2">
@@ -669,7 +644,7 @@ onBeforeUnmount(() => {
       <template v-if="activeFeature === 'jira'">
         <!-- Left: Issue list (full height) -->
         <div
-          class="flex w-80 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+          class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
         >
           <!-- Header -->
           <div
@@ -678,9 +653,9 @@ onBeforeUnmount(() => {
             <span class="text-sm font-medium text-gray-300">JIRA Issues</span>
             <span
               v-if="!crLoading && issues.length > 0"
-              class="text-xs text-gray-600"
+              class="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400"
             >
-              {{ issues.length }} 個
+              {{ issues.length }}
             </span>
             <div class="ml-auto flex items-center gap-1">
               <button
@@ -717,7 +692,7 @@ onBeforeUnmount(() => {
             </label>
             <span
               v-if="crSelectedCount"
-              class="text-primary-400 ml-auto text-xs font-medium"
+              class="ml-auto text-xs font-medium text-blue-400"
             >
               已選 {{ crSelectedCount }}
             </span>
@@ -750,17 +725,19 @@ onBeforeUnmount(() => {
               <p class="text-xs">沒有待處理的 Issue</p>
             </div>
 
-            <div v-else class="space-y-0.5 p-1.5">
-              <button
+            <div v-else class="space-y-1 p-2">
+              <div
                 v-for="issue in issues"
                 :key="issue.key"
-                class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
+                role="button"
+                tabindex="0"
+                class="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all duration-150"
                 :class="[
                   cr.isRunning.value
                     ? 'cursor-default opacity-70'
-                    : 'cursor-pointer hover:bg-gray-800/60',
+                    : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
                   crSelected.has(issue.key)
-                    ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
+                    ? 'border-blue-500/20 bg-blue-500/5'
                     : '',
                 ]"
                 @click="toggleIssue(issue.key)"
@@ -776,13 +753,13 @@ onBeforeUnmount(() => {
                       :href="issue.url || jiraUrl(issue.key)!"
                       target="_blank"
                       rel="noopener"
-                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
+                      class="shrink-0 font-mono text-sm font-semibold text-blue-400 underline-offset-2 hover:underline"
                       @click.stop
                       >{{ issue.key }}</a
                     >
                     <span
                       v-else
-                      class="text-primary-400 shrink-0 font-mono text-sm font-semibold"
+                      class="shrink-0 font-mono text-sm font-semibold text-blue-400"
                       >{{ issue.key }}</span
                     >
                     <UBadge
@@ -793,11 +770,11 @@ onBeforeUnmount(() => {
                       {{ issue.status }}
                     </UBadge>
                   </div>
-                  <p class="mt-0.5 truncate text-xs leading-snug text-gray-500">
+                  <p class="mt-1 truncate text-sm leading-snug text-gray-400">
                     {{ issue.summary }}
                   </p>
                 </div>
-              </button>
+              </div>
             </div>
           </div>
 
@@ -914,7 +891,7 @@ onBeforeUnmount(() => {
       <template v-else-if="activeFeature === 'pr'">
         <!-- Left: PR list (full height) -->
         <div
-          class="flex w-80 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+          class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
         >
           <!-- Header -->
           <div
@@ -926,9 +903,9 @@ onBeforeUnmount(() => {
                 !prLoading &&
                 filteredGroups.reduce((a, g) => a + g.prs.length, 0) > 0
               "
-              class="text-xs text-gray-600"
+              class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400"
             >
-              {{ filteredGroups.reduce((a, g) => a + g.prs.length, 0) }} 個
+              {{ filteredGroups.reduce((a, g) => a + g.prs.length, 0) }}
             </span>
             <div class="ml-auto flex items-center gap-1">
               <button
@@ -945,15 +922,12 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- PR list header -->
+          <!-- Selection count -->
           <div
-            class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5"
+            v-if="prSelectedCount"
+            class="shrink-0 border-b border-gray-800/60 px-4 py-1.5"
           >
-            <span class="text-xs text-gray-500">PR 列表</span>
-            <span
-              v-if="prSelectedCount"
-              class="text-primary-400 ml-auto text-xs font-medium"
-            >
+            <span class="text-xs font-medium text-green-400">
               已選 {{ prSelectedCount }}
             </span>
           </div>
@@ -985,78 +959,91 @@ onBeforeUnmount(() => {
               <p class="text-xs">沒有待處理的 PR</p>
             </div>
 
-            <div v-else class="space-y-0.5 p-1.5">
-              <template v-for="group in filteredGroups" :key="group.repo">
-                <div
-                  class="flex items-center gap-2 px-2.5 py-1.5 text-gray-500"
+            <div v-else class="space-y-1 p-2">
+              <div v-for="group in filteredGroups" :key="group.repo" class="mb-2">
+                <!-- Repo group header -->
+                <button
+                  class="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-800/50"
+                  @click="toggleRepoCollapse(group.repo)"
                 >
                   <UIcon
-                    name="i-lucide-git-branch"
-                    class="shrink-0"
-                    style="font-size: 0.75em"
+                    :name="collapsedRepos.has(group.repo) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
+                    class="shrink-0 text-sm text-gray-500 transition-transform duration-150"
                   />
-                  <span
-                    class="truncate font-mono tracking-wide uppercase"
-                    style="font-size: 0.65em"
-                  >
-                    {{ group.repo }}
+                  <span class="truncate text-xs font-medium text-gray-300">
+                    {{ group.repo.split('/')[1] || group.repo }}
                   </span>
-                </div>
-                <button
-                  v-for="prItem in group.prs"
-                  :key="prItem.number"
-                  class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-100"
-                  :class="[
-                    pr.isRunning.value
-                      ? 'cursor-default opacity-70'
-                      : 'cursor-pointer hover:bg-gray-800/60',
-                    prSelected.has(prKey(group.repo, prItem.number))
-                      ? 'ring-primary-500/30 bg-gray-800/80 ring-1'
-                      : '',
-                  ]"
-                  @click="togglePR(group.repo, prItem.number)"
-                >
-                  <UCheckbox
-                    :model-value="
-                      prSelected.has(prKey(group.repo, prItem.number))
-                    "
-                    class="pointer-events-none mt-0.5 shrink-0"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                      <a
-                        :href="prItem.html_url"
-                        target="_blank"
-                        rel="noopener"
-                        class="text-primary-400 shrink-0 font-mono text-sm font-semibold underline-offset-2 hover:underline"
-                        @click.stop
-                        >#{{ prItem.number }}</a
-                      >
-                      <UBadge
-                        v-if="prItem.draft"
-                        color="neutral"
-                        variant="soft"
-                        size="xs"
-                      >
-                        Draft
-                      </UBadge>
-                      <UBadge
-                        v-if="isFromClaudeRunner(prItem.html_url)"
-                        color="warning"
-                        variant="soft"
-                        size="xs"
-                      >
-                        from JIRA
-                      </UBadge>
-                    </div>
-                    <p
-                      class="mt-0.5 truncate text-xs leading-snug text-gray-500"
-                    >
-                      {{ prItem.title }}
-                    </p>
-                  </div>
+                  <span class="truncate text-xs text-gray-600">
+                    {{ group.repo.split('/')[0] }}
+                  </span>
+                  <span class="ml-auto rounded-full bg-gray-800 px-2 py-0.5 text-xs tabular-nums text-gray-500">
+                    {{ group.prs.length }}
+                  </span>
                 </button>
-              </template>
+
+                <!-- PR items (indented) -->
+                <div
+                  v-show="!collapsedRepos.has(group.repo)"
+                  class="ml-3 space-y-1 border-l border-gray-800/60 pl-2 pt-1"
+                >
+                  <div
+                    v-for="prItem in group.prs"
+                    :key="prItem.number"
+                    role="button"
+                    tabindex="0"
+                    class="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all duration-150"
+                    :class="[
+                      pr.isRunning.value
+                        ? 'cursor-default opacity-70'
+                        : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
+                      prSelected.has(prKey(group.repo, prItem.number))
+                        ? 'border-green-500/20 bg-green-500/5'
+                        : '',
+                    ]"
+                    @click="togglePR(group.repo, prItem.number)"
+                  >
+                    <UCheckbox
+                      :model-value="
+                        prSelected.has(prKey(group.repo, prItem.number))
+                      "
+                      class="pointer-events-none mt-0.5 shrink-0"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <a
+                          :href="prItem.html_url"
+                          target="_blank"
+                          rel="noopener"
+                          class="shrink-0 font-mono text-sm font-semibold text-green-400 underline-offset-2 hover:underline"
+                          @click.stop
+                          >#{{ prItem.number }}</a
+                        >
+                        <UBadge
+                          v-if="prItem.draft"
+                          color="neutral"
+                          variant="soft"
+                          size="xs"
+                        >
+                          Draft
+                        </UBadge>
+                        <UBadge
+                          v-if="isFromClaudeRunner(prItem.html_url)"
+                          color="warning"
+                          variant="soft"
+                          size="xs"
+                        >
+                          from JIRA
+                        </UBadge>
+                      </div>
+                      <p
+                        class="mt-1 truncate text-sm leading-snug text-gray-400"
+                      >
+                        {{ prItem.title }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
