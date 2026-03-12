@@ -8,7 +8,6 @@ import { join, resolve } from 'node:path';
 import process from 'node:process';
 
 import matter from 'gray-matter';
-
 import pty from 'node-pty';
 
 import {

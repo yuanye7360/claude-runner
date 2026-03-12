@@ -1,7 +1,7 @@
 export interface SkillItem {
   name: string;
   description: string;
-  source: 'internal' | 'external';
+  source: 'custom' | 'external';
   enabled: boolean;
 }
 
@@ -45,7 +45,11 @@ export function useSkills() {
   async function fetchSkills() {
     try {
       const data = await $fetch<
-        Array<{ name: string; description: string; source: 'internal' | 'external' }>
+        Array<{
+          description: string;
+          name: string;
+          source: 'custom' | 'external';
+        }>
       >('/api/skills');
       skills.value = data.map((s) => ({
         ...s,
@@ -55,7 +59,7 @@ export function useSkills() {
 
       // If no saved state, apply default preset
       if (enabledSet.value.size === 0 && skills.value.length > 0) {
-        const defaults = new Set(MODE_PRESETS.normal ?? []);
+        const defaults = new Set(MODE_PRESETS.normal);
         enabledSet.value = defaults;
         persistEnabled(defaults);
         skills.value = skills.value.map((s) => ({
@@ -63,8 +67,8 @@ export function useSkills() {
           enabled: defaults.has(s.name),
         }));
       }
-    } catch (e) {
-      console.error('Failed to load skills:', e);
+    } catch (error) {
+      console.error('Failed to load skills:', error);
     }
   }
 

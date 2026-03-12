@@ -4,6 +4,7 @@ import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
+import { useSkills } from '~/composables/useSkills';
 
 useHead({ title: 'Claude Runner — Pipeline' });
 
@@ -45,6 +46,42 @@ const selectedRepo = computed(
 );
 const showSettings = ref(false);
 
+const {
+  skills: skillList,
+  enabledSkillNames,
+  fetchSkills,
+  toggle: toggleSkill,
+  applyPreset: applySkillPreset,
+} = useSkills();
+
+const showSkillSettings = ref(false);
+
+// ── Create Skill ─────────────────────────────────────────
+const showNewSkill = ref(false);
+const newSkill = ref({ name: '', description: '', content: '' });
+const newSkillError = ref('');
+const newSkillSaving = ref(false);
+
+async function createSkill() {
+  if (!newSkill.value.name.trim() || !newSkill.value.content.trim()) return;
+  newSkillSaving.value = true;
+  newSkillError.value = '';
+  try {
+    await $fetch('/api/skills', {
+      method: 'POST',
+      body: newSkill.value,
+    });
+    newSkill.value = { name: '', description: '', content: '' };
+    showNewSkill.value = false;
+    await fetchSkills();
+  } catch (error: unknown) {
+    const msg = (error as { data?: { message?: string } })?.data?.message;
+    newSkillError.value = msg || (error as Error).message;
+  } finally {
+    newSkillSaving.value = false;
+  }
+}
+
 function saveConfig() {
   const isNew = !editingConfig.value?.id;
   const entry = _saveConfig();
@@ -61,7 +98,10 @@ const mode = ref<'normal' | 'smart'>(
     ? 'smart'
     : (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart',
 );
-watch(mode, (v) => localStorage.setItem('cr-mode', v));
+watch(mode, (v) => {
+  localStorage.setItem('cr-mode', v);
+  applySkillPreset(v);
+});
 
 // ── Jira URL helper ──────────────────────────────────────
 function jiraUrl(key: string): null | string {
@@ -194,6 +234,7 @@ async function runClaude() {
             ? { cwd: selectedRepo.value.cwd }
             : undefined,
           mode: mode.value,
+          enabledSkills: enabledSkillNames.value,
         },
       },
     );
@@ -351,6 +392,7 @@ onMounted(async () => {
   loadPrHistory();
   loadIssues();
   loadPRs();
+  fetchSkills();
   // Restore Claude Runner job
   const crJobId = localStorage.getItem(cr.storageKey);
   if (crJobId) {
@@ -448,6 +490,21 @@ onBeforeUnmount(() => {
           </select>
         </div>
 
+        <!-- Skills button -->
+        <button
+          class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+          :class="{ 'text-primary-400': showSkillSettings }"
+          @click="showSkillSettings = !showSkillSettings"
+        >
+          <UIcon name="i-heroicons-cube" style="font-size: 1em" />
+          <span class="text-xs">Skills</span>
+          <span
+            v-if="enabledSkillNames.length > 0"
+            class="rounded-full bg-primary-500/20 px-1.5 py-0.5 text-xs leading-none text-primary-400 tabular-nums"
+          >
+            {{ enabledSkillNames.length }}
+          </span>
+        </button>
         <!-- Settings button -->
         <button
           class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
@@ -633,6 +690,134 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ══════ Skills panel (collapsible) ══════ -->
+    <div
+      v-if="showSkillSettings"
+      class="shrink-0 border-b border-gray-800 bg-gray-900/80 px-5 py-4"
+    >
+      <div class="mx-auto max-w-4xl">
+        <div class="mb-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-gray-300">Skills 管理</span>
+            <span class="text-xs text-gray-600">
+              已啟用 {{ enabledSkillNames.length }} / {{ skillList.length }}
+            </span>
+          </div>
+          <button
+            class="text-gray-500 hover:text-gray-300"
+            @click="showSkillSettings = false"
+          >
+            <UIcon name="i-lucide-x" />
+          </button>
+        </div>
+
+        <div v-if="skillList.length === 0" class="text-sm text-gray-600">
+          載入中...
+        </div>
+
+        <div v-else class="grid grid-cols-2 gap-2 lg:grid-cols-3">
+          <div
+            v-for="skill in skillList"
+            :key="skill.name"
+            class="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-all duration-150"
+            :class="
+              skill.enabled
+                ? 'border-primary-500/20 bg-primary-500/5'
+                : 'border-transparent bg-gray-800/40 hover:bg-gray-800/60'
+            "
+            @click="toggleSkill(skill.name)"
+          >
+            <UCheckbox
+              :model-value="skill.enabled"
+              class="pointer-events-none mt-0.5 shrink-0"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-200">{{
+                  skill.name
+                }}</span>
+                <UBadge
+                  :color="skill.source === 'custom' ? 'success' : 'neutral'"
+                  variant="soft"
+                  size="xs"
+                >
+                  {{ skill.source === 'custom' ? '自建' : '全局' }}
+                </UBadge>
+              </div>
+              <p class="mt-0.5 line-clamp-2 text-xs text-gray-500">
+                {{ skill.description }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- New skill form -->
+        <div
+          v-if="showNewSkill"
+          class="mt-3 rounded-lg border border-gray-700 bg-gray-800 p-4"
+        >
+          <div class="mb-3 text-sm font-medium text-gray-300">新增 Skill</div>
+          <div class="grid gap-3">
+            <div class="flex items-center gap-2">
+              <span class="w-20 shrink-0 text-xs text-gray-500">名稱</span>
+              <input
+                v-model="newSkill.name"
+                placeholder="my-custom-skill"
+                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1.5 font-mono text-sm text-gray-100 outline-none focus:ring-1"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-20 shrink-0 text-xs text-gray-500">說明</span>
+              <input
+                v-model="newSkill.description"
+                placeholder="這個 skill 做什麼..."
+                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1.5 text-sm text-gray-100 outline-none focus:ring-1"
+              />
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="mt-1.5 w-20 shrink-0 text-xs text-gray-500"
+                >內容</span
+              >
+              <textarea
+                v-model="newSkill.content"
+                rows="6"
+                placeholder="Skill 的 Markdown 指令內容..."
+                class="focus:ring-primary-500 flex-1 rounded bg-gray-900 px-2 py-1.5 font-mono text-sm text-gray-100 outline-none focus:ring-1"
+              ></textarea>
+            </div>
+          </div>
+          <p v-if="newSkillError" class="mt-2 text-xs text-red-400">
+            {{ newSkillError }}
+          </p>
+          <div class="mt-3 flex gap-2">
+            <UButton
+              size="xs"
+              :loading="newSkillSaving"
+              :disabled="!newSkill.name.trim() || !newSkill.content.trim()"
+              @click="createSkill"
+              >建立</UButton
+            >
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              @click="showNewSkill = false"
+              >取消</UButton
+            >
+          </div>
+        </div>
+
+        <button
+          v-if="!showNewSkill"
+          class="mt-3 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+          @click="showNewSkill = true"
+        >
+          <UIcon name="i-lucide-plus" />
+          新增 Skill
+        </button>
       </div>
     </div>
 
