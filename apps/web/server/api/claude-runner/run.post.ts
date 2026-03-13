@@ -16,6 +16,7 @@ import {
   PROMPT_NORMAL,
   PROMPT_SMART,
 } from '../../utils/claude-runner.config';
+import { resolveReposFromLabels } from '../../utils/repo-mapping';
 import {
   createJob,
   finishJob,
@@ -234,7 +235,14 @@ export default defineEventHandler(async (event) => {
     enabledSkills,
   } = await readBody<RunRequest>(event);
 
-  const repoCwd = repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD;
+  // Resolve repo from JIRA labels
+  const allLabels = issues.flatMap((i: any) => i.labels ?? []);
+  const mappedRepos = resolveReposFromLabels(allLabels);
+
+  // Use mapped repo if available, fallback to manual repoConfig
+  const repoCwd = mappedRepos.length > 0
+    ? mappedRepos[0].cwd
+    : (repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD);
   if (!repoCwd) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
   const phases = mode === 'smart' ? PHASES_SMART : PHASES_NORMAL;
