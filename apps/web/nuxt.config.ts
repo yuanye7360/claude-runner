@@ -73,6 +73,9 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     minify: true,
+    externals: {
+      external: ['node-pty', '@prisma/client', '@prisma/adapter-pg'],
+    },
   },
 
   // SEO 配置

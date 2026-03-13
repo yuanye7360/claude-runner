@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Job {
+  id             String      @id
+  type           String      @default("claude-runner")
+  status         String
+  startedAt      BigInt
+  finishedAt     BigInt?
+  log            String      @default("")
+  analysisResult Json?
+  issues         JobIssue[]
+  results        JobResult[]
+}
+
+model JobIssue {
+  id      Int    @id @default(autoincrement())
+  job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId   String
+  key     String
+  summary String
+}
+
+model JobResult {
+  id       Int     @id @default(autoincrement())
+  job      Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId    String
+  issueKey String
+  output   String?
+  error    String?
+  prUrl    String?
+}
+
+model PrReviewComment {
+  id        String   @id @default(cuid())
+  prUrl     String
+  prNumber  Int
+  repo      String
+  commentId Int
+  author    String
+  body      String
+  type      String   // "review" | "issue"
+  path      String?
+  line      Int?
+  status    String   @default("unread") // "unread" | "read" | "fixed" | "dismissed"
+  fixCommit String?
+  createdAt DateTime
+  fetchedAt DateTime @default(now())
+
+  @@unique([type, commentId])
+}

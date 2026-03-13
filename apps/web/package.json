@@ -8,7 +8,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "postinstall": "nuxt prepare && chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null; true",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit"
   },
@@ -17,10 +19,16 @@
     "@nuxt/image": "catalog:",
     "@nuxt/ui": "catalog:",
     "@nuxtjs/i18n": "catalog:",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
     "@tailwindcss/typography": "catalog:",
+    "gray-matter": "^4.0.3",
+    "node-pty": "^1.1.0",
     "nuxt": "catalog:",
+    "pg": "^8.20.0",
     "vue": "catalog:",
-    "vue-router": "catalog:"
+    "vue-router": "catalog:",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@iconify-json/bx": "catalog:",
@@ -28,7 +36,10 @@
     "@iconify-json/simple-icons": "catalog:",
     "@iconify-json/uil": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "@types/pg": "^8.18.0",
+    "dotenv": "^17.3.1",
     "postcss": "catalog:",
+    "prisma": "^7.4.2",
     "tailwindcss": "catalog:",
     "vue-tsc": "catalog:"
   }
