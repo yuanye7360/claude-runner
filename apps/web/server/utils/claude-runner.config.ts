@@ -50,6 +50,7 @@ const WORKFLOW_SKILLS = new Set([
   'kkday-jira-branch-checkout',
   'kkday-jira-worklog',
   'kkday-pr-convention',
+  'kkday-jira-lifecycle',
 ]);
 
 function injectSkill(name: string, skills: SkillContentMap): string {
@@ -79,6 +80,15 @@ function buildWorkflow(
 ): string {
   const steps: string[] = [];
   let n = 1;
+
+  // Step: JIRA lifecycle — transition to In Progress
+  const lifecycle = injectSkill('kkday-jira-lifecycle', skills);
+  if (lifecycle) {
+    steps.push(
+      `${n}. Manage JIRA ticket lifecycle\n${lifecycle}\nTransition the ticket to "In Progress" before starting work.`,
+    );
+    n++;
+  }
 
   // Step: branch
   const branch = injectSkill('kkday-jira-branch-checkout', skills);
