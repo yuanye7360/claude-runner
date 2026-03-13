@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { HistoryEntry } from '~/composables/useRunnerJob';
+import type { AnalysisResult } from '~/composables/useTaskAnalyzer';
 import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
 import { useSkills } from '~/composables/useSkills';
 import { useTaskAnalyzer } from '~/composables/useTaskAnalyzer';
-import type { AnalysisResult } from '~/composables/useTaskAnalyzer';
 
 useHead({ title: 'Claude Runner — Pipeline' });
 
@@ -269,9 +269,22 @@ async function runClaudeWithAnalysis(
       },
     );
     crRowExpanded.value = true;
+    // Generate phase labels from analysis
+    const phaseLabels = analysis.repos.length > 0
+      ? [
+          ...(analysis.suggestedWorkflow === 'superpowers-full'
+            ? [{ label: '需求分析' }, { label: '制定计划' }, { label: '建立分支' }]
+            : [{ label: '分析 & 建立分支' }]),
+          ...analysis.repos.map(r => ({
+            label: `${r.path.split('/').pop()} 实现`,
+          })),
+          { label: '建立 PR' },
+        ]
+      : undefined;
     cr.startJob(
       jobId,
       picked.map((i) => ({ key: i.key, summary: i.summary })),
+      phaseLabels,
     );
     analyzer.reset();
   } catch (error) {
@@ -1024,18 +1037,33 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Analysis Result -->
-          <div v-if="analyzer.analysing.value" class="shrink-0 border-t border-gray-800 px-3 py-2">
+          <div
+            v-if="analyzer.analysing.value"
+            class="shrink-0 border-t border-gray-800 px-3 py-2"
+          >
             <div class="flex items-center gap-2 text-gray-400">
-              <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+              <UIcon
+                name="i-lucide-loader-circle"
+                class="h-4 w-4 animate-spin"
+              />
               <span>分析中...</span>
             </div>
           </div>
 
-          <div v-if="analyzer.analysisResult.value && !analyzer.analysing.value" class="shrink-0 space-y-3 border-t border-gray-800 px-3 py-2">
+          <div
+            v-if="analyzer.analysisResult.value && !analyzer.analysing.value"
+            class="shrink-0 space-y-3 border-t border-gray-800 px-3 py-2"
+          >
             <div class="flex items-center gap-2">
               <span class="text-sm text-gray-400">复杂度：</span>
               <UBadge
-                :color="analyzer.analysisResult.value.complexity === 'simple' ? 'success' : analyzer.analysisResult.value.complexity === 'medium' ? 'warning' : 'error'"
+                :color="
+                  analyzer.analysisResult.value.complexity === 'simple'
+                    ? 'success'
+                    : analyzer.analysisResult.value.complexity === 'medium'
+                      ? 'warning'
+                      : 'error'
+                "
                 variant="soft"
                 size="xs"
               >
@@ -1047,36 +1075,68 @@ onBeforeUnmount(() => {
               </UBadge>
             </div>
 
-            <p class="text-sm text-gray-300">{{ analyzer.analysisResult.value.summary }}</p>
+            <p class="text-sm text-gray-300">
+              {{ analyzer.analysisResult.value.summary }}
+            </p>
 
-            <div v-if="analyzer.analysisResult.value.repos.length > 0" class="text-sm">
+            <div
+              v-if="analyzer.analysisResult.value.repos.length > 0"
+              class="text-sm"
+            >
               <span class="text-gray-400">Repos：</span>
-              <span v-for="r in analyzer.analysisResult.value.repos" :key="r.path" class="ml-1 text-gray-300">
+              <span
+                v-for="r in analyzer.analysisResult.value.repos"
+                :key="r.path"
+                class="ml-1 text-gray-300"
+              >
                 {{ r.path.split('/').pop() }}
-                <span v-if="r.confidence === 'low'" class="text-yellow-500">(low confidence)</span>
+                <span v-if="r.confidence === 'low'" class="text-yellow-500"
+                  >(low confidence)</span
+                >
               </span>
             </div>
 
             <!-- Missing Info Q&A -->
-            <div v-if="analyzer.needsInput.value" class="space-y-2 border-t border-gray-700 pt-3">
+            <div
+              v-if="analyzer.needsInput.value"
+              class="space-y-2 border-t border-gray-700 pt-3"
+            >
               <p class="text-sm font-medium text-yellow-400">需要确认：</p>
-              <div v-for="(q, idx) in analyzer.analysisResult.value.missingInfo" :key="idx" class="space-y-1">
+              <div
+                v-for="(q, idx) in analyzer.analysisResult.value.missingInfo"
+                :key="idx"
+                class="space-y-1"
+              >
                 <p class="text-sm text-gray-300">{{ q }}</p>
                 <UInput
-                  :model-value="(analyzer.answers.value.find(a => a.question === q)?.answer ?? '')"
+                  :model-value="
+                    analyzer.answers.value.find((a) => a.question === q)
+                      ?.answer ?? ''
+                  "
                   placeholder="回答..."
                   size="sm"
-                  @update:model-value="(v: string) => analyzer.submitAnswer(q, v)"
+                  @update:model-value="
+                    (v: string) => analyzer.submitAnswer(q, v)
+                  "
                 />
               </div>
-              <UButton size="sm" @click="analyzeThenRun()">
-                重新分析
-              </UButton>
+              <UButton size="sm" @click="analyzeThenRun()"> 重新分析 </UButton>
             </div>
 
             <!-- Proceed button when no missing info -->
-            <div v-if="!analyzer.needsInput.value" class="flex gap-2 border-t border-gray-700 pt-3">
-              <UButton size="sm" @click="runClaudeWithAnalysis(issues.filter(i => crSelected.has(i.key)), analyzer.analysisResult.value!)">
+            <div
+              v-if="!analyzer.needsInput.value"
+              class="flex gap-2 border-t border-gray-700 pt-3"
+            >
+              <UButton
+                size="sm"
+                @click="
+                  runClaudeWithAnalysis(
+                    issues.filter((i) => crSelected.has(i.key)),
+                    analyzer.analysisResult.value!,
+                  )
+                "
+              >
                 继续执行
               </UButton>
               <UButton size="sm" variant="ghost" @click="analyzer.reset()">

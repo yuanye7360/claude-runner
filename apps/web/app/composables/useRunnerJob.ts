@@ -13,7 +13,7 @@ export interface PhaseInfo {
 
 export interface ActiveJob {
   id: string;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
   startedAt: number;
   durationSecs?: number;
   issues: { key: string; summary: string }[];
@@ -26,7 +26,7 @@ export interface ActiveJob {
 
 export interface JobApiResponse {
   id: string;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
   output: string;
@@ -83,8 +83,8 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     elapsedTimer = null;
   }
 
-  function buildPhaseList(): PhaseInfo[] {
-    const phaseLabels = options.phases ?? [
+  function buildPhaseList(dynamicPhases?: { label: string }[]): PhaseInfo[] {
+    const phaseLabels = dynamicPhases ?? options.phases ?? [
       { label: '分析 & 建立分支' },
       { label: '實作修復' },
       { label: '建立 PR' },
@@ -197,10 +197,10 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     }
   }
 
-  function startJob(jobId: string, issues: { key: string; summary: string }[]) {
+  function startJob(jobId: string, issues: { key: string; summary: string }[], dynamicPhases?: { label: string }[]) {
     const phasesByIssue: Record<string, PhaseInfo[]> = {};
     for (const issue of issues) {
-      phasesByIssue[issue.key] = buildPhaseList();
+      phasesByIssue[issue.key] = buildPhaseList(dynamicPhases);
     }
     activeJob.value = {
       id: jobId,
@@ -209,7 +209,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       issues,
       output: '',
       results: [],
-      phases: buildPhaseList(),
+      phases: buildPhaseList(dynamicPhases),
       phasesByIssue,
       currentIssueKey: issues[0]?.key ?? '',
     };
