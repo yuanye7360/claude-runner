@@ -1,20 +1,21 @@
+import { resolveReposFromLabels } from '../../utils/repo-mapping';
 // apps/web/server/api/claude-runner/analyze.post.ts
 import { runTaskAnalyzer } from '../../utils/task-analyzer';
-import { resolveReposFromLabels } from '../../utils/repo-mapping';
 
 interface AnalyzeRequest {
   issue: {
-    key: string;
-    summary?: string;
     description?: string;
+    key: string;
     labels?: string[];
+    summary?: string;
   };
-  previousAnswers?: { question: string; answer: string }[];
+  previousAnswers?: { answer: string; question: string }[];
   mode?: 'normal' | 'smart';
 }
 
 export default defineEventHandler(async (event) => {
-  const { issue, previousAnswers, mode } = await readBody<AnalyzeRequest>(event);
+  const { issue, previousAnswers, mode } =
+    await readBody<AnalyzeRequest>(event);
 
   const result = await runTaskAnalyzer(issue, previousAnswers);
 

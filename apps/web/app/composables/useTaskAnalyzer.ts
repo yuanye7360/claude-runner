@@ -10,24 +10,30 @@ export function useTaskAnalyzer() {
   const analysisResult = ref<AnalysisResult | null>(null);
   const analysing = ref(false);
   const analysisFailed = ref(false);
-  const answers = ref<{ question: string; answer: string }[]>([]);
+  const answers = ref<{ answer: string; question: string }[]>([]);
   const currentRound = ref(0);
   const MAX_ROUNDS = 3;
 
   async function analyze(
-    issue: { key: string; summary?: string; description?: string; labels?: string[] },
+    issue: {
+      description?: string;
+      key: string;
+      labels?: string[];
+      summary?: string;
+    },
     mode?: 'normal' | 'smart',
   ) {
     analysing.value = true;
     analysisFailed.value = false;
     try {
-      const res = await $fetch<{ status: string; result?: AnalysisResult; message?: string }>(
-        '/api/claude-runner/analyze',
-        {
-          method: 'POST',
-          body: { issue, previousAnswers: answers.value, mode },
-        },
-      );
+      const res = await $fetch<{
+        message?: string;
+        result?: AnalysisResult;
+        status: string;
+      }>('/api/claude-runner/analyze', {
+        method: 'POST',
+        body: { issue, previousAnswers: answers.value, mode },
+      });
       if (res.status === 'fallback') {
         analysisFailed.value = true;
         return null;

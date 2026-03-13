@@ -13,7 +13,16 @@ export interface PhaseInfo {
 
 export interface ActiveJob {
   id: string;
-  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
   durationSecs?: number;
   issues: { key: string; summary: string }[];
@@ -26,7 +35,16 @@ export interface ActiveJob {
 
 export interface JobApiResponse {
   id: string;
-  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
   output: string;
@@ -84,11 +102,12 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   }
 
   function buildPhaseList(dynamicPhases?: { label: string }[]): PhaseInfo[] {
-    const phaseLabels = dynamicPhases ?? options.phases ?? [
-      { label: '分析 & 建立分支' },
-      { label: '實作修復' },
-      { label: '建立 PR' },
-    ];
+    const phaseLabels = dynamicPhases ??
+      options.phases ?? [
+        { label: '分析 & 建立分支' },
+        { label: '實作修復' },
+        { label: '建立 PR' },
+      ];
     return phaseLabels.map(({ label }, i) => ({
       phase: i + 1,
       label,
@@ -197,7 +216,11 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     }
   }
 
-  function startJob(jobId: string, issues: { key: string; summary: string }[], dynamicPhases?: { label: string }[]) {
+  function startJob(
+    jobId: string,
+    issues: { key: string; summary: string }[],
+    dynamicPhases?: { label: string }[],
+  ) {
     const phasesByIssue: Record<string, PhaseInfo[]> = {};
     for (const issue of issues) {
       phasesByIssue[issue.key] = buildPhaseList(dynamicPhases);

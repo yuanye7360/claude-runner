@@ -48,9 +48,9 @@ export type Phases = PhaseDefinition[] | readonly PhaseDefinition[];
 /** Skills that are wired into specific workflow steps */
 const WORKFLOW_SKILLS = new Set([
   'kkday-jira-branch-checkout',
+  'kkday-jira-lifecycle',
   'kkday-jira-worklog',
   'kkday-pr-convention',
-  'kkday-jira-lifecycle',
 ]);
 
 function injectSkill(name: string, skills: SkillContentMap): string {

@@ -18,7 +18,16 @@ export type JobType = 'claude-runner' | 'pr-runner';
 export interface Job {
   id: string;
   type: JobType;
-  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
   events: JobEvent[];

@@ -24,6 +24,10 @@ export default defineEventHandler(async () => {
   return issues.map((issue) => ({
     ...issue,
     url: issue.url ?? extractBrowseUrl(issue),
-    labels: ((issue.fields as any)?.labels?.map((l: any) => typeof l === 'string' ? l : l.name) ?? issue.labels ?? []) as string[],
+    labels: ((issue.fields as any)?.labels?.map((l: any) =>
+      typeof l === 'string' ? l : l.name,
+    ) ??
+      issue.labels ??
+      []) as string[],
   }));
 });

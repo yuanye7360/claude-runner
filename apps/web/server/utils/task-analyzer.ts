@@ -28,12 +28,12 @@ export type RepoResult = z.infer<typeof RepoResultSchema>;
 
 export function buildAnalyzerPrompt(
   issue: {
-    key: string;
-    summary?: string;
     description?: string;
+    key: string;
     labels?: string[];
+    summary?: string;
   },
-  previousAnswers?: { question: string; answer: string }[],
+  previousAnswers?: { answer: string; question: string }[],
 ): string {
   const answersBlock = previousAnswers?.length
     ? `\n\n用户已回答的问题：\n${previousAnswers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}`
@@ -80,12 +80,12 @@ const ANSI_RE =
 /** Run Task Analyzer via Claude CLI. Returns parsed result or null on failure. */
 export async function runTaskAnalyzer(
   issue: {
-    key: string;
-    summary?: string;
     description?: string;
+    key: string;
     labels?: string[];
+    summary?: string;
   },
-  previousAnswers?: { question: string; answer: string }[],
+  previousAnswers?: { answer: string; question: string }[],
 ): Promise<AnalysisResult | null> {
   const prompt = buildAnalyzerPrompt(issue, previousAnswers);
 
