@@ -40,20 +40,46 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
 }
 
 function buildPrompt(pr: PRItem, reviewComments: string): string {
-  return `Fix the GitHub PR review comments below. Workflow:
-1. git fetch origin && git checkout ${pr.branch}
-2. Read and understand each review comment
-3. Implement fixes for ALL review comments
-4. git add -A && git commit -m "fix: address PR review comments"
-5. git push origin ${pr.branch}
+  return `你要处理以下 PR 的 review comments。请按照以下流程：
 
+## 1. 评估每条 comment
+对每条 review comment 评估：
+- validity: valid（有道理）/ false_positive（误报）
+- severity: critical / should-fix / minor / ignore
+- effort: 预估修复工作量
+
+## 2. 修复 valid 的 comments
+- 简单问题（typo、命名、格式）直接修复
+- 涉及架构/逻辑的问题也尝试修复，但要谨慎
+- 每个 fix 单独一个 commit，commit message 格式：fix: [简短说明]
+
+## 3. 回复 reviewer
+修复完所有 comment 后，对每条 comment 使用 gh api 回复：
+- 修复的：回复 "Fixed in commit \`<SHA>\` — [做了什么]"
+- 不需要改的：回复 "Thanks for the review. This is intentional because [原因]"
+
+回复方式（review comments）：
+\`\`\`bash
+gh api /repos/${pr.repo}/pulls/${pr.number}/comments/<comment_id>/replies -f body="<reply>"
+\`\`\`
+
+回复方式（issue comments）：
+\`\`\`bash
+gh api /repos/${pr.repo}/issues/${pr.number}/comments -f body="<reply>"
+\`\`\`
+
+## 4. Push
+git push origin ${pr.branch}
+
+## PR 信息
 Repo: ${pr.repo}
 PR #${pr.number}: ${pr.title}
+Branch: ${pr.branch}
 
-Review comments:
+## Review comments
 ${reviewComments}
 
-When done, print "PR_FIXED: #${pr.number}" on its own line.`.trim();
+完成后打印 "PR_FIXED: #${pr.number}"`.trim();
 }
 
 async function resolveBranch(pr: PRItem): Promise<string> {
@@ -71,15 +97,31 @@ async function resolveBranch(pr: PRItem): Promise<string> {
 
 async function fetchReviewComments(pr: PRItem): Promise<string> {
   const { execSync } = await import('node:child_process');
+  const parts: string[] = [];
+
+  // Review comments (inline)
   try {
     const raw = execSync(
-      String.raw`gh api /repos/${pr.repo}/pulls/${pr.number}/comments --jq '.[] | "\(.user.login) on \(.path):\(.line // "?"): \(.body)"'`,
+      String.raw`gh api "/repos/${pr.repo}/pulls/${pr.number}/comments" --jq '.[] | "review_comment_id:\(.id) | \(.user.login) on \(.path):\(.line // \"?\"):\n\(.body)"'`,
       { encoding: 'utf8', timeout: 15_000 },
     );
-    return raw.trim() || '（無 review 留言）';
+    if (raw.trim()) parts.push('--- Inline Review Comments ---\n' + raw.trim());
   } catch {
-    return '（無法取得 review 留言）';
+    /* skip */
   }
+
+  // Issue comments (general)
+  try {
+    const raw = execSync(
+      String.raw`gh api "/repos/${pr.repo}/issues/${pr.number}/comments" --jq '.[] | "issue_comment_id:\(.id) | \(.user.login):\n\(.body)"'`,
+      { encoding: 'utf8', timeout: 15_000 },
+    );
+    if (raw.trim()) parts.push('--- General Comments ---\n' + raw.trim());
+  } catch {
+    /* skip */
+  }
+
+  return parts.join('\n\n') || '（無 review 留言）';
 }
 
 export default defineEventHandler(async (event) => {
