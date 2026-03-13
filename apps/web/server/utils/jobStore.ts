@@ -18,11 +18,12 @@ export type JobType = 'claude-runner' | 'pr-runner';
 export interface Job {
   id: string;
   type: JobType;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  status: 'analysing' | 'awaiting_input' | 'cancelled' | 'done' | 'error' | 'executing' | 'fallback_executing' | 'planning' | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
   events: JobEvent[];
   results: RunResult[];
+  analysisResult?: unknown;
   kill?: () => void;
   subscribers: Set<(event: JobEvent) => void>;
 }
@@ -52,9 +53,14 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
-function broadcast(job: Job, event: JobEvent) {
+export function broadcast(job: Job, event: JobEvent) {
   job.events.push(event);
   for (const sub of job.subscribers) sub(event);
+}
+
+export function setJobStatus(job: Job, status: Job['status']) {
+  job.status = status;
+  broadcast(job, { type: 'status', status } as unknown as JobEvent);
 }
 
 export function pushChunk(job: Job, data: string) {

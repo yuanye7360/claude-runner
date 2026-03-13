@@ -7,14 +7,15 @@ datasource db {
 }
 
 model Job {
-  id         String      @id
-  type       String      @default("claude-runner") // 'claude-runner' | 'pr-runner'
-  status     String // 'done' | 'error' | 'cancelled'
-  startedAt  BigInt
-  finishedAt BigInt?
-  log        String      @default("")
-  issues     JobIssue[]
-  results    JobResult[]
+  id             String      @id
+  type           String      @default("claude-runner")
+  status         String
+  startedAt      BigInt
+  finishedAt     BigInt?
+  log            String      @default("")
+  analysisResult Json?
+  issues         JobIssue[]
+  results        JobResult[]
 }
 
 model JobIssue {
