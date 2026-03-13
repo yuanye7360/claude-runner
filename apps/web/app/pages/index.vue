@@ -3,6 +3,7 @@ import type { HistoryEntry } from '~/composables/useRunnerJob';
 import type { AnalysisResult } from '~/composables/useTaskAnalyzer';
 import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 
+import { usePrNotifications } from '~/composables/usePrNotifications';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
 import { useSkills } from '~/composables/useSkills';
@@ -57,6 +58,7 @@ const {
 } = useSkills();
 
 const analyzer = useTaskAnalyzer();
+const prNotifications = usePrNotifications();
 
 const showSkillSettings = ref(false);
 
@@ -270,17 +272,22 @@ async function runClaudeWithAnalysis(
     );
     crRowExpanded.value = true;
     // Generate phase labels from analysis
-    const phaseLabels = analysis.repos.length > 0
-      ? [
-          ...(analysis.suggestedWorkflow === 'superpowers-full'
-            ? [{ label: '需求分析' }, { label: '制定计划' }, { label: '建立分支' }]
-            : [{ label: '分析 & 建立分支' }]),
-          ...analysis.repos.map(r => ({
-            label: `${r.path.split('/').pop()} 实现`,
-          })),
-          { label: '建立 PR' },
-        ]
-      : undefined;
+    const phaseLabels =
+      analysis.repos.length > 0
+        ? [
+            ...(analysis.suggestedWorkflow === 'superpowers-full'
+              ? [
+                  { label: '需求分析' },
+                  { label: '制定计划' },
+                  { label: '建立分支' },
+                ]
+              : [{ label: '分析 & 建立分支' }]),
+            ...analysis.repos.map((r) => ({
+              label: `${r.path.split('/').pop()} 实现`,
+            })),
+            { label: '建立 PR' },
+          ]
+        : undefined;
     cr.startJob(
       jobId,
       picked.map((i) => ({ key: i.key, summary: i.summary })),
@@ -466,6 +473,7 @@ onMounted(async () => {
   loadIssues();
   loadPRs();
   fetchSkills();
+  prNotifications.startPolling();
   // Restore Claude Runner job
   const crJobId = localStorage.getItem(cr.storageKey);
   if (crJobId) {
@@ -489,6 +497,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   cr.cleanup();
   pr.cleanup();
+  prNotifications.stopPolling();
 });
 </script>
 
@@ -533,6 +542,12 @@ onBeforeUnmount(() => {
         >
           <UIcon name="i-lucide-git-pull-request" style="font-size: 1.1em" />
           PR Reviews
+          <span
+            v-if="prNotifications.total.value > 0"
+            class="ml-1 inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-xs text-white"
+          >
+            {{ prNotifications.total.value }}
+          </span>
           <span
             v-if="pr.isRunning.value"
             class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-400"
