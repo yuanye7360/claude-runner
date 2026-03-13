@@ -27,7 +27,8 @@
     "nuxt": "catalog:",
     "pg": "^8.20.0",
     "vue": "catalog:",
-    "vue-router": "catalog:"
+    "vue-router": "catalog:",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@iconify-json/bx": "catalog:",
