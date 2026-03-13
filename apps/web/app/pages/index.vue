@@ -5,6 +5,8 @@ import type { PrsByRepo } from '~~/server/api/pr-runner/prs.get';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useRunnerJob } from '~/composables/useRunnerJob';
 import { useSkills } from '~/composables/useSkills';
+import { useTaskAnalyzer } from '~/composables/useTaskAnalyzer';
+import type { AnalysisResult } from '~/composables/useTaskAnalyzer';
 
 useHead({ title: 'Claude Runner — Pipeline' });
 
@@ -53,6 +55,8 @@ const {
   toggle: toggleSkill,
   applyPreset: applySkillPreset,
 } = useSkills();
+
+const analyzer = useTaskAnalyzer();
 
 const showSkillSettings = ref(false);
 
@@ -218,6 +222,61 @@ function toggleAllIssues() {
     crSelected.value.size === issues.value.length
       ? new Set()
       : new Set(issues.value.map((i) => i.key));
+}
+
+async function analyzeThenRun() {
+  const picked = issues.value.filter((i) => crSelected.value.has(i.key));
+  if (picked.length === 0 || cr.isRunning.value) return;
+
+  // Analyze first issue as representative
+  const result = await analyzer.analyze(picked[0], mode.value);
+
+  if (!result || analyzer.analysisFailed.value) {
+    // Fallback: run directly
+    await runClaude();
+    return;
+  }
+
+  if (analyzer.needsInput.value) {
+    // Show questions UI, don't execute yet
+    return;
+  }
+
+  // Auto-proceed
+  await runClaudeWithAnalysis(picked, result);
+}
+
+async function runClaudeWithAnalysis(
+  picked: JiraIssue[],
+  analysis: AnalysisResult,
+) {
+  if (picked.length === 0 || cr.isRunning.value) return;
+  jiraRightTab.value = 'progress';
+  try {
+    const { jobId } = await $fetch<{ jobId: string }>(
+      '/api/claude-runner/run',
+      {
+        method: 'POST',
+        body: {
+          issues: picked,
+          repoConfig: selectedRepo.value
+            ? { cwd: selectedRepo.value.cwd }
+            : undefined,
+          mode: mode.value,
+          enabledSkills: enabledSkillNames.value,
+          analysisResult: analysis,
+        },
+      },
+    );
+    crRowExpanded.value = true;
+    cr.startJob(
+      jobId,
+      picked.map((i) => ({ key: i.key, summary: i.summary })),
+    );
+    analyzer.reset();
+  } catch (error) {
+    console.error('Failed to start Claude Runner:', error);
+  }
 }
 
 async function runClaude() {
@@ -964,6 +1023,68 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <!-- Analysis Result -->
+          <div v-if="analyzer.analysing.value" class="shrink-0 border-t border-gray-800 px-3 py-2">
+            <div class="flex items-center gap-2 text-gray-400">
+              <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
+              <span>分析中...</span>
+            </div>
+          </div>
+
+          <div v-if="analyzer.analysisResult.value && !analyzer.analysing.value" class="shrink-0 space-y-3 border-t border-gray-800 px-3 py-2">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-400">复杂度：</span>
+              <UBadge
+                :color="analyzer.analysisResult.value.complexity === 'simple' ? 'success' : analyzer.analysisResult.value.complexity === 'medium' ? 'warning' : 'error'"
+                variant="soft"
+                size="xs"
+              >
+                {{ analyzer.analysisResult.value.complexity }}
+              </UBadge>
+              <span class="ml-2 text-sm text-gray-400">方式：</span>
+              <UBadge color="info" variant="soft" size="xs">
+                {{ analyzer.analysisResult.value.suggestedWorkflow }}
+              </UBadge>
+            </div>
+
+            <p class="text-sm text-gray-300">{{ analyzer.analysisResult.value.summary }}</p>
+
+            <div v-if="analyzer.analysisResult.value.repos.length > 0" class="text-sm">
+              <span class="text-gray-400">Repos：</span>
+              <span v-for="r in analyzer.analysisResult.value.repos" :key="r.path" class="ml-1 text-gray-300">
+                {{ r.path.split('/').pop() }}
+                <span v-if="r.confidence === 'low'" class="text-yellow-500">(low confidence)</span>
+              </span>
+            </div>
+
+            <!-- Missing Info Q&A -->
+            <div v-if="analyzer.needsInput.value" class="space-y-2 border-t border-gray-700 pt-3">
+              <p class="text-sm font-medium text-yellow-400">需要确认：</p>
+              <div v-for="(q, idx) in analyzer.analysisResult.value.missingInfo" :key="idx" class="space-y-1">
+                <p class="text-sm text-gray-300">{{ q }}</p>
+                <UInput
+                  :model-value="(analyzer.answers.value.find(a => a.question === q)?.answer ?? '')"
+                  placeholder="回答..."
+                  size="sm"
+                  @update:model-value="(v: string) => analyzer.submitAnswer(q, v)"
+                />
+              </div>
+              <UButton size="sm" @click="analyzeThenRun()">
+                重新分析
+              </UButton>
+            </div>
+
+            <!-- Proceed button when no missing info -->
+            <div v-if="!analyzer.needsInput.value" class="flex gap-2 border-t border-gray-700 pt-3">
+              <UButton size="sm" @click="runClaudeWithAnalysis(issues.filter(i => crSelected.has(i.key)), analyzer.analysisResult.value!)">
+                继续执行
+              </UButton>
+              <UButton size="sm" variant="ghost" @click="analyzer.reset()">
+                取消
+              </UButton>
+            </div>
+          </div>
+
           <!-- Run button (pinned to bottom) -->
           <div class="shrink-0 border-t border-gray-800 px-3 py-2">
             <UButton
@@ -972,7 +1093,7 @@ onBeforeUnmount(() => {
               :disabled="!crSelectedCount || cr.isRunning.value"
               :loading="cr.isRunning.value"
               icon="i-lucide-zap"
-              @click="runClaude"
+              @click="analyzeThenRun"
             >
               {{
                 cr.isRunning.value
