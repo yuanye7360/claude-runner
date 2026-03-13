@@ -133,6 +133,7 @@ interface JiraIssue {
   status: string;
   description?: string;
   url?: string;
+  labels?: string[];
 }
 
 const crHistory = ref<HistoryEntry[]>([]);
