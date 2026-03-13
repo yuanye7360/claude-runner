@@ -37,7 +37,8 @@ const issueEntries = computed(() => {
   return props.activeJob.issues.map((issue) => {
     const phases = props.activeJob!.phasesByIssue[issue.key] ?? [];
     const currentPhase = phases.find((p) => p.status === 'running');
-    const allDone = phases.length > 0 && phases.every((p) => p.status === 'done');
+    const allDone =
+      phases.length > 0 && phases.every((p) => p.status === 'done');
     const output =
       props.activeJob!.outputByIssue[issue.key] ||
       (props.activeJob!.issues.length === 1 ? props.activeJob!.output : '');
@@ -140,7 +141,7 @@ watch(
               'bg-gray-700': p.status === 'pending',
             }"
             :title="p.label"
-          />
+          ></div>
         </div>
 
         <!-- Chevron -->
@@ -169,10 +170,13 @@ watch(
               :class="{
                 'bg-green-600 text-white': p.status === 'done',
                 'animate-pulse bg-blue-600 text-white': p.status === 'running',
-                'border border-gray-700 text-transparent': p.status === 'pending',
+                'border border-gray-700 text-transparent':
+                  p.status === 'pending',
               }"
             >
-              {{ p.status === 'done' ? '✓' : p.status === 'running' ? '●' : '' }}
+              {{
+                p.status === 'done' ? '✓' : p.status === 'running' ? '●' : ''
+              }}
             </div>
             <!-- Label -->
             <span
@@ -190,7 +194,7 @@ watch(
               v-if="i < entry.phases.length - 1"
               class="h-px w-6"
               :class="p.status === 'done' ? 'bg-green-900' : 'bg-gray-800'"
-            />
+            ></div>
           </div>
         </div>
 
@@ -198,7 +202,8 @@ watch(
         <pre
           :ref="(el) => setLogRef(entry.key, el as HTMLElement)"
           class="text-log max-h-80 overflow-y-auto border-t border-gray-800/40 px-4 py-3 font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
-        >{{ entry.output ? stripAnsi(entry.output) : '等待輸出...' }}</pre>
+          >{{ entry.output ? stripAnsi(entry.output) : '等待輸出...' }}</pre
+        >
       </div>
     </div>
   </div>

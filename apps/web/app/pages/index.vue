@@ -304,20 +304,17 @@ async function runClaude() {
     const { jobId, jobIssues } = await $fetch<{
       jobId: string;
       jobIssues: { key: string; summary: string }[];
-    }>(
-      '/api/claude-runner/run',
-      {
-        method: 'POST',
-        body: {
-          issues: picked,
-          repoConfig: selectedRepo.value
-            ? { cwd: selectedRepo.value.cwd }
-            : undefined,
-          mode: mode.value,
-          enabledSkills: enabledSkillNames.value,
-        },
+    }>('/api/claude-runner/run', {
+      method: 'POST',
+      body: {
+        issues: picked,
+        repoConfig: selectedRepo.value
+          ? { cwd: selectedRepo.value.cwd }
+          : undefined,
+        mode: mode.value,
+        enabledSkills: enabledSkillNames.value,
       },
-    );
+    });
     crRowExpanded.value = true;
     cr.startJob(jobId, jobIssues);
   } catch (error) {

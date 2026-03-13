@@ -9,13 +9,14 @@ async function emitEvent(
 ) {
   switch (event.type) {
     case 'chunk': {
-      if (event.issueKey) {
-        await stream.push({
-          data: JSON.stringify({ text: event.data, issueKey: event.issueKey }),
-        });
-      } else {
-        await stream.push({ data: event.data });
-      }
+      await (event.issueKey
+        ? stream.push({
+            data: JSON.stringify({
+              text: event.data,
+              issueKey: event.issueKey,
+            }),
+          })
+        : stream.push({ data: event.data }));
 
       break;
     }

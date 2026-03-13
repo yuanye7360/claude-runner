@@ -149,7 +149,9 @@ function formatTime(ts: number) {
                 @keydown.enter.space="toggleResult(r.issueKey)"
               >
                 <UIcon
-                  :name="r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
+                  :name="
+                    r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'
+                  "
                   class="shrink-0"
                   :class="r.error ? 'text-red-400' : 'text-green-400'"
                 />
@@ -195,7 +197,10 @@ function formatTime(ts: number) {
               </div>
 
               <!-- Collapsible log per result -->
-              <div v-if="expandedResults.has(r.issueKey)" class="bg-gray-950 px-4 py-3">
+              <div
+                v-if="expandedResults.has(r.issueKey)"
+                class="bg-gray-950 px-4 py-3"
+              >
                 <pre
                   class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-500"
                   >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre

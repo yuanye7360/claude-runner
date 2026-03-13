@@ -91,7 +91,7 @@ function getMainBranch(cwd: string): string {
     const hasDevlop = execSync('git rev-parse --verify origin/develop', {
       cwd,
       encoding: 'utf8',
-      timeout: 5_000,
+      timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     if (hasDevlop) return 'develop';
@@ -102,7 +102,7 @@ function getMainBranch(cwd: string): string {
     const ref = execSync('git symbolic-ref refs/remotes/origin/HEAD', {
       cwd,
       encoding: 'utf8',
-      timeout: 5_000,
+      timeout: 5000,
     }).trim();
     return ref.split('/').pop() || 'main';
   } catch {
@@ -155,13 +155,21 @@ function runIssue(
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      pushChunk(job, `❌ [${tag}] pty.spawn failed: ${msg}\n`, repoLabel ? tag : undefined);
+      pushChunk(
+        job,
+        `❌ [${tag}] pty.spawn failed: ${msg}\n`,
+        repoLabel ? tag : undefined,
+      );
       resolve({ ok: false, text: `pty.spawn failed: ${msg}` });
       return;
     }
 
     killFns.push(() => child.kill());
-    pushChunk(job, `▶ [${tag}] Claude 已啟動...\n`, repoLabel ? tag : undefined);
+    pushChunk(
+      job,
+      `▶ [${tag}] Claude 已啟動...\n`,
+      repoLabel ? tag : undefined,
+    );
 
     let lineBuffer = '';
 
@@ -265,7 +273,9 @@ export default defineEventHandler(async (event) => {
   const repoCwds =
     mappedRepos.length > 0
       ? mappedRepos.map((r) => r.cwd)
-      : [repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD].filter(Boolean) as string[];
+      : ([repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD].filter(
+          Boolean,
+        ) as string[]);
   if (repoCwds.length === 0) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
   const skills = loadSkillContent(enabledSkills ?? DEFAULT_SKILLS);
@@ -353,13 +363,17 @@ export default defineEventHandler(async (event) => {
               job,
               `❌ [${issue.key}@${repoName}] Failed to create worktree: ${msg}\n`,
             );
-            const issueTag = isMultiRepo ? `${issue.key}@${repoName}` : (issue.key ?? '');
+            const issueTag = isMultiRepo
+              ? `${issue.key}@${repoName}`
+              : (issue.key ?? '');
             results.push({ issueKey: issueTag, error: msg });
             continue;
           }
 
           try {
-            const issueTag = isMultiRepo ? `${issue.key}@${repoName}` : (issue.key ?? '');
+            const issueTag = isMultiRepo
+              ? `${issue.key}@${repoName}`
+              : (issue.key ?? '');
             const output = await runIssue(
               issue,
               worktreePath,

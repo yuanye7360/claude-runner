@@ -168,11 +168,15 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       if (!activeJob.value) return;
       // Try to parse as JSON with issueKey for multi-repo routing
       try {
-        const parsed = JSON.parse(e.data) as { issueKey?: string; text: string };
+        const parsed = JSON.parse(e.data) as {
+          issueKey?: string;
+          text: string;
+        };
         if (parsed.issueKey) {
           activeJob.value.output += `${parsed.text}\n`;
-          activeJob.value.outputByIssue[parsed.issueKey] =
-            (activeJob.value.outputByIssue[parsed.issueKey] ?? '') + `${parsed.text}\n`;
+          activeJob.value.outputByIssue[parsed.issueKey] = `${
+            activeJob.value.outputByIssue[parsed.issueKey] ?? ''
+          }${parsed.text}\n`;
           return;
         }
       } catch {

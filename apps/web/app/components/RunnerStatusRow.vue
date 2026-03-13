@@ -176,7 +176,10 @@ function toggleResult(key: string) {
           </div>
 
           <!-- Collapsible log -->
-          <div v-if="expandedResults.has(r.issueKey)" class="bg-gray-950 px-4 py-3">
+          <div
+            v-if="expandedResults.has(r.issueKey)"
+            class="bg-gray-950 px-4 py-3"
+          >
             <pre
               class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
               >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre
