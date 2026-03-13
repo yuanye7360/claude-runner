@@ -5,7 +5,7 @@ import prisma from './prisma';
 import { getAllGhRepos } from './repo-mapping';
 
 /** Resolve current GitHub username via gh CLI (cached) */
-let _ghUser: string | null = null;
+let _ghUser: null | string = null;
 function getGhUser(): string {
   if (_ghUser) return _ghUser;
   try {
@@ -59,7 +59,7 @@ export async function pollPrReviewComments(): Promise<number> {
           const comments = JSON.parse(reviewRaw || '[]') as GhComment[];
           for (const c of comments) {
             const exists = await prisma.prReviewComment.findUnique({
-              where: { commentId: c.id },
+              where: { type_commentId: { type: 'review', commentId: c.id } },
             });
             if (!exists) {
               await prisma.prReviewComment.create({
@@ -92,7 +92,7 @@ export async function pollPrReviewComments(): Promise<number> {
           const comments = JSON.parse(issueRaw || '[]') as GhComment[];
           for (const c of comments) {
             const exists = await prisma.prReviewComment.findUnique({
-              where: { commentId: c.id },
+              where: { type_commentId: { type: 'issue', commentId: c.id } },
             });
             if (!exists) {
               await prisma.prReviewComment.create({

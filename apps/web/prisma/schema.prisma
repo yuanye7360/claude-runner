@@ -41,7 +41,7 @@ model PrReviewComment {
   prUrl     String
   prNumber  Int
   repo      String
-  commentId Int      @unique
+  commentId Int
   author    String
   body      String
   type      String   // "review" | "issue"
@@ -51,4 +51,6 @@ model PrReviewComment {
   fixCommit String?
   createdAt DateTime
   fetchedAt DateTime @default(now())
+
+  @@unique([type, commentId])
 }

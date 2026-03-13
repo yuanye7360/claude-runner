@@ -105,7 +105,7 @@ async function fetchReviewComments(pr: PRItem): Promise<string> {
       String.raw`gh api "/repos/${pr.repo}/pulls/${pr.number}/comments" --jq '.[] | "review_comment_id:\(.id) | \(.user.login) on \(.path):\(.line // \"?\"):\n\(.body)"'`,
       { encoding: 'utf8', timeout: 15_000 },
     );
-    if (raw.trim()) parts.push('--- Inline Review Comments ---\n' + raw.trim());
+    if (raw.trim()) parts.push(`--- Inline Review Comments ---\n${raw.trim()}`);
   } catch {
     /* skip */
   }
@@ -116,7 +116,7 @@ async function fetchReviewComments(pr: PRItem): Promise<string> {
       String.raw`gh api "/repos/${pr.repo}/issues/${pr.number}/comments" --jq '.[] | "issue_comment_id:\(.id) | \(.user.login):\n\(.body)"'`,
       { encoding: 'utf8', timeout: 15_000 },
     );
-    if (raw.trim()) parts.push('--- General Comments ---\n' + raw.trim());
+    if (raw.trim()) parts.push(`--- General Comments ---\n${raw.trim()}`);
   } catch {
     /* skip */
   }
@@ -132,6 +132,22 @@ export default defineEventHandler(async (event) => {
       statusCode: 400,
       message: 'prs must be a non-empty array',
     });
+  }
+
+  // Validate inputs to prevent shell injection
+  for (const pr of prs) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(pr.repo)) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid repo format: ${pr.repo}`,
+      });
+    }
+    if (!Number.isInteger(pr.number) || pr.number <= 0) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid PR number: ${pr.number}`,
+      });
+    }
   }
 
   const repoCwd =
