@@ -1,5 +1,6 @@
 import type { Phases, SkillContentMap } from '../../utils/claude-runner.config';
 import type { RunResult } from '../../utils/jobStore';
+import type { AnalysisResult } from '../../utils/task-analyzer';
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -16,13 +17,13 @@ import {
   PROMPT_NORMAL,
   PROMPT_SMART,
 } from '../../utils/claude-runner.config';
-import { resolveReposFromLabels } from '../../utils/repo-mapping';
 import {
   createJob,
   finishJob,
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
+import { resolveReposFromLabels } from '../../utils/repo-mapping';
 
 interface JiraIssue {
   key: string;
@@ -35,6 +36,8 @@ interface RunRequest {
   repoConfig?: { cwd: string };
   mode?: 'normal' | 'smart';
   enabledSkills?: string[];
+  analysisResult?: AnalysisResult;
+  repoCwds?: string[];
 }
 
 const DEFAULT_SKILLS = [
@@ -233,6 +236,8 @@ export default defineEventHandler(async (event) => {
     repoConfig,
     mode = 'normal',
     enabledSkills,
+    analysisResult,
+    repoCwds: _repoCwds,
   } = await readBody<RunRequest>(event);
 
   // Resolve repo from JIRA labels
@@ -240,9 +245,10 @@ export default defineEventHandler(async (event) => {
   const mappedRepos = resolveReposFromLabels(allLabels);
 
   // Use mapped repo if available, fallback to manual repoConfig
-  const repoCwd = mappedRepos.length > 0
-    ? mappedRepos[0].cwd
-    : (repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD);
+  const repoCwd =
+    mappedRepos.length > 0
+      ? mappedRepos[0].cwd
+      : repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD;
   if (!repoCwd) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
   const phases = mode === 'smart' ? PHASES_SMART : PHASES_NORMAL;
@@ -258,6 +264,10 @@ export default defineEventHandler(async (event) => {
     issues.map((i) => ({ key: i.key ?? '', summary: i.summary ?? '' })),
     'claude-runner',
   );
+
+  if (analysisResult) {
+    job.analysisResult = analysisResult;
+  }
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
