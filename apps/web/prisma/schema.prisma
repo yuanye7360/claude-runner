@@ -35,3 +35,20 @@ model JobResult {
   error    String?
   prUrl    String?
 }
+
+model PrReviewComment {
+  id        String   @id @default(cuid())
+  prUrl     String
+  prNumber  Int
+  repo      String
+  commentId Int      @unique
+  author    String
+  body      String
+  type      String   // "review" | "issue"
+  path      String?
+  line      Int?
+  status    String   @default("unread") // "unread" | "read" | "fixed" | "dismissed"
+  fixCommit String?
+  createdAt DateTime
+  fetchedAt DateTime @default(now())
+}
