@@ -8,25 +8,39 @@ interface CreateSkillRequest {
 }
 
 export default defineEventHandler(async (event) => {
-  const { name, description, content } = await readBody<CreateSkillRequest>(event);
+  const { name, description, content } =
+    await readBody<CreateSkillRequest>(event);
 
   if (!name || !content) {
-    throw createError({ statusCode: 400, message: 'name and content are required' });
+    throw createError({
+      statusCode: 400,
+      message: 'name and content are required',
+    });
   }
 
   // Sanitize name: lowercase, hyphens only
-  const safeName = name.toLowerCase().replaceAll(/[^a-z0-9-]/g, '-').replaceAll(/-+/g, '-').replace(/^-|-$/g, '');
+  const safeName = name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9-]/g, '-')
+    .replaceAll(/-+/g, '-')
+    .replaceAll(/^-|-$/g, '');
   if (!safeName) {
     throw createError({ statusCode: 400, message: 'Invalid skill name' });
   }
 
   // Save to project-local server/skills/ (not ~/.claude/skills/)
-  const skillsRoot = resolve(new URL('.', import.meta.url).pathname, '../skills');
+  const skillsRoot = resolve(
+    new URL('.', import.meta.url).pathname,
+    '../skills',
+  );
   const skillDir = join(skillsRoot, safeName);
   const skillFile = join(skillDir, 'SKILL.md');
 
   if (existsSync(skillFile)) {
-    throw createError({ statusCode: 409, message: `Skill "${safeName}" already exists` });
+    throw createError({
+      statusCode: 409,
+      message: `Skill "${safeName}" already exists`,
+    });
   }
 
   const markdown = `---

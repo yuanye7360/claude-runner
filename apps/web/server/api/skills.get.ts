@@ -12,16 +12,17 @@ export interface SkillInfo {
   source: SkillSource;
 }
 
-function scanSkillDir(
-  dir: string,
-  source: SkillSource,
-): SkillInfo[] {
+function scanSkillDir(dir: string, source: SkillSource): SkillInfo[] {
   if (!existsSync(dir)) return [];
   const skills: SkillInfo[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     // Follow symlinks: isDirectory() is false for symlinks, so stat the resolved path
     const entryPath = join(dir, entry.name);
-    if (!entry.isDirectory() && !(entry.isSymbolicLink() && statSync(entryPath).isDirectory())) continue;
+    if (
+      !entry.isDirectory() &&
+      !(entry.isSymbolicLink() && statSync(entryPath).isDirectory())
+    )
+      continue;
     const skillFile = join(dir, entry.name, 'SKILL.md');
     if (!existsSync(skillFile)) continue;
     try {

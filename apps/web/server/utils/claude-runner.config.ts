@@ -41,8 +41,8 @@ export type Phases = typeof PHASES_NORMAL | typeof PHASES_SMART;
 /** Skills that are wired into specific workflow steps */
 const WORKFLOW_SKILLS = new Set([
   'kkday-jira-branch-checkout',
-  'kkday-pr-convention',
   'kkday-jira-worklog',
+  'kkday-pr-convention',
 ]);
 
 function injectSkill(name: string, skills: SkillContentMap): string {

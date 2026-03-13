@@ -500,7 +500,7 @@ onBeforeUnmount(() => {
           <span class="text-xs">Skills</span>
           <span
             v-if="enabledSkillNames.length > 0"
-            class="rounded-full bg-primary-500/20 px-1.5 py-0.5 text-xs leading-none text-primary-400 tabular-nums"
+            class="bg-primary-500/20 text-primary-400 rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
           >
             {{ enabledSkillNames.length }}
           </span>

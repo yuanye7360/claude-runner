@@ -22,7 +22,10 @@
       "mcp__n8n-mcp__n8n_get_workflow",
       "mcp__n8n-mcp__n8n_update_partial_workflow",
       "Bash(find /Users/yeyuan/home/ClaudeRunner -name *.prisma -o -name schema.prisma)",
-      "Bash(grep -r \"JobResult\\\\|Job.*model\\\\|execution\" /Users/yeyuan/home/ClaudeRunner/apps/web --include=*.ts --include=*.vue --include=*.prisma)"
+      "Bash(grep -r \"JobResult\\\\|Job.*model\\\\|execution\" /Users/yeyuan/home/ClaudeRunner/apps/web --include=*.ts --include=*.vue --include=*.prisma)",
+      "Bash(find /Users/yeyuan -path *kkday*skill* -type d)",
+      "Bash(grep -r \"useFetch\\\\|useAsyncData\\\\|$fetch\" /Users/yeyuan/home/ClaudeRunner/apps/web/app --include=\"*.ts\" --include=\"*.vue\")",
+      "Bash(npm install:*)"
     ]
   }
 }

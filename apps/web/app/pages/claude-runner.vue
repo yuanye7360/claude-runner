@@ -287,7 +287,7 @@ onBeforeUnmount(() => cleanup());
         :class="{ 'text-primary-400': showSkillSettings }"
         @click="showSkillSettings = !showSkillSettings"
       >
-        <UIcon name="i-lucide-puzzle" />
+        <UIcon name="i-heroicons-cube" />
       </button>
 
       <!-- Mode toggle -->

@@ -3,7 +3,11 @@ import prisma from '../../../utils/prisma';
 
 const PR_URL_RE = /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i;
 
-function extractPrUrl(result: { error: string | null; output: string | null; prUrl: string | null }) {
+function extractPrUrl(result: {
+  error: null | string;
+  output: null | string;
+  prUrl: null | string;
+}) {
   if (result.prUrl) return result.prUrl;
   const match = PR_URL_RE.exec(result.output ?? '');
   return match ? match[1] : null;
