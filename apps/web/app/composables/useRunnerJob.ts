@@ -27,6 +27,7 @@ export interface ActiveJob {
   durationSecs?: number;
   issues: { key: string; summary: string }[];
   output: string;
+  outputByIssue: Record<string, string>;
   results: RunResult[];
   phases: PhaseInfo[];
   phasesByIssue: Record<string, PhaseInfo[]>;
@@ -164,7 +165,20 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     sseSource = new EventSource(`${apiBase}/jobs/${jobId}/stream`);
 
     sseSource.addEventListener('message', (e) => {
-      if (activeJob.value) activeJob.value.output += `${e.data}\n`;
+      if (!activeJob.value) return;
+      // Try to parse as JSON with issueKey for multi-repo routing
+      try {
+        const parsed = JSON.parse(e.data) as { issueKey?: string; text: string };
+        if (parsed.issueKey) {
+          activeJob.value.output += `${parsed.text}\n`;
+          activeJob.value.outputByIssue[parsed.issueKey] =
+            (activeJob.value.outputByIssue[parsed.issueKey] ?? '') + `${parsed.text}\n`;
+          return;
+        }
+      } catch {
+        // Not JSON — plain text chunk (single repo mode)
+      }
+      activeJob.value.output += `${e.data}\n`;
     });
 
     sseSource.addEventListener('phase', (e) => {
@@ -231,6 +245,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       startedAt: Date.now(),
       issues,
       output: '',
+      outputByIssue: {},
       results: [],
       phases: buildPhaseList(dynamicPhases),
       phasesByIssue,
@@ -254,6 +269,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         startedAt: data.startedAt,
         issues: data.issues,
         output: data.output,
+        outputByIssue: data.outputByIssue ?? {},
         results: data.results,
         phases: buildPhaseList(),
         phasesByIssue,

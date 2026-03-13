@@ -24,6 +24,17 @@ function stripAnsi(str: string): string {
 function toggleExpanded() {
   emit('update:expanded', !props.expanded);
 }
+
+// Per-result collapsible state
+const expandedResults = ref<Set<string>>(new Set());
+
+function toggleResult(key: string) {
+  if (expandedResults.value.has(key)) {
+    expandedResults.value.delete(key);
+  } else {
+    expandedResults.value.add(key);
+  }
+}
 </script>
 
 <template>
@@ -69,7 +80,12 @@ function toggleExpanded() {
       </span>
       <span class="text-muted">·</span>
       <span class="text-muted truncate">
-        {{ activeJob.issues.map((i) => i.key).join('、') }}
+        {{
+          activeJob.issues
+            .map((i) => i.key.replace(/@.*$/, ''))
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .join('、')
+        }}
       </span>
 
       <template v-if="isRunning">
@@ -99,16 +115,21 @@ function toggleExpanded() {
 
     <!-- Expandable output -->
     <div v-if="expanded" class="border-t border-gray-800 bg-gray-950">
-      <!-- Completed results view -->
+      <!-- Completed results: collapsible per task -->
       <template v-if="!isRunning && activeJob.results.length > 0">
         <div
           v-for="r in activeJob.results"
           :key="r.issueKey"
-          class="overflow-hidden border-b border-gray-800/60 last:border-b-0"
+          class="border-b border-gray-800/60 last:border-b-0"
         >
+          <!-- Result header (clickable to toggle log) -->
           <div
-            class="flex items-center gap-3 px-4 py-2"
+            class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-800/30"
             :class="r.error ? 'bg-red-950/20' : 'bg-green-950/10'"
+            role="button"
+            tabindex="0"
+            @click="toggleResult(r.issueKey)"
+            @keydown.enter.space="toggleResult(r.issueKey)"
           >
             <UIcon
               :name="r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
@@ -120,10 +141,11 @@ function toggleExpanded() {
               :href="getItemUrl?.(r.issueKey) ?? undefined"
               target="_blank"
               rel="noopener"
-              class="shrink-0 font-mono font-semibold text-gray-300"
+              class="shrink-0 font-mono text-sm font-semibold text-gray-300"
               :class="{
                 'underline-offset-2 hover:underline': getItemUrl?.(r.issueKey),
               }"
+              @click.stop
               >{{ r.issueKey }}</component
             >
             <span class="text-muted flex-1 truncate">
@@ -146,8 +168,15 @@ function toggleExpanded() {
             >
               {{ r.error ? '失敗' : '完成' }}
             </span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="shrink-0 text-gray-600 transition-transform duration-200"
+              :class="{ 'rotate-180': expandedResults.has(r.issueKey) }"
+            />
           </div>
-          <div class="bg-gray-950 px-4 py-3">
+
+          <!-- Collapsible log -->
+          <div v-if="expandedResults.has(r.issueKey)" class="bg-gray-950 px-4 py-3">
             <pre
               class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
               >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre
@@ -156,14 +185,9 @@ function toggleExpanded() {
         </div>
       </template>
 
-      <!-- Live stdout while running (or no results yet) -->
-      <div v-else class="p-4">
-        <pre
-          class="text-log max-h-96 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
-          >{{
-            activeJob.output ? stripAnsi(activeJob.output) : '等待輸出...'
-          }}</pre
-        >
+      <!-- Live: no duplicate log here — RunnerJobProgress shows the full log below -->
+      <div v-else class="px-4 py-3 text-sm text-gray-500">
+        輸出顯示在下方面板中
       </div>
     </div>
   </div>

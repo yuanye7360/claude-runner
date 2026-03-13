@@ -4,30 +4,30 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export interface RepoMapping {
-  label: string; // JIRA label, e.g. "repo:b2c-web"
+  label: string; // JIRA label, e.g. "b2c-web"
   repo: string; // repo name for display
   cwd: string; // absolute path
 }
 
-/** JIRA label → repo path mapping. Prefix: "repo:" */
+/** JIRA label → repo path mapping */
 export const REPO_MAPPINGS: RepoMapping[] = [
   {
-    label: 'repo:b2c-web',
+    label: 'b2c-web',
     repo: 'kkday-b2c-web',
     cwd: join(homedir(), 'KKday', 'kkday-b2c-web'),
   },
   {
-    label: 'repo:member',
+    label: 'member-ci',
     repo: 'kkday-member-ci',
     cwd: join(homedir(), 'KKday', 'kkday-member-ci'),
   },
   {
-    label: 'repo:mobile-member',
+    label: 'mobile-member-ci',
     repo: 'kkday-mobile-member-ci',
     cwd: join(homedir(), 'KKday', 'kkday-mobile-member-ci'),
   },
   {
-    label: 'repo:design-system',
+    label: 'DesignSystem',
     repo: 'web-design-system',
     cwd: join(homedir(), 'KKday', 'web-design-system'),
   },
@@ -45,7 +45,7 @@ export function getRepoLabelList(): string {
 
 /** Get GitHub org/repo format for a mapping */
 export function getGhRepo(mapping: RepoMapping): string {
-  return `kkday/${mapping.repo}`;
+  return `kkday-it/${mapping.repo}`;
 }
 
 /** Get all GitHub org/repo strings */

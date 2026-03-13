@@ -11,9 +11,20 @@ const emit = defineEmits<{
 }>();
 
 const expandedId = ref<null | string>(null);
+const expandedResults = ref<Set<string>>(new Set());
 
 function toggleEntry(id: string) {
   expandedId.value = expandedId.value === id ? null : id;
+  // Reset per-result expand state when switching entries
+  if (expandedId.value !== id) expandedResults.value.clear();
+}
+
+function toggleResult(key: string) {
+  if (expandedResults.value.has(key)) {
+    expandedResults.value.delete(key);
+  } else {
+    expandedResults.value.add(key);
+  }
 }
 
 function stripAnsi(str: string): string {
@@ -122,67 +133,74 @@ function formatTime(ts: number) {
 
           <!-- Expanded content -->
           <div v-if="expandedId === entry.id" class="border-t border-gray-800">
-            <!-- Per-result rows -->
+            <!-- Per-result collapsible rows -->
             <div
               v-for="r in entry.results"
               :key="r.issueKey"
-              class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-2"
-              :class="r.error ? 'bg-red-950/20' : 'bg-green-950/10'"
+              class="border-b border-gray-800/60 last:border-b-0"
             >
-              <UIcon
-                :name="r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
-                class="shrink-0"
-                :class="r.error ? 'text-red-400' : 'text-green-400'"
-              />
-              <component
-                :is="getItemUrl?.(r.issueKey) ? 'a' : 'span'"
-                :href="getItemUrl?.(r.issueKey) ?? undefined"
-                target="_blank"
-                rel="noopener"
-                class="shrink-0 font-mono font-semibold text-gray-300"
-                :class="{
-                  'underline-offset-2 hover:underline': getItemUrl?.(
-                    r.issueKey,
-                  ),
-                }"
-                >{{ r.issueKey }}</component
+              <!-- Result header -->
+              <div
+                class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-800/30"
+                :class="r.error ? 'bg-red-950/20' : 'bg-green-950/10'"
+                role="button"
+                tabindex="0"
+                @click="toggleResult(r.issueKey)"
+                @keydown.enter.space="toggleResult(r.issueKey)"
               >
-              <span class="text-muted flex-1 truncate">
-                {{ entry.issues.find((i) => i.key === r.issueKey)?.summary }}
-              </span>
-              <a
-                v-if="r.prUrl"
-                :href="r.prUrl"
-                target="_blank"
-                rel="noopener"
-                class="shrink-0 font-medium text-blue-400 underline-offset-2 hover:underline"
-                @click.stop
-              >
-                PR ↗
-              </a>
-              <span
-                v-else
-                class="shrink-0 text-xs"
-                :class="r.error ? 'text-red-400' : 'text-green-400'"
-              >
-                {{ r.error ? '失敗' : '完成' }}
-              </span>
-            </div>
+                <UIcon
+                  :name="r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
+                  class="shrink-0"
+                  :class="r.error ? 'text-red-400' : 'text-green-400'"
+                />
+                <component
+                  :is="getItemUrl?.(r.issueKey) ? 'a' : 'span'"
+                  :href="getItemUrl?.(r.issueKey) ?? undefined"
+                  target="_blank"
+                  rel="noopener"
+                  class="shrink-0 font-mono font-semibold text-gray-300"
+                  :class="{
+                    'underline-offset-2 hover:underline': getItemUrl?.(
+                      r.issueKey,
+                    ),
+                  }"
+                  @click.stop
+                  >{{ r.issueKey }}</component
+                >
+                <span class="text-muted flex-1 truncate">
+                  {{ entry.issues.find((i) => i.key === r.issueKey)?.summary }}
+                </span>
+                <a
+                  v-if="r.prUrl"
+                  :href="r.prUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="shrink-0 font-medium text-blue-400 underline-offset-2 hover:underline"
+                  @click.stop
+                >
+                  PR ↗
+                </a>
+                <span
+                  v-else
+                  class="shrink-0 text-xs"
+                  :class="r.error ? 'text-red-400' : 'text-green-400'"
+                >
+                  {{ r.error ? '失敗' : '完成' }}
+                </span>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="shrink-0 text-gray-600 transition-transform duration-200"
+                  :class="{ 'rotate-180': expandedResults.has(r.issueKey) }"
+                />
+              </div>
 
-            <!-- Full log -->
-            <div class="bg-gray-950 px-4 py-3">
-              <pre
-                class="text-log font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-500"
-                >{{
-                  stripAnsi(
-                    entry.log ||
-                      entry.results
-                        .map((r) => r.error || r.output || '')
-                        .join('\n---\n') ||
-                      '（無紀錄）',
-                  )
-                }}</pre
-              >
+              <!-- Collapsible log per result -->
+              <div v-if="expandedResults.has(r.issueKey)" class="bg-gray-950 px-4 py-3">
+                <pre
+                  class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-500"
+                  >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre
+                >
+              </div>
             </div>
           </div>
         </div>

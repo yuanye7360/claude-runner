@@ -255,21 +255,21 @@ async function runClaudeWithAnalysis(
   if (picked.length === 0 || cr.isRunning.value) return;
   jiraRightTab.value = 'progress';
   try {
-    const { jobId } = await $fetch<{ jobId: string }>(
-      '/api/claude-runner/run',
-      {
-        method: 'POST',
-        body: {
-          issues: picked,
-          repoConfig: selectedRepo.value
-            ? { cwd: selectedRepo.value.cwd }
-            : undefined,
-          mode: mode.value,
-          enabledSkills: enabledSkillNames.value,
-          analysisResult: analysis,
-        },
+    const { jobId, jobIssues } = await $fetch<{
+      jobId: string;
+      jobIssues: { key: string; summary: string }[];
+    }>('/api/claude-runner/run', {
+      method: 'POST',
+      body: {
+        issues: picked,
+        repoConfig: selectedRepo.value
+          ? { cwd: selectedRepo.value.cwd }
+          : undefined,
+        mode: mode.value,
+        enabledSkills: enabledSkillNames.value,
+        analysisResult: analysis,
       },
-    );
+    });
     crRowExpanded.value = true;
     // Generate phase labels from analysis
     const phaseLabels =
@@ -288,11 +288,8 @@ async function runClaudeWithAnalysis(
             { label: '建立 PR' },
           ]
         : undefined;
-    cr.startJob(
-      jobId,
-      picked.map((i) => ({ key: i.key, summary: i.summary })),
-      phaseLabels,
-    );
+
+    cr.startJob(jobId, jobIssues, phaseLabels);
     analyzer.reset();
   } catch (error) {
     console.error('Failed to start Claude Runner:', error);
@@ -304,7 +301,10 @@ async function runClaude() {
   if (picked.length === 0 || cr.isRunning.value) return;
   jiraRightTab.value = 'progress';
   try {
-    const { jobId } = await $fetch<{ jobId: string }>(
+    const { jobId, jobIssues } = await $fetch<{
+      jobId: string;
+      jobIssues: { key: string; summary: string }[];
+    }>(
       '/api/claude-runner/run',
       {
         method: 'POST',
@@ -319,10 +319,7 @@ async function runClaude() {
       },
     );
     crRowExpanded.value = true;
-    cr.startJob(
-      jobId,
-      picked.map((i) => ({ key: i.key, summary: i.summary })),
-    );
+    cr.startJob(jobId, jobIssues);
   } catch (error) {
     console.error('Failed to start Claude Runner:', error);
   }

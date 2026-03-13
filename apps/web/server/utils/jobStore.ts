@@ -9,7 +9,7 @@ export interface RunResult {
 }
 
 export type JobEvent =
-  | { data: string; type: 'chunk' }
+  | { data: string; issueKey?: string; type: 'chunk' }
   | { issueKey: string; label: string; phase: number; type: 'phase' }
   | { type: 'eof' };
 
@@ -72,8 +72,8 @@ export function setJobStatus(job: Job, status: Job['status']) {
   broadcast(job, { type: 'status', status } as unknown as JobEvent);
 }
 
-export function pushChunk(job: Job, data: string) {
-  broadcast(job, { type: 'chunk', data });
+export function pushChunk(job: Job, data: string, issueKey?: string) {
+  broadcast(job, { type: 'chunk', data, issueKey });
 }
 
 export function pushPhase(

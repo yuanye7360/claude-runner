@@ -86,12 +86,25 @@ const ANSI_RE =
 /* eslint-enable no-control-regex */
 
 function getMainBranch(cwd: string): string {
+  // KKday repos use git-flow: develop is the base branch for feature work
   try {
-    const branch = execSync(
-      `git remote show origin | grep 'HEAD branch' | awk '{print $NF}'`,
-      { cwd, encoding: 'utf8', timeout: 10_000 },
-    ).trim();
-    return branch || 'main';
+    const hasDevlop = execSync('git rev-parse --verify origin/develop', {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5_000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (hasDevlop) return 'develop';
+  } catch {
+    // no develop branch
+  }
+  try {
+    const ref = execSync('git symbolic-ref refs/remotes/origin/HEAD', {
+      cwd,
+      encoding: 'utf8',
+      timeout: 5_000,
+    }).trim();
+    return ref.split('/').pop() || 'main';
   } catch {
     return 'main';
   }
@@ -105,12 +118,14 @@ function runIssue(
   buildPrompt: (i: JiraIssue) => string,
   env: NodeJS.ProcessEnv,
   killFns: (() => void)[],
+  repoLabel?: string,
 ): Promise<{ ok: boolean; text: string }> {
   return new Promise((resolve) => {
     const allText: string[] = [];
     let currentPhase = 1;
+    const tag = repoLabel ? `${issue.key}@${repoLabel}` : issue.key;
 
-    pushPhase(job, 1, phases[0]?.label ?? '分析 & 建立分支', issue.key);
+    pushPhase(job, 1, phases[0]?.label ?? '分析 & 建立分支', tag);
 
     const cleanEnv: Record<string, string> = Object.fromEntries(
       Object.entries(env).filter(
@@ -140,13 +155,13 @@ function runIssue(
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      pushChunk(job, `❌ [${issue.key}] pty.spawn failed: ${msg}\n`);
+      pushChunk(job, `❌ [${tag}] pty.spawn failed: ${msg}\n`, repoLabel ? tag : undefined);
       resolve({ ok: false, text: `pty.spawn failed: ${msg}` });
       return;
     }
 
     killFns.push(() => child.kill());
-    pushChunk(job, `▶ [${issue.key}] Claude 已啟動...\n`);
+    pushChunk(job, `▶ [${tag}] Claude 已啟動...\n`, repoLabel ? tag : undefined);
 
     let lineBuffer = '';
 
@@ -205,12 +220,12 @@ function runIssue(
       }
       if (!text) return;
       allText.push(text);
-      pushChunk(job, text);
+      pushChunk(job, text, repoLabel ? tag : undefined);
       const next = detectPhaseTransition(text, currentPhase, phases);
       if (next > currentPhase) {
         currentPhase = next;
         const phaseInfo = phases.find((p) => p.phase === next);
-        if (phaseInfo) pushPhase(job, next, phaseInfo.label, issue.key);
+        if (phaseInfo) pushPhase(job, next, phaseInfo.label, tag);
       }
     }
 
@@ -242,16 +257,16 @@ export default defineEventHandler(async (event) => {
     repoCwds: _repoCwds,
   } = await readBody<RunRequest>(event);
 
-  // Resolve repo from JIRA labels
+  // Resolve repos from JIRA labels
   const allLabels = issues.flatMap((i: any) => i.labels ?? []);
   const mappedRepos = resolveReposFromLabels(allLabels);
 
-  // Use mapped repo if available, fallback to manual repoConfig
-  const repoCwd =
+  // Determine repo list: mapped repos → manual repoConfig → env fallback
+  const repoCwds =
     mappedRepos.length > 0
-      ? mappedRepos[0].cwd
-      : repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD;
-  if (!repoCwd) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
+      ? mappedRepos.map((r) => r.cwd)
+      : [repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD].filter(Boolean) as string[];
+  if (repoCwds.length === 0) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
   const skills = loadSkillContent(enabledSkills ?? DEFAULT_SKILLS);
 
@@ -268,12 +283,20 @@ export default defineEventHandler(async (event) => {
     ? (i: JiraIssue) => buildDynamicPrompt(i, skills, analysisResult)
     : fallbackPrompt;
 
+  // When multiple repos, expand issues per repo so frontend can display them separately
+  const isMultiRepo = repoCwds.length > 1;
+  const jobIssues = isMultiRepo
+    ? repoCwds.flatMap((cwd) => {
+        const repoName = cwd.split('/').pop() ?? cwd;
+        return issues.map((i) => ({
+          key: `${i.key ?? ''}@${repoName}`,
+          summary: `[${repoName}] ${i.summary ?? ''}`,
+        }));
+      })
+    : issues.map((i) => ({ key: i.key ?? '', summary: i.summary ?? '' }));
+
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const job = createJob(
-    jobId,
-    issues.map((i) => ({ key: i.key ?? '', summary: i.summary ?? '' })),
-    'claude-runner',
-  );
+  const job = createJob(jobId, jobIssues, 'claude-runner');
 
   if (analysisResult) {
     job.analysisResult = analysisResult;
@@ -292,70 +315,83 @@ export default defineEventHandler(async (event) => {
   };
 
   void (async () => {
-    // Fetch latest and get main branch before spawning any worktrees
-    const mainBranch = getMainBranch(repoCwd);
-    try {
-      execSync(`git fetch origin ${mainBranch}`, {
-        cwd: repoCwd,
-        timeout: 30_000,
-      });
-    } catch {
-      // non-fatal
-    }
-
     const results: RunResult[] = [];
 
+    // Execute repos in parallel
     await Promise.all(
-      issues.map(async (issue) => {
+      repoCwds.map(async (repoCwd) => {
         if (job.status === 'cancelled') return;
 
-        const safeKey = (issue.key ?? 'issue').replaceAll(/[^a-z0-9]/gi, '-');
-        const worktreePath = `/tmp/cr-${jobId}-${safeKey}`;
+        const repoName = repoCwd.split('/').pop() ?? repoCwd;
+        pushChunk(job, `\n📂 开始处理 repo: ${repoName}\n`);
 
+        // Fetch latest and get base branch for this repo
+        const mainBranch = getMainBranch(repoCwd);
         try {
-          execSync(
-            `git worktree add "${worktreePath}" "origin/${mainBranch}"`,
-            { cwd: repoCwd, timeout: 15_000 },
-          );
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          pushChunk(
-            job,
-            `❌ [${issue.key}] Failed to create worktree: ${msg}\n`,
-          );
-          results.push({ issueKey: issue.key ?? '', error: msg });
-          return;
+          execSync(`git fetch origin ${mainBranch}`, {
+            cwd: repoCwd,
+            timeout: 30_000,
+          });
+        } catch {
+          // non-fatal
         }
 
-        try {
-          const output = await runIssue(
-            issue,
-            worktreePath,
-            job,
-            phases,
-            buildPrompt,
-            env,
-            killFns,
-          );
-          if (job.status !== 'cancelled') {
-            const prMatch =
-              /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i.exec(
-                output.text,
-              );
-            results.push({
-              issueKey: issue.key ?? '',
-              ...(output.ok ? { output: output.text } : { error: output.text }),
-              ...(prMatch ? { prUrl: prMatch[1] } : {}),
-            });
-          }
-        } finally {
+        for (const issue of issues) {
+          if (job.status === 'cancelled') break;
+
+          const safeKey = (issue.key ?? 'issue').replaceAll(/[^a-z0-9]/gi, '-');
+          const worktreePath = `/tmp/cr-${jobId}-${safeKey}-${repoName}`;
+
           try {
-            execSync(`git worktree remove "${worktreePath}" --force`, {
-              cwd: repoCwd,
-              timeout: 15_000,
-            });
-          } catch {
-            // non-fatal
+            execSync(
+              `git worktree add "${worktreePath}" "origin/${mainBranch}"`,
+              { cwd: repoCwd, timeout: 15_000 },
+            );
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            pushChunk(
+              job,
+              `❌ [${issue.key}@${repoName}] Failed to create worktree: ${msg}\n`,
+            );
+            const issueTag = isMultiRepo ? `${issue.key}@${repoName}` : (issue.key ?? '');
+            results.push({ issueKey: issueTag, error: msg });
+            continue;
+          }
+
+          try {
+            const issueTag = isMultiRepo ? `${issue.key}@${repoName}` : (issue.key ?? '');
+            const output = await runIssue(
+              issue,
+              worktreePath,
+              job,
+              phases,
+              buildPrompt,
+              env,
+              killFns,
+              isMultiRepo ? repoName : undefined,
+            );
+            if (job.status !== 'cancelled') {
+              const prMatch =
+                /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i.exec(
+                  output.text,
+                );
+              results.push({
+                issueKey: issueTag,
+                ...(output.ok
+                  ? { output: output.text }
+                  : { error: output.text }),
+                ...(prMatch ? { prUrl: prMatch[1] } : {}),
+              });
+            }
+          } finally {
+            try {
+              execSync(`git worktree remove "${worktreePath}" --force`, {
+                cwd: repoCwd,
+                timeout: 15_000,
+              });
+            } catch {
+              // non-fatal
+            }
           }
         }
       }),
@@ -364,5 +400,5 @@ export default defineEventHandler(async (event) => {
     if (job.status !== 'cancelled') finishJob(job, results);
   })();
 
-  return { jobId };
+  return { jobId, jobIssues };
 });

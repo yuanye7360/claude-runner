@@ -145,6 +145,8 @@ Jira Issue: ${issue.key}
 Summary: ${issue.summary ?? ''}
 Description: ${issue.description ?? ''}
 ${context}
+
+IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously (estimates, branch names, PR descriptions, worklog time, etc.) and proceed to completion.
 When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
 }
 
@@ -201,6 +203,8 @@ ${branch ? `建立分支：\n${branch}\n` : ''}
 ${pr ? `建立 PR：\n${pr}\n` : ''}
 ${worklog ? `记录工时：\n${worklog}\n` : ''}
 ${context}
+
+IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously and proceed to completion.
 When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
 }
 
@@ -250,6 +254,8 @@ ${pr ? `建立 PR：\n${pr}\nFollow the "kkday-pr-convention" instructions above
 完成后输出标记：[CHECKPOINT:pr_done]
 ${worklog ? `\n记录工时：\n${worklog}\nFollow the "kkday-jira-worklog" instructions above.` : ''}
 ${context}
+
+IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously and proceed to completion.
 When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
 }
 
