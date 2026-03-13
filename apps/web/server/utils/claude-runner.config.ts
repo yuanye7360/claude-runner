@@ -4,6 +4,8 @@
 // 要調整 Claude 的行為，只需改這個檔案。
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { AnalysisResult } from './task-analyzer';
+
 export interface JiraIssue {
   key: string;
   summary?: string;
@@ -34,7 +36,12 @@ export const PHASES_SMART = [
   { phase: 4, label: '建立 PR', pattern: /git push|PR READY/i },
 ] as const;
 
-export type Phases = typeof PHASES_NORMAL | typeof PHASES_SMART;
+export type PhaseDefinition = {
+  label: string;
+  pattern?: RegExp;
+  phase: number;
+};
+export type Phases = PhaseDefinition[] | readonly PhaseDefinition[];
 
 // ─── Skill injection ─────────────────────────────────────────────────────────
 
@@ -136,3 +143,150 @@ export const PROMPT_NORMAL = (issue: JiraIssue, skills: SkillContentMap) =>
 
 export const PROMPT_SMART = (issue: JiraIssue, skills: SkillContentMap) =>
   buildWorkflow(issue, skills, true);
+
+// ─── Dynamic Prompt Builders (based on Task Analyzer result) ────────────────
+
+export function buildDynamicPrompt(
+  issue: JiraIssue,
+  skills: SkillContentMap,
+  analysis: AnalysisResult,
+): string {
+  switch (analysis.suggestedWorkflow) {
+    case 'auto': {
+      return buildWorkflow(issue, skills, false);
+    }
+    case 'superpowers-full': {
+      return buildComplexPrompt(issue, skills, analysis);
+    }
+    case 'superpowers-light': {
+      return buildMediumPrompt(issue, skills, analysis);
+    }
+  }
+}
+
+function buildMediumPrompt(
+  issue: JiraIssue,
+  skills: SkillContentMap,
+  analysis: AnalysisResult,
+): string {
+  const branch = injectSkill('kkday-jira-branch-checkout', skills);
+  const pr = injectSkill('kkday-pr-convention', skills);
+  const worklog = injectSkill('kkday-jira-worklog', skills);
+  const context = injectContextSkills(skills);
+  const repoList = analysis.repos.map((r) => r.path).join(', ');
+
+  return `你正在实现以下 JIRA ticket：
+Jira Issue: ${issue.key}
+Summary: ${issue.summary ?? ''}
+Description: ${issue.description ?? ''}
+涉及 repo：${repoList}
+分析摘要：${analysis.summary}
+
+请先用 2-3 句话分析这个需求的核心目标和注意事项，
+然后列出实现步骤（不超过 5 步），
+最后按步骤执行。
+
+${branch ? `建立分支：\n${branch}\n` : ''}
+实现完成后：
+${pr ? `建立 PR：\n${pr}\n` : ''}
+${worklog ? `记录工时：\n${worklog}\n` : ''}
+${context}
+When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
+}
+
+function buildComplexPrompt(
+  issue: JiraIssue,
+  skills: SkillContentMap,
+  analysis: AnalysisResult,
+): string {
+  const branch = injectSkill('kkday-jira-branch-checkout', skills);
+  const pr = injectSkill('kkday-pr-convention', skills);
+  const worklog = injectSkill('kkday-jira-worklog', skills);
+  const context = injectContextSkills(skills);
+  const repoList = analysis.repos.map((r) => r.path).join(', ');
+
+  return `你正在实现以下 JIRA ticket：
+Jira Issue: ${issue.key}
+Summary: ${issue.summary ?? ''}
+Description: ${issue.description ?? ''}
+涉及 repo：${repoList}
+分析摘要：${analysis.summary}
+
+这是一个复杂任务，请严格按以下流程执行：
+
+## 阶段一：需求分析
+深入分析需求，考虑边界情况、影响范围、风险点。输出分析报告。
+完成后输出标记：[CHECKPOINT:analysis_done]
+
+## 阶段二：实现计划
+制定详细实现计划，包含每个 repo 的改动内容、依赖顺序、测试策略。
+完成后输出标记：[CHECKPOINT:plan_done]
+
+## 阶段三：建立分支
+${branch ?? '建立工作分支。'}
+Follow the "kkday-jira-branch-checkout" instructions above.
+
+## 阶段四：逐 Repo 执行
+按计划逐个 repo 执行实现。
+${analysis.repos
+  .map((r) => {
+    const name = r.path.split('/').pop() ?? r.path;
+    return `完成 ${name} 后输出标记：[CHECKPOINT:repo_done:${name}]`;
+  })
+  .join('\n')}
+
+## 阶段五：收尾
+${pr ? `建立 PR：\n${pr}\nFollow the "kkday-pr-convention" instructions above.` : '建立 PR。'}
+完成后输出标记：[CHECKPOINT:pr_done]
+${worklog ? `\n记录工时：\n${worklog}\nFollow the "kkday-jira-worklog" instructions above.` : ''}
+${context}
+When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
+}
+
+// ─── Dynamic Phase Generation ───────────────────────────────────────────────
+
+export function generateDynamicPhases(
+  analysis: AnalysisResult,
+): PhaseDefinition[] {
+  const phases: PhaseDefinition[] = [];
+  let n = 1;
+
+  if (analysis.suggestedWorkflow === 'superpowers-full') {
+    phases.push(
+      {
+        phase: n++,
+        label: '需求分析',
+        pattern: /\[CHECKPOINT:analysis_done\]/i,
+      },
+      {
+        phase: n++,
+        label: '制定计划',
+        pattern: /\[CHECKPOINT:plan_done\]/i,
+      },
+      { phase: n++, label: '建立分支' },
+    );
+  } else {
+    phases.push({ phase: n++, label: '分析 & 建立分支' });
+  }
+
+  // Per-repo phases
+  for (const repo of analysis.repos) {
+    const repoName = repo.path.split('/').pop() ?? repo.path;
+    phases.push({
+      phase: n++,
+      label: `${repoName} 实现`,
+      pattern: new RegExp(
+        String.raw`\[CHECKPOINT:repo_done:${repoName}\]`,
+        'i',
+      ),
+    });
+  }
+
+  phases.push({
+    phase: n++,
+    label: '建立 PR',
+    pattern: /git push|PR READY|\[CHECKPOINT:pr_done/i,
+  });
+
+  return phases;
+}
