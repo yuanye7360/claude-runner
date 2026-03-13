@@ -43,6 +43,29 @@
 
 关键点：`missingInfo` 为空时不停下来等用户，直接往下走。只有真正信息不足时才打断。
 
+### 实现机制
+
+Task Analyzer 本质是一次独立的 Claude Code CLI 调用，专用 prompt 要求输出结构化 JSON：
+
+1. **调用方式：** `pty.spawn('claude', ['-p', analyzerPrompt])` — 和现在的 run 一样用 CLI，但 prompt 不同
+2. **Prompt 结构：** 注入 ticket 全部信息 + repo 映射表 + 分析指令，要求输出 JSON
+3. **JSON 提取：** 从 Claude 输出中用正则提取 `{...}` JSON 块，用 zod schema 校验
+4. **失败兜底：** 分析失败时（超时、JSON 解析失败、MCP 工具异常），自动降级为当前的线性流程（用户手选 repo，直接执行），UI 显示"分析失败，已降级为手动模式"
+
+### 交互式提问
+
+当 `missingInfo` 非空时：
+- UI 展示问题列表，用户逐条回答
+- 用户回答后，系统发起新一轮分析调用，原始 ticket 信息 + 用户回答一起注入 prompt
+- 最多 3 轮提问，超过后强制进入执行阶段（用已有信息尽力执行）
+
+### 模式映射
+
+现有 `normal` / `smart` 模式保留作为用户偏好覆盖：
+- 用户未选模式 → Task Analyzer 自动决定 workflow
+- 用户手动选 `normal` → 强制走 `auto`（全自动）
+- 用户手动选 `smart` → 强制走 `superpowers-full`（完整流程）
+
 ## 模块二：Superpowers 工作流整合
 
 ### 执行策略
@@ -67,12 +90,58 @@ Phase 不再硬编码，由 Task Analyzer 的分析结果动态生成。
 5. 建 PR × 3
 6. Worklog
 
+### Prompt 示例
+
+**medium（轻量规划）：**
+```
+你正在实现以下 JIRA ticket：[ticket 信息]
+涉及 repo：[repo 列表]
+
+请先用 2-3 句话分析这个需求的核心目标和注意事项，
+然后列出实现步骤（不超过 5 步），
+最后按步骤执行。
+
+[注入的 skills 内容]
+```
+
+**complex（完整流程）：**
+```
+你正在实现以下 JIRA ticket：[ticket 信息]
+涉及 repo：[repo 列表]
+这是一个复杂任务，请严格按以下流程执行：
+
+## 阶段一：需求分析
+深入分析需求，考虑边界情况、影响范围、风险点。输出分析报告。
+完成后输出标记：[CHECKPOINT:analysis_done]
+
+## 阶段二：实现计划
+制定详细实现计划，包含每个 repo 的改动内容、依赖顺序、测试策略。
+完成后输出标记：[CHECKPOINT:plan_done]
+
+## 阶段三：逐 Repo 执行
+按计划逐个 repo 执行，每个完成后输出标记：[CHECKPOINT:repo_done:<repo_name>]
+
+## 阶段四：收尾
+创建 PR、记录 worklog。
+
+[注入的 skills 内容]
+```
+
+### 多 Repo 执行策略
+
+- **顺序执行：** 默认按 Task Analyzer 规划的顺序逐个执行，不并行（避免跨 repo 依赖问题）
+- **依赖感知：** 如 design-system 的变更需要先发布才能被 b2c-web 消费，计划阶段要识别并安排正确顺序
+- **每个 repo 独立 worktree：** 各 repo 的 cwd 不同，每个 repo 独立创建 worktree 和分支
+
 ### Checkpoint 机制
 
-complex 任务在以下节点输出标记供 UI 展示：
-- 计划完成
-- 每个 repo 实现完成
-- PR 创建完成
+complex 任务在以下节点输出 `[CHECKPOINT:*]` 标记，后端正则匹配后推送到前端：
+- `[CHECKPOINT:analysis_done]` — 分析完成
+- `[CHECKPOINT:plan_done]` — 计划完成
+- `[CHECKPOINT:repo_done:<name>]` — 某个 repo 实现完成
+- `[CHECKPOINT:pr_done:<name>]` — PR 创建完成
+
+Checkpoint 为信息展示用，不阻塞执行。用户可在 UI 上实时看到进度，但不需要手动确认。
 
 ## 模块三：JIRA 生命周期管理
 
@@ -99,8 +168,13 @@ complex 任务在以下节点输出标记供 UI 展示：
 
 整合并增强现有 PR Runner 和 copilot-review skill，统一处理所有 reviewer 的 comments。
 
+**Comment 范围：**
+- PR review comments（代码行上的评论，`/pulls/{id}/comments`）
+- Issue comments（PR 页面的通用讨论评论，`/issues/{id}/comments`）
+- 两者都抓取，因为架构层面的反馈通常出现在 issue comments 里
+
 **流程：**
-1. 抓取 PR 的所有 review comments
+1. 抓取 PR 的所有 review comments + issue comments
 2. 分类评估每条 comment：
    - validity：valid / false positive
    - severity：critical / should-fix / minor / ignore
@@ -116,12 +190,35 @@ complex 任务在以下节点输出标记供 UI 展示：
 ### 4b. PR Monitor（自动监控）
 
 **机制：**
-- 定时任务轮询（cron / setInterval），通过 `gh api` 检查用户的 open PRs
-- 检测新 review comments，存入数据库，标记已读/未读
-- 前端通知：UI 显示未处理 review 数量（类似未读消息徽章）
+- 使用 Nuxt 的 `defineCronHandler` 或 `nitro:init` hook 注册定时任务，每 5 分钟轮询一次
+- 通过 `gh api /user/repos` + `gh api /repos/{owner}/{repo}/pulls` 检查 open PRs
+- 用 `since` 参数增量获取新 comments，避免重复
+- 新 comment 存入 `PrReviewComment` 表：
+
+```prisma
+model PrReviewComment {
+  id          String   @id @default(cuid())
+  prUrl       String
+  prNumber    Int
+  repo        String
+  commentId   Int      @unique  // GitHub comment ID，用于去重
+  author      String
+  body        String
+  type        String   // "review" | "issue"
+  path        String?  // 代码文件路径（review comment 才有）
+  line        Int?     // 代码行号（review comment 才有）
+  status      String   @default("unread")  // "unread" | "read" | "fixed" | "dismissed"
+  fixCommit   String?  // 修复的 commit SHA
+  createdAt   DateTime
+  fetchedAt   DateTime @default(now())
+}
+```
+
+- 服务重启后定时任务自动恢复（Nitro 生命周期管理）
+- 前端每 30 秒轮询 `/api/pr-runner/notifications` 获取未读数量
 
 **交互：**
-- 点击通知 → 展示 review comments 列表
+- 点击通知徽章 → 展示 review comments 列表（按 PR 分组）
 - 一键处理 → 进入 4a 流程
 
 ## 模块五：Repo 自动识别
@@ -149,7 +246,7 @@ complex 任务在以下节点输出标记供 UI 展示：
 
 ### 无 Label 兜底
 
-当 Claude 智能判断成功完成任务后，在 JIRA ticket 上留评论建议添加对应的 repo label，方便后续同类 ticket 直接命中。
+当 Claude 智能判断成功完成任务后，且判断 confidence 为 high 时，在 JIRA ticket 上自动添加对应的 `repo:*` label（而非留评论建议），减少噪音。confidence 为 low 时不做任何自动操作，仅在 job log 中记录。
 
 ## 实现优先级
 
@@ -173,9 +270,28 @@ complex 任务在以下节点输出标记供 UI 展示：
 ### 数据库变更
 
 新增表/字段：
-- `PrReviewComment`：存储抓取的 review comments，含 read/unread 状态
-- `RepoMapping`：持久化 label → repo 映射（也可以用 JSON 文件）
-- `Job` 表新增字段：`analysisResult`（存 Task Analyzer 的输出）
+- `PrReviewComment`：存储抓取的 review comments（schema 见模块四）
+- Repo 映射表使用代码中的常量配置（`repo-mapping.ts`），不入数据库，因为映射关系稳定且数量少
+- `Job` 表新增字段：`analysisResult Json?`（JSON 列，存 Task Analyzer 的结构化输出）
+
+### Job 状态机
+
+现有 `status` 字段扩展为状态机：
+
+```
+analyzing → awaiting_input → planning → executing → done
+                                                  ↘ error
+              ↗ (missingInfo 非空时)    ↗ (medium/complex)
+analyzing → executing (simple 直接跳到执行)
+analyzing → fallback_executing (分析失败，降级为手动模式)
+```
+
+前端根据状态展示不同 UI：
+- `analyzing`：显示分析中动画
+- `awaiting_input`：显示问题列表和回答输入框
+- `planning`：显示规划进度
+- `executing`：显示动态 phases 和 checkpoints
+- `done` / `error`：显示结果
 
 ### 前端变更
 
