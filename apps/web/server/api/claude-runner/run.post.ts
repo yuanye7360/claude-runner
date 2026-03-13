@@ -12,6 +12,8 @@ import matter from 'gray-matter';
 import pty from 'node-pty';
 
 import {
+  buildDynamicPrompt,
+  generateDynamicPhases,
   PHASES_NORMAL,
   PHASES_SMART,
   PROMPT_NORMAL,
@@ -251,12 +253,20 @@ export default defineEventHandler(async (event) => {
       : repoConfig?.cwd || process.env.CLAUDE_RUNNER_CWD;
   if (!repoCwd) throw new Error('Missing env: CLAUDE_RUNNER_CWD');
 
-  const phases = mode === 'smart' ? PHASES_SMART : PHASES_NORMAL;
   const skills = loadSkillContent(enabledSkills ?? DEFAULT_SKILLS);
-  const buildPrompt =
+
+  const fallbackPhases = mode === 'smart' ? PHASES_SMART : PHASES_NORMAL;
+  const phases = analysisResult
+    ? generateDynamicPhases(analysisResult)
+    : fallbackPhases;
+
+  const fallbackPrompt =
     mode === 'smart'
       ? (i: JiraIssue) => PROMPT_SMART(i, skills)
       : (i: JiraIssue) => PROMPT_NORMAL(i, skills);
+  const buildPrompt = analysisResult
+    ? (i: JiraIssue) => buildDynamicPrompt(i, skills, analysisResult)
+    : fallbackPrompt;
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const job = createJob(
