@@ -9,13 +9,28 @@ async function emitEvent(
 ) {
   switch (event.type) {
     case 'chunk': {
-      await stream.push({ data: event.data });
+      await (event.issueKey
+        ? stream.push({
+            data: JSON.stringify({
+              text: event.data,
+              issueKey: event.issueKey,
+            }),
+          })
+        : stream.push({ data: event.data }));
 
       break;
     }
     case 'eof': {
       await stream.push({ event: 'eof', data: '' });
       await stream.close();
+
+      break;
+    }
+    case 'heartbeat': {
+      await stream.push({
+        event: 'heartbeat',
+        data: JSON.stringify({ idleSecs: event.idleSecs }),
+      });
 
       break;
     }
@@ -45,13 +60,31 @@ export default defineEventHandler(async (event) => {
   // Snapshot events BEFORE subscribing to avoid duplicates during replay
   const snapshot = [...job.events];
 
+  let heartbeatTimer: null | ReturnType<typeof setInterval> = null;
+
   if (job.status === 'running') {
     const onEvent = async (e: JobEvent) => {
       await emitEvent(eventStream, e);
     };
     job.subscribers.add(onEvent);
+
+    // Send heartbeat every 5 seconds with idle duration
+    heartbeatTimer = setInterval(() => {
+      if (job.status !== 'running') {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        return;
+      }
+      const lastActive = job.lastActivityAt || job.startedAt;
+      const idleSecs = Math.floor((Date.now() - lastActive) / 1000);
+      emitEvent(eventStream, { type: 'heartbeat', idleSecs }).catch(() => {
+        // Client disconnected — clean up timer
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+      });
+    }, 5000);
+
     eventStream.onClosed(() => {
       job.subscribers.delete(onEvent);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
     });
   }
 

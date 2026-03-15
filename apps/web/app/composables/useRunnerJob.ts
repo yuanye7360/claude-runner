@@ -13,19 +13,39 @@ export interface PhaseInfo {
 
 export interface ActiveJob {
   id: string;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
   durationSecs?: number;
   issues: { key: string; summary: string }[];
   output: string;
+  outputByIssue: Record<string, string>;
   results: RunResult[];
   phases: PhaseInfo[];
+  phasesByIssue: Record<string, PhaseInfo[]>;
   currentIssueKey: string;
 }
 
 export interface JobApiResponse {
   id: string;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
   issues: { key: string; summary: string }[];
   output: string;
@@ -34,6 +54,7 @@ export interface JobApiResponse {
 
 export interface HistoryEntry {
   id: string;
+  type?: string;
   timestamp: number;
   durationSecs?: number;
   issues: Array<{ key: string; summary: string }>;
@@ -42,6 +63,7 @@ export interface HistoryEntry {
 }
 
 interface UseRunnerJobOptions {
+  apiBase?: string;
   onComplete?: (jobId: string, job: ActiveJob) => void;
   phases?: { label: string }[];
   storageKey?: string;
@@ -49,9 +71,11 @@ interface UseRunnerJobOptions {
 
 export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   const storageKey = options.storageKey ?? 'cr-active-jobId';
+  const apiBase = options.apiBase ?? '/api/claude-runner';
 
   const activeJob = ref<ActiveJob | null>(null);
   const elapsed = ref('');
+  const idleSecs = ref(0);
 
   let sseSource: EventSource | null = null;
   let elapsedTimer: null | ReturnType<typeof setInterval> = null;
@@ -79,12 +103,13 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     elapsedTimer = null;
   }
 
-  function buildPhaseList(): PhaseInfo[] {
-    const phaseLabels = options.phases ?? [
-      { label: '分析 & 建立分支' },
-      { label: '實作修復' },
-      { label: '建立 PR' },
-    ];
+  function buildPhaseList(dynamicPhases?: { label: string }[]): PhaseInfo[] {
+    const phaseLabels = dynamicPhases ??
+      options.phases ?? [
+        { label: '分析 & 建立分支' },
+        { label: '實作修復' },
+        { label: '建立 PR' },
+      ];
     return phaseLabels.map(({ label }, i) => ({
       phase: i + 1,
       label,
@@ -104,13 +129,14 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     sseSource?.close();
     sseSource = null;
     stopElapsedTimer();
+    idleSecs.value = 0;
     if (activeJob.value?.status === 'cancelled') return;
     if (activeJob.value) {
       activeJob.value.durationSecs = Math.floor(
         (Date.now() - activeJob.value.startedAt) / 1000,
       );
     }
-    $fetch<JobApiResponse>(`/api/claude-runner/jobs/${jobId}`)
+    $fetch<JobApiResponse>(`${apiBase}/jobs/${jobId}`)
       .then((data) => {
         if (activeJob.value) {
           activeJob.value.status = data.status;
@@ -123,6 +149,9 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
             return prMatch ? { ...r, prUrl: prMatch[1] } : r;
           });
           for (const p of activeJob.value.phases) p.status = 'done';
+          for (const phases of Object.values(activeJob.value.phasesByIssue)) {
+            for (const p of phases) p.status = 'done';
+          }
           options.onComplete?.(jobId, activeJob.value);
         }
         localStorage.removeItem(storageKey);
@@ -135,10 +164,33 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
 
   function connectSSE(jobId: string) {
     if (sseSource) sseSource.close();
-    sseSource = new EventSource(`/api/claude-runner/jobs/${jobId}/stream`);
+    sseSource = new EventSource(`${apiBase}/jobs/${jobId}/stream`);
 
     sseSource.addEventListener('message', (e) => {
-      if (activeJob.value) activeJob.value.output += `${e.data}\n`;
+      if (!activeJob.value) return;
+      idleSecs.value = 0;
+      // Try to parse as JSON with issueKey for multi-repo routing
+      try {
+        const parsed = JSON.parse(e.data) as {
+          issueKey?: string;
+          text: string;
+        };
+        if (parsed.issueKey) {
+          activeJob.value.output += `${parsed.text}\n`;
+          activeJob.value.outputByIssue[parsed.issueKey] = `${
+            activeJob.value.outputByIssue[parsed.issueKey] ?? ''
+          }${parsed.text}\n`;
+          return;
+        }
+      } catch {
+        // Not JSON — plain text chunk (single repo mode)
+      }
+      activeJob.value.output += `${e.data}\n`;
+    });
+
+    sseSource.addEventListener('heartbeat', (e) => {
+      const { idleSecs: secs } = JSON.parse(e.data) as { idleSecs: number };
+      idleSecs.value = secs;
     });
 
     sseSource.addEventListener('phase', (e) => {
@@ -149,9 +201,19 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         phase: number;
       };
       activeJob.value.currentIssueKey = issueKey;
+      // Update global phases
       applyPhase(activeJob.value.phases, phase);
       const p = activeJob.value.phases.find((ph) => ph.phase === phase);
       if (p) p.label = label;
+      // Update per-issue phases
+      if (!activeJob.value.phasesByIssue[issueKey]) {
+        activeJob.value.phasesByIssue[issueKey] = buildPhaseList();
+      }
+      const issuePhases = activeJob.value.phasesByIssue[issueKey];
+      if (!issuePhases) return;
+      applyPhase(issuePhases, phase);
+      const pi = issuePhases.find((ph) => ph.phase === phase);
+      if (pi) pi.label = label;
     });
 
     sseSource.addEventListener('eof', () => {
@@ -167,7 +229,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   async function cancelJob() {
     if (!activeJob.value || activeJob.value.status !== 'running') return;
     try {
-      await $fetch(`/api/claude-runner/jobs/${activeJob.value.id}`, {
+      await $fetch(`${apiBase}/jobs/${activeJob.value.id}`, {
         // @ts-expect-error: DELETE method not in generated nitro types for this route
         method: 'DELETE' as const,
       });
@@ -175,20 +237,31 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       sseSource?.close();
       sseSource = null;
       stopElapsedTimer();
+      idleSecs.value = 0;
       if (activeJob.value) activeJob.value.status = 'cancelled';
       localStorage.removeItem(storageKey);
     }
   }
 
-  function startJob(jobId: string, issues: { key: string; summary: string }[]) {
+  function startJob(
+    jobId: string,
+    issues: { key: string; summary: string }[],
+    dynamicPhases?: { label: string }[],
+  ) {
+    const phasesByIssue: Record<string, PhaseInfo[]> = {};
+    for (const issue of issues) {
+      phasesByIssue[issue.key] = buildPhaseList(dynamicPhases);
+    }
     activeJob.value = {
       id: jobId,
       status: 'running',
       startedAt: Date.now(),
       issues,
       output: '',
+      outputByIssue: {},
       results: [],
-      phases: buildPhaseList(),
+      phases: buildPhaseList(dynamicPhases),
+      phasesByIssue,
       currentIssueKey: issues[0]?.key ?? '',
     };
     localStorage.setItem(storageKey, jobId);
@@ -198,15 +271,21 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
 
   async function restoreJob(jobId: string) {
     try {
-      const data = await $fetch<ActiveJob>(`/api/claude-runner/jobs/${jobId}`);
+      const data = await $fetch<ActiveJob>(`${apiBase}/jobs/${jobId}`);
+      const phasesByIssue: Record<string, PhaseInfo[]> = {};
+      for (const issue of data.issues) {
+        phasesByIssue[issue.key] = buildPhaseList();
+      }
       activeJob.value = {
         id: data.id,
         status: data.status,
         startedAt: data.startedAt,
         issues: data.issues,
         output: data.output,
+        outputByIssue: data.outputByIssue ?? {},
         results: data.results,
         phases: buildPhaseList(),
+        phasesByIssue,
         currentIssueKey: data.issues[0]?.key ?? '',
       };
       if (data.status === 'running') {
@@ -228,6 +307,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   return {
     activeJob,
     elapsed,
+    idleSecs,
     isRunning,
     successCount,
     errorCount,
