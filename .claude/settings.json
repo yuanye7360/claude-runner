@@ -2,30 +2,16 @@
   "permissions": {
     "allow": [
       "mcp__playwright__browser_evaluate",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''skills'''',{}\\), indent=2\\)\\)\")",
-      "Bash(grep -r cancel /Users/yeyuan/home/template/apps/web --include=*.ts --include=*.vue)",
       "Bash(xargs ls:*)",
-      "Bash(node -e \"const pkg = require\\(''./node_modules/ofetch/package.json''\\); console.log\\(pkg.version\\)\")",
-      "Bash(grep -r method /Users/yeyuan/home/template/node_modules/.pnpm/ofetch@1.5.1/node_modules/ofetch/dist/shared/*.js)",
-      "Bash(find /Users/yeyuan/home/template/apps/web/.nuxt -name *.d.ts)",
-      "Bash(git -C /Users/yeyuan/home/template diff b9df1ea2138a1b8020d28a4d65981ce23fa9fa85..f0732b2 -- apps/web/app/composables/useRunnerJob.ts)",
       "Bash(python3 -c \":*)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''compilerOptions'''',{}\\).get\\(''''paths'''',{}\\), indent=2\\)\\)\")",
-      "Bash(grep -n \"case ''result''\" apps/web/server/api/pr-runner/run.post.ts)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5678/webhook/github-prs)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/pr-runner/prs)",
       "Bash(npx prisma:*)",
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"proceed with reset\" npx prisma migrate reset --force)",
       "Bash(git restore:*)",
       "Bash(git log:*)",
       "Bash(npx nuxi:*)",
+      "Bash(npm install:*)",
       "mcp__n8n-mcp__n8n_get_workflow",
-      "mcp__n8n-mcp__n8n_update_partial_workflow",
-      "Bash(find /Users/yeyuan/home/ClaudeRunner -name *.prisma -o -name schema.prisma)",
-      "Bash(grep -r \"JobResult\\\\|Job.*model\\\\|execution\" /Users/yeyuan/home/ClaudeRunner/apps/web --include=*.ts --include=*.vue --include=*.prisma)",
-      "Bash(find /Users/yeyuan -path *kkday*skill* -type d)",
-      "Bash(grep -r \"useFetch\\\\|useAsyncData\\\\|$fetch\" /Users/yeyuan/home/ClaudeRunner/apps/web/app --include=\"*.ts\" --include=\"*.vue\")",
-      "Bash(npm install:*)"
+      "mcp__n8n-mcp__n8n_update_partial_workflow"
     ]
   }
 }
