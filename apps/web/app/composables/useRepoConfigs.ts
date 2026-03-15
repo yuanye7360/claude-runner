@@ -2,64 +2,107 @@ export interface RepoConfig {
   id: string;
   name: string;
   cwd: string;
-  githubRepo?: string; // "owner/repo" — used by pr-runner for filtering
+  githubRepo?: string;
+  label?: string;
+  isCustom?: boolean;
 }
 
 const STORAGE_KEY = 'runner-repo-configs';
 
-function load(): RepoConfig[] {
-  if (typeof localStorage === 'undefined') return [];
+const repoConfigs = ref<RepoConfig[]>([]);
+const editingConfig = ref<null | (RepoConfig & { id: string })>(null);
+let fetched = false;
+
+async function fetchFromServer() {
+  if (fetched) return;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const data = await $fetch<any[]>('/api/repos');
+    repoConfigs.value = data.map((r) => ({
+      id: r.label || r.id,
+      name: r.name,
+      cwd: r.cwd,
+      ...r,
+    }));
+    fetched = true;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch {
-    return [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        repoConfigs.value = JSON.parse(
+          localStorage.getItem(STORAGE_KEY) || '[]',
+        );
+      } catch {
+        /* empty */
+      }
+    }
   }
 }
 
-function persist(configs: RepoConfig[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
-}
-
-// Shared reactive state across all composable callers on the same page
-const repoConfigs = ref<RepoConfig[]>(load());
-const editingConfig = ref<null | (RepoConfig & { id: string })>(null);
-
 export function useRepoConfigs() {
+  fetchFromServer();
+
   function newConfig() {
-    editingConfig.value = { id: '', name: '', cwd: '', githubRepo: '' };
+    editingConfig.value = { id: '', name: '', cwd: '' };
   }
 
   function startEditConfig(c: RepoConfig) {
-    editingConfig.value = { ...c, githubRepo: c.githubRepo ?? '' };
+    editingConfig.value = { ...c };
   }
 
-  function saveConfig() {
+  async function saveConfig() {
     if (!editingConfig.value) return;
     const form = editingConfig.value;
     if (!form.name || !form.cwd) return;
 
-    const entry: RepoConfig = {
-      id: form.id || Date.now().toString(36),
-      name: form.name,
-      cwd: form.cwd,
-      ...(form.githubRepo ? { githubRepo: form.githubRepo } : {}),
-    };
+    if (form.id && form.isCustom) {
+      const updated = await $fetch<any>(`/api/repos/${form.id}`, {
+        method: 'PUT',
+        body: {
+          name: form.name,
+          path: form.cwd,
+          githubRepo: form.githubRepo,
+          label: form.label,
+        },
+      });
+      repoConfigs.value = repoConfigs.value.map((c) =>
+        c.id === form.id
+          ? { ...c, ...updated, cwd: updated.cwd || updated.path }
+          : c,
+      );
+    } else if (!form.id) {
+      const created = await $fetch<any>('/api/repos', {
+        method: 'POST',
+        body: {
+          name: form.name,
+          path: form.cwd,
+          githubRepo: form.name,
+          label: form.name,
+        },
+      });
+      repoConfigs.value.push({
+        id: created.id,
+        name: created.name,
+        cwd: created.path,
+        ...created,
+      });
+    }
 
-    repoConfigs.value = form.id
-      ? repoConfigs.value.map((c) => (c.id === form.id ? entry : c))
-      : [...repoConfigs.value, entry];
-    persist(repoConfigs.value);
     editingConfig.value = null;
-    return entry;
   }
 
   function cancelEdit() {
     editingConfig.value = null;
   }
 
-  function deleteConfig(id: string) {
+  async function deleteConfig(id: string) {
+    try {
+      await $fetch(`/api/repos/${id}`, { method: 'DELETE' });
+    } catch {
+      /* may not be a custom repo */
+    }
     repoConfigs.value = repoConfigs.value.filter((c) => c.id !== id);
-    persist(repoConfigs.value);
   }
 
   return {
