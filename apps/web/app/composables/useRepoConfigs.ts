@@ -1,65 +1,145 @@
 export interface RepoConfig {
   id: string;
   name: string;
+  githubRepo: string;
+  label: string;
   cwd: string;
-  githubRepo?: string; // "owner/repo" — used by pr-runner for filtering
+  validationStatus?: 'invalid' | 'valid' | null;
+  validationError?: string;
 }
 
-const STORAGE_KEY = 'runner-repo-configs';
+const repoConfigs = ref<RepoConfig[]>([]);
+const editingConfig = ref<null | (Partial<RepoConfig> & { id?: string })>(null);
+let fetched = false;
 
-function load(): RepoConfig[] {
-  if (typeof localStorage === 'undefined') return [];
+async function fetchFromServer() {
+  if (fetched) return;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const data = await $fetch<any[]>('/api/repos');
+    repoConfigs.value = data.map((r) => ({
+      id: r.id,
+      name: r.name,
+      githubRepo: r.githubRepo,
+      label: r.label,
+      cwd: r.cwd ?? r.path,
+    }));
+    fetched = true;
   } catch {
-    return [];
+    // fallback — empty
   }
 }
 
-function persist(configs: RepoConfig[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
-}
-
-// Shared reactive state across all composable callers on the same page
-const repoConfigs = ref<RepoConfig[]>(load());
-const editingConfig = ref<null | (RepoConfig & { id: string })>(null);
-
 export function useRepoConfigs() {
+  fetchFromServer();
+
   function newConfig() {
-    editingConfig.value = { id: '', name: '', cwd: '', githubRepo: '' };
+    editingConfig.value = { name: '', githubRepo: '', label: '', cwd: '' };
   }
 
   function startEditConfig(c: RepoConfig) {
-    editingConfig.value = { ...c, githubRepo: c.githubRepo ?? '' };
+    editingConfig.value = { ...c };
   }
 
-  function saveConfig() {
+  async function saveConfig() {
     if (!editingConfig.value) return;
     const form = editingConfig.value;
-    if (!form.name || !form.cwd) return;
+    if (!form.name || !form.githubRepo || !form.label || !form.cwd) return;
 
-    const entry: RepoConfig = {
-      id: form.id || Date.now().toString(36),
-      name: form.name,
-      cwd: form.cwd,
-      ...(form.githubRepo ? { githubRepo: form.githubRepo } : {}),
-    };
+    if (form.id) {
+      const updated = await $fetch<any>(`/api/repos/${form.id}`, {
+        method: 'PUT',
+        body: {
+          name: form.name,
+          githubRepo: form.githubRepo,
+          label: form.label,
+          path: form.cwd,
+        },
+      });
+      repoConfigs.value = repoConfigs.value.map((c) =>
+        c.id === form.id
+          ? {
+              ...c,
+              name: updated.name,
+              githubRepo: updated.githubRepo,
+              label: updated.label,
+              cwd: updated.path,
+            }
+          : c,
+      );
+    } else {
+      const created = await $fetch<any>('/api/repos', {
+        method: 'POST',
+        body: {
+          name: form.name,
+          githubRepo: form.githubRepo,
+          label: form.label,
+          path: form.cwd,
+        },
+      });
+      repoConfigs.value.push({
+        id: created.id,
+        name: created.name,
+        githubRepo: created.githubRepo,
+        label: created.label,
+        cwd: created.path,
+      });
+    }
 
-    repoConfigs.value = form.id
-      ? repoConfigs.value.map((c) => (c.id === form.id ? entry : c))
-      : [...repoConfigs.value, entry];
-    persist(repoConfigs.value);
     editingConfig.value = null;
-    return entry;
   }
 
   function cancelEdit() {
     editingConfig.value = null;
   }
 
-  function deleteConfig(id: string) {
+  async function deleteConfig(id: string) {
+    await $fetch(`/api/repos/${id}`, { method: 'DELETE' });
     repoConfigs.value = repoConfigs.value.filter((c) => c.id !== id);
-    persist(repoConfigs.value);
+  }
+
+  async function validatePath(
+    path: string,
+  ): Promise<{ error?: string; valid: boolean }> {
+    return await $fetch('/api/repos/validate', {
+      method: 'POST',
+      body: { path },
+    });
+  }
+
+  async function testConnection(
+    githubRepo: string,
+  ): Promise<{ error?: string; valid: boolean }> {
+    return await $fetch('/api/repos/test-connection', {
+      method: 'POST',
+      body: { githubRepo },
+    });
+  }
+
+  async function validateRepo(id: string) {
+    const repo = repoConfigs.value.find((r) => r.id === id);
+    if (!repo) return;
+
+    const pathResult = await validatePath(repo.cwd);
+    if (!pathResult.valid) {
+      repo.validationStatus = 'invalid';
+      repo.validationError = pathResult.error;
+      return;
+    }
+
+    const connResult = await testConnection(repo.githubRepo);
+    if (!connResult.valid) {
+      repo.validationStatus = 'invalid';
+      repo.validationError = connResult.error;
+      return;
+    }
+
+    repo.validationStatus = 'valid';
+    repo.validationError = undefined;
+  }
+
+  function refetch() {
+    fetched = false;
+    fetchFromServer();
   }
 
   return {
@@ -70,5 +150,9 @@ export function useRepoConfigs() {
     saveConfig,
     cancelEdit,
     deleteConfig,
+    validatePath,
+    testConnection,
+    validateRepo,
+    refetch,
   };
 }

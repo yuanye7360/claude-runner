@@ -1,9 +1,13 @@
+import { env } from 'node:process';
+
+import { defineConfig } from 'prisma/config';
+
 // apps/web/prisma.config.ts
-import { defineConfig, env } from 'prisma/config';
+import 'dotenv/config';
 
 export default defineConfig({
   schema: './prisma/schema.prisma',
   datasource: {
-    url: env('DATABASE_URL'),
+    url: env.DATABASE_URL || 'file:./claude-runner.db',
   },
 });

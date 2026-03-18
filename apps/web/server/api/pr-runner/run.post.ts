@@ -4,12 +4,14 @@ import process from 'node:process';
 
 import pty from 'node-pty';
 
+import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import {
   createJob,
   finishJob,
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
+import { getAllRepos } from '../../utils/repo-mapping';
 
 interface PRItem {
   number: number;
@@ -40,20 +42,17 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
 }
 
 function buildPrompt(pr: PRItem, reviewComments: string): string {
-  return `Fix the GitHub PR review comments below. Workflow:
-1. git fetch origin && git checkout ${pr.branch}
-2. Read and understand each review comment
-3. Implement fixes for ALL review comments
-4. git add -A && git commit -m "fix: address PR review comments"
-5. git push origin ${pr.branch}
+  return `Use the /pr-review-fixer skill to handle the following PR review comments.
 
+## PR Info
 Repo: ${pr.repo}
 PR #${pr.number}: ${pr.title}
+Branch: ${pr.branch}
 
-Review comments:
+## Review comments
 ${reviewComments}
 
-When done, print "PR_FIXED: #${pr.number}" on its own line.`.trim();
+完成后打印 "PR_FIXED: #${pr.number}"`.trim();
 }
 
 async function resolveBranch(pr: PRItem): Promise<string> {
@@ -71,15 +70,31 @@ async function resolveBranch(pr: PRItem): Promise<string> {
 
 async function fetchReviewComments(pr: PRItem): Promise<string> {
   const { execSync } = await import('node:child_process');
+  const parts: string[] = [];
+
+  // Review comments (inline)
   try {
     const raw = execSync(
-      String.raw`gh api /repos/${pr.repo}/pulls/${pr.number}/comments --jq '.[] | "\(.user.login) on \(.path):\(.line // "?"): \(.body)"'`,
+      String.raw`gh api "/repos/${pr.repo}/pulls/${pr.number}/comments" --jq '.[] | "review_comment_id:\(.id) | \(.user.login) on \(.path):\(.line // "?"):\n\(.body)"'`,
       { encoding: 'utf8', timeout: 15_000 },
     );
-    return raw.trim() || '（無 review 留言）';
+    if (raw.trim()) parts.push(`--- Inline Review Comments ---\n${raw.trim()}`);
   } catch {
-    return '（無法取得 review 留言）';
+    /* skip */
   }
+
+  // Issue comments (general)
+  try {
+    const raw = execSync(
+      String.raw`gh api "/repos/${pr.repo}/issues/${pr.number}/comments" --jq '.[] | "issue_comment_id:\(.id) | \(.user.login):\n\(.body)"'`,
+      { encoding: 'utf8', timeout: 15_000 },
+    );
+    if (raw.trim()) parts.push(`--- General Comments ---\n${raw.trim()}`);
+  } catch {
+    /* skip */
+  }
+
+  return parts.join('\n\n') || '（無 review 留言）';
 }
 
 export default defineEventHandler(async (event) => {
@@ -92,12 +107,32 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const repoCwd =
-    repoConfig?.cwd ??
-    process.env.PR_RUNNER_CWD ??
-    process.env.CLAUDE_RUNNER_CWD;
-  if (!repoCwd)
-    throw new Error('Missing env: PR_RUNNER_CWD or CLAUDE_RUNNER_CWD');
+  // Validate inputs to prevent shell injection
+  for (const pr of prs) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(pr.repo)) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid repo format: ${pr.repo}`,
+      });
+    }
+    if (!Number.isInteger(pr.number) || pr.number <= 0) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid PR number: ${pr.number}`,
+      });
+    }
+  }
+
+  // Resolve repoCwd from PR's repo field
+  const firstPr = prs[0];
+  const allRepos = await getAllRepos();
+  const matchedRepo = allRepos.find((r) => r.githubRepo === firstPr.repo);
+  const repoCwd = repoConfig?.cwd ?? matchedRepo?.cwd;
+  if (!repoCwd) {
+    throw new Error(
+      `No repo matched for "${firstPr.repo}". Ensure it is configured in the Repos page.`,
+    );
+  }
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const job = createJob(
@@ -106,6 +141,7 @@ export default defineEventHandler(async (event) => {
       key: `#${p.number}`,
       summary: `${p.repo} — ${p.title}`,
     })),
+    'pr-runner',
   );
 
   const env: NodeJS.ProcessEnv = {
@@ -151,7 +187,7 @@ export default defineEventHandler(async (event) => {
 
           try {
             child = pty.spawn(
-              '/opt/homebrew/bin/claude',
+              resolveClaudeCliPath(),
               [
                 '--dangerously-skip-permissions',
                 '--output-format',
@@ -271,7 +307,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    if (job.status !== 'cancelled') finishJob(job, results, false);
+    if (job.status !== 'cancelled') finishJob(job, results);
   })();
 
   return { jobId };

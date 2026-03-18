@@ -30,6 +30,7 @@ lerna-debug.log*
 .env*.local
 .env.development
 .env.test
+.env.production
 
 # App-specific env files
 apps/*/.env
@@ -67,3 +68,6 @@ logs/
 #
 docs/
 .superpowers/
+
+# ClaudeRunner
+*.db-journal

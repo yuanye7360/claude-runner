@@ -1,13 +1,12 @@
 import process from 'node:process';
 
-// apps/web/server/utils/prisma.ts
-import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '@prisma/client';
 
+const databaseUrl = process.env.DATABASE_URL || 'file:./claude-runner.db';
+
 const prismaClientSingleton = () => {
-  const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
-  });
+  const adapter = new PrismaBetterSqlite3({ url: databaseUrl });
   return new PrismaClient({ adapter });
 };
 

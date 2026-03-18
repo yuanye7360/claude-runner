@@ -9,17 +9,32 @@ export interface RunResult {
 }
 
 export type JobEvent =
-  | { data: string; type: 'chunk' }
+  | { data: string; issueKey?: string; type: 'chunk' }
+  | { idleSecs: number; type: 'heartbeat' }
   | { issueKey: string; label: string; phase: number; type: 'phase' }
   | { type: 'eof' };
 
+export type JobType = 'claude-runner' | 'pr-runner';
+
 export interface Job {
   id: string;
-  status: 'cancelled' | 'done' | 'error' | 'running';
+  type: JobType;
+  status:
+    | 'analysing'
+    | 'awaiting_input'
+    | 'cancelled'
+    | 'done'
+    | 'error'
+    | 'executing'
+    | 'fallback_executing'
+    | 'planning'
+    | 'running';
   startedAt: number;
+  lastActivityAt: number;
   issues: { key: string; summary: string }[];
   events: JobEvent[];
   results: RunResult[];
+  analysisResult?: unknown;
   kill?: () => void;
   subscribers: Set<(event: JobEvent) => void>;
 }
@@ -29,11 +44,15 @@ const jobs = new Map<string, Job>();
 export function createJob(
   id: string,
   issues: { key: string; summary: string }[],
+  type: JobType = 'claude-runner',
 ): Job {
+  const now = Date.now();
   const job: Job = {
     id,
+    type,
     status: 'running',
-    startedAt: Date.now(),
+    startedAt: now,
+    lastActivityAt: now,
     issues,
     events: [],
     results: [],
@@ -47,13 +66,19 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
-function broadcast(job: Job, event: JobEvent) {
+export function broadcast(job: Job, event: JobEvent) {
   job.events.push(event);
   for (const sub of job.subscribers) sub(event);
 }
 
-export function pushChunk(job: Job, data: string) {
-  broadcast(job, { type: 'chunk', data });
+export function setJobStatus(job: Job, status: Job['status']) {
+  job.status = status;
+  broadcast(job, { type: 'status', status } as unknown as JobEvent);
+}
+
+export function pushChunk(job: Job, data: string, issueKey?: string) {
+  job.lastActivityAt = Date.now();
+  broadcast(job, { type: 'chunk', data, issueKey });
 }
 
 export function pushPhase(
@@ -86,6 +111,7 @@ async function persistJob(job: Job) {
   await prisma.job.create({
     data: {
       id: job.id,
+      type: job.type,
       status: job.status,
       startedAt: job.startedAt,
       finishedAt: BigInt(Date.now()),
