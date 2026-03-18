@@ -20,8 +20,8 @@ const {
 const { isConfigured: githubConfigured } = useGitHubConfig();
 
 const showModal = computed(() => editingConfig.value !== null);
-const modalPathResult = ref<{ valid: boolean; error?: string } | null>(null);
-const modalConnResult = ref<{ valid: boolean; error?: string } | null>(null);
+const modalPathResult = ref<null | { error?: string; valid: boolean }>(null);
+const modalConnResult = ref<null | { error?: string; valid: boolean }>(null);
 const validating = ref(false);
 const testing = ref(false);
 
@@ -51,16 +51,26 @@ async function onTestConnection() {
   testing.value = false;
 }
 
+const saveError = ref<string | null>(null);
 async function onSave() {
-  await saveConfig();
-  modalPathResult.value = null;
-  modalConnResult.value = null;
+  try {
+    saveError.value = null;
+    await saveConfig();
+    modalPathResult.value = null;
+    modalConnResult.value = null;
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : 'Failed to save';
+  }
 }
 
-const confirmDelete = ref<string | null>(null);
+const confirmDelete = ref<null | string>(null);
 async function onDelete(id: string) {
-  await deleteConfig(id);
-  confirmDelete.value = null;
+  try {
+    await deleteConfig(id);
+    confirmDelete.value = null;
+  } catch {
+    // silently handle — repo may already be deleted
+  }
 }
 </script>
 
@@ -84,9 +94,7 @@ async function onDelete(id: string) {
         <div class="mb-6 flex items-center justify-between">
           <div>
             <h1 class="text-lg font-semibold text-white">Repos</h1>
-            <p class="text-sm text-gray-500">
-              {{ repoConfigs.length }} 個專案
-            </p>
+            <p class="text-sm text-gray-500">{{ repoConfigs.length }} 個專案</p>
           </div>
           <button
             class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
@@ -283,6 +291,7 @@ async function onDelete(id: string) {
               儲存
             </button>
           </div>
+          <p v-if="saveError" class="mt-2 text-sm text-red-400">{{ saveError }}</p>
         </div>
       </div>
     </Teleport>

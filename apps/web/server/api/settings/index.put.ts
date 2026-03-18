@@ -1,5 +1,7 @@
 import { setSetting } from '../../utils/app-settings';
 
+const ALLOWED_KEYS = ['github.org'];
+
 export default defineEventHandler(async (event) => {
   const { key, value } = await readBody<{ key: string; value: string }>(event);
 
@@ -7,6 +9,13 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 400,
       message: 'Missing required fields: key, value',
+    });
+  }
+
+  if (!ALLOWED_KEYS.includes(key)) {
+    throw createError({
+      statusCode: 400,
+      message: `Unknown setting key: ${key}`,
     });
   }
 
