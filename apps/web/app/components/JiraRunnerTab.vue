@@ -709,11 +709,13 @@ defineExpose({
           />
           <div class="text-center">
             <p class="font-medium text-gray-300">
-              {{ jira.analyzer.analysing.value ? '分析 Issue 中...' : '準備執行...' }}
+              {{
+                jira.analyzer.analysing.value
+                  ? '分析 Issue 中...'
+                  : '準備執行...'
+              }}
             </p>
-            <p class="mt-1 text-xs text-gray-500">
-              正在規劃修復策略，請稍候
-            </p>
+            <p class="mt-1 text-xs text-gray-500">正在規劃修復策略，請稍候</p>
           </div>
         </div>
         <OnboardingChecklist
