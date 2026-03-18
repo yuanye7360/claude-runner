@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  onboardingIncomplete,
+  requestResetTour,
+} from '~/composables/useOnboarding';
 import { useSkills } from '~/composables/useSkills';
 
 useHead({ title: 'Claude Runner — Pipeline' });
@@ -178,8 +182,25 @@ onBeforeUnmount(() => {
 
       <!-- ── Right side controls ── -->
       <div class="ml-auto flex items-center gap-2">
+        <UTooltip v-if="onboardingIncomplete" text="點擊開始設定指引">
+          <button
+            class="relative flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-orange-400 transition-colors hover:bg-orange-500/10"
+            @click="requestResetTour = true"
+          >
+            <span class="relative flex h-2.5 w-2.5 shrink-0">
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"
+              ></span>
+              <span
+                class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"
+              ></span>
+            </span>
+            設定指引
+          </button>
+        </UTooltip>
         <NuxtLink
           to="/skills"
+          data-tour="skills"
           class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
         >
           <UIcon name="i-heroicons-cube" style="font-size: 1em" />

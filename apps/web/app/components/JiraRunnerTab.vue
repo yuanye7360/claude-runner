@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useJiraConfig } from '~/composables/useJiraConfig';
 import { STATUS_COLOR, useJiraRunner } from '~/composables/useJiraRunner';
-import { useOnboarding } from '~/composables/useOnboarding';
+import {
+  requestOpenSettings,
+  requestResetTour,
+} from '~/composables/useOnboarding';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 
 const props = defineProps<{
@@ -31,14 +34,17 @@ const {
   validateRepo,
 } = useRepoConfigs();
 
-const onboarding = useOnboarding({
-  jiraConfigured,
-  repoCount: computed(() => repoConfigs.value.length),
-  skillCount: computed(() => props.enabledSkillNames.length),
-  openSettings: () => {
+// Watch for tour requesting settings panel to open
+watch(requestOpenSettings, (v) => {
+  if (v) {
     showConfig.value = true;
-  },
+    requestOpenSettings.value = false;
+  }
 });
+
+function triggerResetTour() {
+  requestResetTour.value = true;
+}
 
 const jira = useJiraRunner({
   mode: toRef(props, 'mode'),
@@ -158,7 +164,7 @@ defineExpose({
               style="font-size: 0.85em"
             />
           </button>
-          <div class="relative">
+          <div class="relative" data-tour="jira-settings">
             <button
               class="relative flex items-center rounded px-1.5 py-1 transition-colors"
               :class="
@@ -201,7 +207,7 @@ defineExpose({
       <div v-if="showConfig" class="flex-1 overflow-y-auto">
         <div class="space-y-4 p-4">
           <!-- ── Section 1: JIRA 連線 ── -->
-          <div>
+          <div data-tour="jira-connection">
             <div
               class="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase"
             >
@@ -236,7 +242,7 @@ defineExpose({
           </div>
 
           <!-- ── Section 2: Repos ── -->
-          <div>
+          <div data-tour="repos">
             <div
               class="mb-2 flex items-center justify-between text-xs font-medium tracking-wide text-gray-500 uppercase"
             >
@@ -330,7 +336,7 @@ defineExpose({
           </div>
 
           <!-- ── Section 3: JIRA Labels ── -->
-          <div>
+          <div data-tour="jira-labels">
             <div
               class="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-gray-500 uppercase"
             >
@@ -612,7 +618,10 @@ defineExpose({
         </div>
 
         <!-- Run button (pinned to bottom) -->
-        <div class="shrink-0 border-t border-gray-800 px-3 py-2">
+        <div
+          data-tour="run-button"
+          class="shrink-0 border-t border-gray-800 px-3 py-2"
+        >
           <UButton
             class="w-full justify-center"
             size="sm"
@@ -680,7 +689,7 @@ defineExpose({
             <button
               class="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
               @click="
-                onboarding.reset();
+                triggerResetTour();
                 jira.rightTab.value = 'progress';
               "
             >
@@ -731,12 +740,6 @@ defineExpose({
             <p class="mt-1 text-xs text-gray-500">正在規劃修復策略，請稍候</p>
           </div>
         </div>
-        <OnboardingChecklist
-          v-else-if="onboarding.showChecklist.value"
-          :steps="onboarding.steps"
-          :completed-count="onboarding.completedCount.value"
-          @dismiss="onboarding.dismiss()"
-        />
         <div
           v-else
           class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"

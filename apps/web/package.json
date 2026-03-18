@@ -25,6 +25,7 @@
     "@prisma/client": "^7.4.2",
     "@tailwindcss/typography": "catalog:",
     "chart.js": "^4.5.1",
+    "driver.js": "^1.4.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
     "node-pty": "^1.1.0",

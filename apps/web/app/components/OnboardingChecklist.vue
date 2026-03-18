@@ -8,13 +8,16 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'dismiss'): void;
+  (e: 'highlight', tourIndex: number): void;
 }>();
 
-const stepTooltips: Record<string, string> = {
-  jira: '填寫 JIRA URL、Email 和 API Token 以連線',
-  repos: '新增要自動修復的 Git Repo 路徑',
-  skills: '選擇 Claude 執行時使用的技能',
-};
+function handleClick(step: OnboardingStep) {
+  if (step.tourIndex !== null) {
+    emit('highlight', step.tourIndex);
+  } else if (step.id === 'skills') {
+    navigateTo('/skills');
+  }
+}
 
 // Completion animation state
 const justCompleted = ref(false);
@@ -36,103 +39,93 @@ watch(
 
 <template>
   <div
-    class="flex flex-1 flex-col items-center justify-center px-8 transition-opacity duration-500"
+    class="fixed right-4 bottom-4 z-50 w-72 rounded-xl border border-gray-700 bg-gray-900/95 shadow-2xl backdrop-blur transition-opacity duration-500"
     :class="{ 'opacity-0': fadeOut }"
   >
     <!-- Completed state -->
     <template v-if="justCompleted">
-      <div class="text-center">
-        <p class="text-3xl">✅</p>
-        <p class="mt-2 font-medium text-gray-300">設定完成！</p>
+      <div class="px-4 py-5 text-center">
+        <p class="text-2xl">✅</p>
+        <p class="mt-1 text-sm font-medium text-gray-300">設定完成！</p>
       </div>
     </template>
 
     <!-- Checklist -->
     <template v-else>
-      <div class="w-full max-w-sm">
-        <!-- Header -->
-        <div class="mb-1 flex items-start justify-between">
-          <div>
-            <p class="font-medium text-gray-300">👋 歡迎！完成設定開始使用</p>
-            <p class="mt-0.5 text-xs text-gray-600">完成以下步驟即可開始</p>
-          </div>
-          <button
-            class="shrink-0 text-xs text-gray-600 hover:text-gray-400"
-            @click="emit('dismiss')"
-          >
-            跳過
-          </button>
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between border-b border-gray-800 px-4 py-3"
+      >
+        <div>
+          <p class="text-sm font-medium text-gray-300">👋 快速設定</p>
         </div>
+        <button
+          class="text-xs text-gray-600 hover:text-gray-400"
+          @click="emit('dismiss')"
+        >
+          跳過
+        </button>
+      </div>
 
-        <!-- Steps -->
-        <div class="mt-4 space-y-2">
-          <UTooltip
-            v-for="(step, idx) in steps"
-            :key="step.id"
-            :text="stepTooltips[step.id]"
-            :delay-duration="300"
+      <!-- Steps -->
+      <div class="space-y-0.5 p-2">
+        <button
+          v-for="(step, idx) in steps"
+          :key="step.id"
+          class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all"
+          :class="step.completed.value ? 'opacity-60' : 'hover:bg-gray-800/60'"
+          @click="handleClick(step)"
+        >
+          <!-- Icon -->
+          <span
+            v-if="step.completed.value"
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-xs text-green-400"
           >
-            <button
-              class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all"
-              :class="
-                step.completed.value
-                  ? 'border-green-500/20 bg-green-500/5'
-                  : 'border-gray-700 bg-gray-800/40 hover:border-gray-600 hover:bg-gray-800/60'
-              "
-              @click="step.action()"
-            >
-            <!-- Icon -->
-            <span
-              v-if="step.completed.value"
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-xs text-green-400"
-            >
-              ✓
-            </span>
-            <span
-              v-else
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-500"
-            >
-              ○
-            </span>
-
-            <!-- Label -->
-            <span
-              class="flex-1 text-sm"
-              :class="
-                step.completed.value
-                  ? 'text-gray-500 line-through'
-                  : 'text-gray-300'
-              "
-            >
-              {{ step.label }}
-            </span>
-
-            <!-- Arrow for first incomplete -->
-            <UIcon
-              v-if="
-                !step.completed.value &&
-                steps.findIndex((s) => !s.completed.value) === idx
-              "
-              name="i-lucide-arrow-right"
-              class="shrink-0 text-blue-400"
-              style="font-size: 0.85em"
-            />
-            </button>
-          </UTooltip>
-        </div>
-
-        <!-- Progress bar -->
-        <div class="mt-4 flex items-center gap-2">
-          <div class="h-1 flex-1 overflow-hidden rounded-full bg-gray-800">
-            <div
-              class="h-full rounded-full bg-blue-500 transition-all duration-500"
-              :style="{ width: `${(completedCount / steps.length) * 100}%` }"
-            ></div>
-          </div>
-          <span class="text-xs text-gray-600 tabular-nums">
-            {{ completedCount }}/{{ steps.length }}
+            ✓
           </span>
+          <span
+            v-else
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-500"
+          >
+            {{ idx + 1 }}
+          </span>
+
+          <!-- Label -->
+          <span
+            class="flex-1 text-sm"
+            :class="
+              step.completed.value
+                ? 'text-gray-500 line-through'
+                : 'text-gray-300'
+            "
+          >
+            {{ step.label }}
+          </span>
+
+          <!-- Arrow for first incomplete -->
+          <UIcon
+            v-if="
+              !step.completed.value &&
+              steps.findIndex((s) => !s.completed.value) === idx
+            "
+            name="i-lucide-arrow-right"
+            class="shrink-0 text-blue-400"
+            style="font-size: 0.85em"
+          />
+        </button>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="flex items-center gap-2 border-t border-gray-800 px-4 py-2.5">
+        <div class="h-1 flex-1 overflow-hidden rounded-full bg-gray-800">
+          <div
+            class="h-full rounded-full bg-blue-500 transition-all duration-500"
+            :style="{ width: `${(completedCount / steps.length) * 100}%` }"
+          ></div>
         </div>
+        <span class="text-xs text-gray-600 tabular-nums">
+          {{ completedCount }}/{{ steps.length }}
+        </span>
       </div>
     </template>
   </div>
