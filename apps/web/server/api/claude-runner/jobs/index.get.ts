@@ -15,7 +15,7 @@ function extractPrUrl(result: {
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
-  const limit = Math.min(Number(query.limit) || 50, 200);
+  const limit = Math.min(Number(query.limit) || 50, 500);
   const type = (query.type as string) || undefined;
 
   const jobs = await prisma.job.findMany({

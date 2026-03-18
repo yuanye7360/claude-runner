@@ -54,6 +54,7 @@ export interface JobApiResponse {
 
 export interface HistoryEntry {
   id: string;
+  status: 'cancelled' | 'done' | 'error';
   type?: string;
   timestamp: number;
   durationSecs?: number;
