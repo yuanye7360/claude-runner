@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useGitHubConfig } from '~/composables/useGitHubConfig';
 import { useJiraConfig } from '~/composables/useJiraConfig';
 import { useOnboarding } from '~/composables/useOnboarding';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
@@ -31,6 +32,19 @@ const {
   fetchSkills,
   applyPreset: applySkillPreset,
 } = useSkills();
+
+const { githubOrg, isConfigured: githubConfigured, saveOrg } = useGitHubConfig();
+const githubOrgInput = ref('');
+watchEffect(() => { githubOrgInput.value = githubOrg.value; });
+
+let orgSaveTimeout: ReturnType<typeof setTimeout>;
+function onOrgInput(val: string) {
+  githubOrgInput.value = val;
+  clearTimeout(orgSaveTimeout);
+  orgSaveTimeout = setTimeout(() => {
+    if (val.trim()) saveOrg(val.trim());
+  }, 800);
+}
 
 const onboarding = useOnboarding({
   jiraConfigured,
@@ -187,6 +201,19 @@ onBeforeUnmount(() => {
       <!-- ── Right side controls ── -->
       <div class="ml-auto flex items-center gap-2">
         <NuxtLink
+          to="/repos"
+          class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+        >
+          <UIcon name="i-lucide-folder-git-2" style="font-size: 1em" />
+          <span class="text-xs">Repos</span>
+          <span
+            v-if="repoConfigs.length > 0"
+            class="bg-primary-500/20 text-primary-400 rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
+          >
+            {{ repoConfigs.length }}
+          </span>
+        </NuxtLink>
+        <NuxtLink
           to="/skills"
           class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
         >
@@ -284,6 +311,31 @@ onBeforeUnmount(() => {
                 {{ s.label }}
               </button>
             </div>
+          </div>
+
+          <!-- GitHub -->
+          <div
+            class="mt-4 text-xs font-medium tracking-wide text-gray-500 uppercase"
+          >
+            GitHub
+            <span
+              v-if="githubConfigured"
+              class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500"
+            ></span>
+            <span
+              v-else
+              class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-gray-600"
+            ></span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="w-20 shrink-0 text-xs text-gray-500">Org</span>
+            <input
+              :value="githubOrgInput"
+              class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+              placeholder="e.g. kkday-it"
+              @input="onOrgInput(($event.target as HTMLInputElement).value)"
+            />
           </div>
 
           <!-- JIRA -->
