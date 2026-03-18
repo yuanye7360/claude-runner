@@ -108,17 +108,26 @@ function formatTime(ts: number) {
                     {{ formatDuration(entry.durationSecs) }}
                   </span>
                 </template>
-                <span class="flex items-center gap-1 text-green-400">
-                  <UIcon name="i-lucide-check" />
-                  {{ entry.results.filter((r) => !r.error).length }}
-                </span>
                 <span
-                  v-if="entry.results.some((r) => r.error)"
-                  class="flex items-center gap-1 text-red-400"
+                  v-if="entry.status === 'cancelled'"
+                  class="flex items-center gap-1 text-yellow-400"
                 >
-                  <UIcon name="i-lucide-x" />
-                  {{ entry.results.filter((r) => r.error).length }}
+                  <UIcon name="i-lucide-circle-slash" />
+                  已中斷
                 </span>
+                <template v-else>
+                  <span class="flex items-center gap-1 text-green-400">
+                    <UIcon name="i-lucide-check" />
+                    {{ entry.results.filter((r) => !r.error).length }}
+                  </span>
+                  <span
+                    v-if="entry.results.some((r) => r.error)"
+                    class="flex items-center gap-1 text-red-400"
+                  >
+                    <UIcon name="i-lucide-x" />
+                    {{ entry.results.filter((r) => r.error).length }}
+                  </span>
+                </template>
               </div>
               <p class="text-muted mt-0.5 truncate">
                 {{ entry.issues.map((i) => i.key).join('、') }}
