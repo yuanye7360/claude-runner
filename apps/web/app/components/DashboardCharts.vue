@@ -127,7 +127,7 @@ const lineData = computed(() => ({
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div class="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
       <div class="h-64">
         <Bar :data="barData" :options="barOptions" />

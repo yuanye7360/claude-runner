@@ -16,7 +16,7 @@ function fmtRate(rate: number): string {
 </script>
 
 <template>
-  <div class="grid grid-cols-4 gap-4">
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
     <!-- Total Runs -->
     <div class="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
       <div class="text-xs text-gray-500">執行次數</div>

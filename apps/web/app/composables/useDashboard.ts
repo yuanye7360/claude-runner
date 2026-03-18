@@ -144,10 +144,27 @@ export function computeChartData(
   const cancelled = labels.map(
     (l) => (groups.get(l) ?? { cancelled: 0 }).cancelled,
   );
+  // Compute result-level success rate per date bucket (consistent with KPI)
+  const resultGroups = new Map<
+    string,
+    { successResults: number; totalResults: number }
+  >();
+  for (const job of sorted) {
+    if (job.status === 'cancelled') continue;
+    const key = dateKey(job.timestamp, granularity);
+    if (!resultGroups.has(key)) {
+      resultGroups.set(key, { successResults: 0, totalResults: 0 });
+    }
+    const rg = resultGroups.get(key) ?? { successResults: 0, totalResults: 0 };
+    for (const r of job.results) {
+      rg.totalResults++;
+      if (!r.error) rg.successResults++;
+    }
+  }
   const successRate = labels.map((l) => {
-    const g = groups.get(l) ?? { success: 0, failed: 0, cancelled: 0 };
-    const total = g.success + g.failed + g.cancelled;
-    return total > 0 ? (g.success / total) * 100 : 0;
+    const rg = resultGroups.get(l);
+    if (!rg || rg.totalResults === 0) return 0;
+    return (rg.successResults / rg.totalResults) * 100;
   });
 
   return { labels, success, failed, cancelled, successRate };

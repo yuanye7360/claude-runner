@@ -56,8 +56,8 @@ const pagedRows = computed(() => {
   return sortedRows.value.slice(start, start + PAGE_SIZE);
 });
 
-// Reset page when search changes
-watch(search, () => {
+// Reset page when search or rows change
+watch([search, () => props.rows], () => {
   currentPage.value = 1;
 });
 

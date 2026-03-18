@@ -29,6 +29,20 @@ onMounted(loadJobs);
 
 const dashboard = useDashboard(jobs);
 
+// ── Custom date range ──
+const customStart = ref('');
+const customEnd = ref('');
+
+function applyCustomRange() {
+  if (customStart.value) {
+    const start = new Date(customStart.value).getTime();
+    const end = customEnd.value
+      ? new Date(customEnd.value).getTime() + 86_400_000
+      : Date.now() + 1;
+    dashboard.setCustomRange(start, end);
+  }
+}
+
 const presetLabels: {
   label: string;
   value: 'all' | 'month' | 'today' | 'week';
@@ -103,13 +117,23 @@ const presetLabels: {
             <input
               type="date"
               class="rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1.5 text-xs text-gray-300 outline-none"
+              :value="customStart"
               @change="
                 (e: Event) => {
-                  const target = e.target as HTMLInputElement;
-                  if (target.value) {
-                    const start = new Date(target.value).getTime();
-                    dashboard.setCustomRange(start, Date.now() + 1);
-                  }
+                  customStart = (e.target as HTMLInputElement).value;
+                  applyCustomRange();
+                }
+              "
+            />
+            <span class="text-gray-600">~</span>
+            <input
+              type="date"
+              class="rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1.5 text-xs text-gray-300 outline-none"
+              :value="customEnd"
+              @change="
+                (e: Event) => {
+                  customEnd = (e.target as HTMLInputElement).value;
+                  applyCustomRange();
                 }
               "
             />

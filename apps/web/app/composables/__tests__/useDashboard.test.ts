@@ -93,7 +93,12 @@ describe('computeChartData', () => {
     const base = new Date('2026-03-15T10:00:00').getTime();
     const jobs = [
       makeJob({ id: '1', status: 'done', timestamp: base }),
-      makeJob({ id: '2', status: 'error', timestamp: base }),
+      makeJob({
+        id: '2',
+        status: 'error',
+        timestamp: base,
+        results: [{ issueKey: 'TEST-1', error: 'failed' }],
+      }),
       makeJob({
         id: '3',
         status: 'done',
@@ -105,6 +110,27 @@ describe('computeChartData', () => {
     expect(chart.success[0]).toBe(1);
     expect(chart.failed[0]).toBe(1);
     expect(chart.success[1]).toBe(1);
+  });
+
+  it('computes result-level success rate consistent with KPI', () => {
+    const base = new Date('2026-03-15T10:00:00').getTime();
+    const jobs = [
+      makeJob({
+        id: '1',
+        status: 'done',
+        timestamp: base,
+        results: [{ issueKey: 'A-1' }, { issueKey: 'A-2' }],
+      }),
+      makeJob({
+        id: '2',
+        status: 'error',
+        timestamp: base,
+        results: [{ issueKey: 'B-1', error: 'failed' }],
+      }),
+    ];
+    const chart = computeChartData(jobs, 'daily');
+    // 2 success results + 1 error result = 66.67%
+    expect(chart.successRate[0]).toBeCloseTo(66.67, 0);
   });
 });
 
