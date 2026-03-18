@@ -10,6 +10,12 @@ const emit = defineEmits<{
   (e: 'dismiss'): void;
 }>();
 
+const stepTooltips: Record<string, string> = {
+  jira: '填寫 JIRA URL、Email 和 API Token 以連線',
+  repos: '新增要自動修復的 Git Repo 路徑',
+  skills: '選擇 Claude 執行時使用的技能',
+};
+
 // Completion animation state
 const justCompleted = ref(false);
 const fadeOut = ref(false);
@@ -60,17 +66,21 @@ watch(
 
         <!-- Steps -->
         <div class="mt-4 space-y-2">
-          <button
+          <UTooltip
             v-for="(step, idx) in steps"
             :key="step.id"
-            class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all"
-            :class="
-              step.completed.value
-                ? 'border-green-500/20 bg-green-500/5'
-                : 'border-gray-700 bg-gray-800/40 hover:border-gray-600 hover:bg-gray-800/60'
-            "
-            @click="step.action()"
+            :text="stepTooltips[step.id]"
+            :delay-duration="300"
           >
+            <button
+              class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all"
+              :class="
+                step.completed.value
+                  ? 'border-green-500/20 bg-green-500/5'
+                  : 'border-gray-700 bg-gray-800/40 hover:border-gray-600 hover:bg-gray-800/60'
+              "
+              @click="step.action()"
+            >
             <!-- Icon -->
             <span
               v-if="step.completed.value"
@@ -107,7 +117,8 @@ watch(
               class="shrink-0 text-blue-400"
               style="font-size: 0.85em"
             />
-          </button>
+            </button>
+          </UTooltip>
         </div>
 
         <!-- Progress bar -->
