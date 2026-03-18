@@ -1,6 +1,6 @@
 import { setSetting } from '../../utils/app-settings';
 
-const ALLOWED_KEYS = new Set<string>([]);
+const ALLOWED_KEYS = new Set<string>();
 
 export default defineEventHandler(async (event) => {
   const { key, value } = await readBody<{ key: string; value: string }>(event);

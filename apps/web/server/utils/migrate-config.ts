@@ -74,9 +74,7 @@ export async function migrateConfigYaml(projectRoot: string): Promise<void> {
     seenLabels.add(repo.label);
 
     const expandedPath = expandTilde(repo.path);
-    const fullGithubRepo = org
-      ? `${org}/${repo.githubRepo}`
-      : repo.githubRepo;
+    const fullGithubRepo = org ? `${org}/${repo.githubRepo}` : repo.githubRepo;
     await prisma.repo.upsert({
       where: { label: repo.label },
       update: {

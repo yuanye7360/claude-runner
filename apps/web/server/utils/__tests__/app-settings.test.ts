@@ -64,5 +64,4 @@ describe('app-settings', () => {
       expect(result).toEqual({ 'github.org': 'kkday-it', foo: 'bar' });
     });
   });
-
 });

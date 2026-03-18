@@ -1,13 +1,7 @@
 <script setup lang="ts">
-import { useJiraConfig } from '~/composables/useJiraConfig';
-import { useOnboarding } from '~/composables/useOnboarding';
-import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useSkills } from '~/composables/useSkills';
 
 useHead({ title: 'Claude Runner — Pipeline' });
-
-const { config: jiraConfig, isConfigured: jiraConfigured } = useJiraConfig();
-const { repoConfigs } = useRepoConfigs();
 
 // ── Font size ───────────────────────────────────────────
 const FONT_SIZES = [
@@ -31,15 +25,6 @@ const {
   fetchSkills,
   applyPreset: applySkillPreset,
 } = useSkills();
-
-const onboarding = useOnboarding({
-  jiraConfigured,
-  repoCount: computed(() => repoConfigs.value.length),
-  skillCount: computed(() => enabledSkillNames.value.length),
-  openSettings: () => {
-    showSettings.value = true;
-  },
-});
 
 // ── Mode ────────────────────────────────────────────────
 const mode = ref<'normal' | 'smart'>(
@@ -187,19 +172,6 @@ onBeforeUnmount(() => {
       <!-- ── Right side controls ── -->
       <div class="ml-auto flex items-center gap-2">
         <NuxtLink
-          to="/repos"
-          class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-        >
-          <UIcon name="i-lucide-folder-git-2" style="font-size: 1em" />
-          <span class="text-xs">Repos</span>
-          <span
-            v-if="repoConfigs.length > 0"
-            class="bg-primary-500/20 text-primary-400 rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
-          >
-            {{ repoConfigs.length }}
-          </span>
-        </NuxtLink>
-        <NuxtLink
           to="/skills"
           class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
         >
@@ -299,57 +271,6 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- JIRA -->
-          <div
-            class="mt-4 text-xs font-medium tracking-wide text-gray-500 uppercase"
-          >
-            JIRA
-            <span
-              v-if="jiraConfigured"
-              class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500"
-            ></span>
-            <span
-              v-else
-              class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-gray-600"
-            ></span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="w-20 shrink-0 text-xs text-gray-500">Base URL</span>
-            <input
-              v-model="jiraConfig.baseUrl"
-              class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
-              placeholder="https://yourorg.atlassian.net"
-            />
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="w-20 shrink-0 text-xs text-gray-500">Email</span>
-            <input
-              v-model="jiraConfig.email"
-              class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
-              placeholder="you@company.com"
-            />
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="w-20 shrink-0 text-xs text-gray-500">API Token</span>
-            <input
-              v-model="jiraConfig.apiToken"
-              type="password"
-              class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
-              placeholder="ATATT3x..."
-            />
-          </div>
-
-          <div v-if="onboarding.dismissed.value" class="mt-1">
-            <button
-              class="text-xs text-gray-600 hover:text-gray-400"
-              @click="onboarding.reset()"
-            >
-              重新顯示導覽
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -362,7 +283,6 @@ onBeforeUnmount(() => {
         :mode="mode"
         :enabled-skill-names="enabledSkillNames"
         @pr-created="onPrCreated"
-        @open-settings="showSettings = true"
       />
 
       <PrRunnerTab
