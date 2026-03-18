@@ -675,6 +675,19 @@ defineExpose({
             {{ jira.history.value.length }}
           </span>
         </button>
+        <div class="ml-auto pr-2">
+          <UTooltip text="使用指引">
+            <button
+              class="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+              @click="
+                onboarding.reset();
+                jira.rightTab.value = 'progress';
+              "
+            >
+              <UIcon name="i-lucide-circle-help" />
+            </button>
+          </UTooltip>
+        </div>
       </div>
 
       <!-- Status row -->
