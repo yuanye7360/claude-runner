@@ -44,23 +44,14 @@ Open http://localhost:5688 after setup completes.
 | JIRA_API_TOKEN | Generate at https://id.atlassian.com/manage-profile/security/api-tokens |
 | DATABASE_URL | SQLite path (default: file:./apps/web/claude-runner.db) |
 
-### config.yaml (team defaults, in git)
+### Web UI Settings
 
-Defines default repos, GitHub org, and Claude CLI settings. See the file for the full schema.
+All settings are managed through the Web UI:
 
-### config.local.yaml (personal overrides, not in git)
+- **GitHub Org** — Settings panel (gear icon) → GitHub section
+- **Repos** — /repos page (nav bar → Repos)
 
-Override any value from config.yaml. Example - different repo path:
-
-    repos:
-      - name: b2c-web
-        path: ~/projects/kkday-b2c-web
-
-### UI Customization
-
-You can also add/edit/remove repos from the web interface. UI changes are stored in SQLite and take precedence over YAML config.
-
-Priority: UI customizations > config.local.yaml > config.yaml
+On first startup, if a `config.yaml` exists from a previous version, it will be automatically migrated to the database and deleted.
 
 ## Development
 
@@ -77,8 +68,8 @@ Start dev server with hot reload at http://localhost:3000
 
 ## FAQ
 
-**Q: Claude CLI not found?** Set claude.cliPath in config.yaml or config.local.yaml to the full path.
+**Q: Claude CLI not found?** Ensure `claude` is in your PATH. ClaudeRunner auto-detects it via `which claude` with common fallback paths.
 
 **Q: How do I get a JIRA API token?** Go to https://id.atlassian.com/manage-profile/security/api-tokens and create a new token.
 
-**Q: Can I add repos not in config.yaml?** Yes. Either add them to config.local.yaml or use the web UI to add custom repos.
+**Q: How do I add repos?** Use the /repos page in the web UI to add, edit, and remove repos.

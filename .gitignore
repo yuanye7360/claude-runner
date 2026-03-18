@@ -69,6 +69,5 @@ logs/
 docs/
 .superpowers/
 
-# ClaudeRunner local config
+# ClaudeRunner
 *.db-journal
-config.local.yaml

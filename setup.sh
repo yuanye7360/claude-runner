@@ -39,12 +39,9 @@ if [ ! -f .env ]; then
   echo "JIRA credentials can be configured in the Settings panel in the UI."
 fi
 
-# 4. Optional: config.local.yaml
-if [ ! -f config.local.yaml ]; then
-  echo "TIP: If your repos are not in ~/KKday/, create config.local.yaml to override paths."
-  echo "   Example: cp config.yaml config.local.yaml && edit config.local.yaml"
-  echo ""
-fi
+# 4. Configuration
+echo "TIP: After setup, configure GitHub Org and Repos via the web UI."
+echo ""
 
 # 5. Database setup
 echo "Setting up database..."
