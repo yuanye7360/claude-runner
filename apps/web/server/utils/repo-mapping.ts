@@ -1,4 +1,4 @@
-import { getGitHubOrg, loadConfig } from './config-loader';
+import { getGitHubOrg } from './app-settings';
 import prisma from './prisma';
 
 export interface RepoMapping {
@@ -8,45 +8,14 @@ export interface RepoMapping {
   cwd: string;
 }
 
-/**
- * Get all repos: SQLite custom repos override config repos (matched by label).
- */
 export async function getAllRepos(): Promise<RepoMapping[]> {
-  const config = loadConfig();
-  const customRepos = await prisma.repo.findMany({ where: { isCustom: true } });
-
-  const customByLabel = new Map(customRepos.map((r) => [r.label, r]));
-
-  const repos: RepoMapping[] = config.repos.map((configRepo) => {
-    const custom = customByLabel.get(configRepo.label);
-    if (custom) {
-      customByLabel.delete(configRepo.label);
-      return {
-        name: custom.name,
-        githubRepo: custom.githubRepo,
-        label: custom.label,
-        cwd: custom.path,
-      };
-    }
-    return {
-      name: configRepo.name,
-      githubRepo: configRepo.githubRepo,
-      label: configRepo.label,
-      cwd: configRepo.path,
-    };
-  });
-
-  // Add custom repos that don't override any config repo
-  for (const custom of customByLabel.values()) {
-    repos.push({
-      name: custom.name,
-      githubRepo: custom.githubRepo,
-      label: custom.label,
-      cwd: custom.path,
-    });
-  }
-
-  return repos;
+  const repos = await prisma.repo.findMany();
+  return repos.map((r) => ({
+    name: r.name,
+    githubRepo: r.githubRepo,
+    label: r.label,
+    cwd: r.path,
+  }));
 }
 
 export async function resolveReposFromLabels(
@@ -63,19 +32,17 @@ export async function getRepoByLabel(
   return allRepos.find((r) => r.label === label);
 }
 
-export function getGhRepo(mapping: RepoMapping): string {
-  return `${getGitHubOrg()}/${mapping.githubRepo}`;
+export async function getGhRepo(mapping: RepoMapping): Promise<string> {
+  const org = await getGitHubOrg();
+  return `${org}/${mapping.githubRepo}`;
 }
 
 export async function getAllGhRepos(): Promise<string[]> {
+  const org = await getGitHubOrg();
   const repos = await getAllRepos();
-  return repos.map((r) => getGhRepo(r));
+  return repos.map((r) => `${org}/${r.githubRepo}`);
 }
 
-/**
- * Get formatted repo label list for task analyzer prompts.
- * Returns a multi-line string like "b2c-web -> /Users/.../kkday-b2c-web\n..."
- */
 export async function getRepoLabelList(): Promise<string> {
   const repos = await getAllRepos();
   return repos.map((r) => `${r.label} -> ${r.cwd}`).join('\n');
