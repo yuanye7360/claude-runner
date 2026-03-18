@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const repo = await prisma.repo.create({
-    data: { name, githubRepo, label, path, isCustom: true },
+    data: { name, githubRepo, label, path },
   });
 
   return repo;
