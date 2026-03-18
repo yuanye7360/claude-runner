@@ -2,25 +2,33 @@ export interface JiraConfig {
   baseUrl: string;
   email: string;
   apiToken: string;
-  label: string;
+  labels: string[];
 }
 
 const STORAGE_KEY = 'cr-jira-config';
 
 function load(): JiraConfig {
   if (typeof localStorage === 'undefined')
-    return { baseUrl: '', email: '', apiToken: '', label: 'claude' };
+    return { baseUrl: '', email: '', apiToken: '', labels: ['claude'] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as JiraConfig;
-      if (!parsed.label) parsed.label = 'claude';
-      return parsed;
+      const parsed = JSON.parse(raw) as JiraConfig & { label?: string };
+      // Migrate old single label to array
+      if (!parsed.labels) {
+        parsed.labels = parsed.label ? [parsed.label] : ['claude'];
+      }
+      return {
+        baseUrl: parsed.baseUrl,
+        email: parsed.email,
+        apiToken: parsed.apiToken,
+        labels: parsed.labels,
+      };
     }
   } catch {
     /* ignore */
   }
-  return { baseUrl: '', email: '', apiToken: '', label: 'claude' };
+  return { baseUrl: '', email: '', apiToken: '', labels: ['claude'] };
 }
 
 const config = ref<JiraConfig>(load());
@@ -47,7 +55,7 @@ export function useJiraConfig() {
       'x-jira-base-url': c.baseUrl,
       'x-jira-email': c.email,
       'x-jira-api-token': c.apiToken,
-      'x-jira-label': c.label || 'claude',
+      'x-jira-labels': c.labels.join(','),
     };
   }
 

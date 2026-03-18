@@ -50,6 +50,16 @@ const jira = useJiraRunner({
 // ── Config panel toggle ──
 const showConfig = ref(!jiraConfigured.value);
 
+// ── Label input ──
+const newLabelInput = ref('');
+function addLabel() {
+  const val = newLabelInput.value.trim();
+  if (val && !jiraConfig.value.labels.includes(val)) {
+    jiraConfig.value.labels.push(val);
+  }
+  newLabelInput.value = '';
+}
+
 // ── Repo modal state ──
 const showRepoModal = computed(() => editingConfig.value !== null);
 const modalPathResult = ref<null | { error?: string; valid: boolean }>(null);
@@ -190,7 +200,7 @@ defineExpose({
       <!-- ═══ Config panel ═══ -->
       <div v-if="showConfig" class="flex-1 overflow-y-auto">
         <div class="space-y-4 p-4">
-          <!-- JIRA Connection -->
+          <!-- ── Section 1: JIRA 連線 ── -->
           <div>
             <div
               class="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-gray-500 uppercase"
@@ -222,27 +232,19 @@ defineExpose({
                 class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-2.5 py-1.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
                 placeholder="ATATT3x..."
               />
-              <div class="flex items-center gap-2">
-                <span class="shrink-0 text-xs text-gray-600">Issue Label</span>
-                <input
-                  v-model="jiraConfig.label"
-                  class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2.5 py-1.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
-                  placeholder="claude"
-                />
-              </div>
             </div>
           </div>
 
-          <!-- Repos -->
+          <!-- ── Section 2: Repos ── -->
           <div>
             <div
               class="mb-2 flex items-center justify-between text-xs font-medium tracking-wide text-gray-500 uppercase"
             >
-              <span>
+              <span class="flex items-center gap-1.5">
                 Repos
                 <span
                   v-if="repoConfigs.length > 0"
-                  class="ml-1 font-normal text-gray-600 normal-case"
+                  class="font-normal text-gray-600 normal-case"
                 >
                   ({{ repoConfigs.length }})
                 </span>
@@ -324,6 +326,36 @@ defineExpose({
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- ── Section 3: JIRA Labels ── -->
+          <div>
+            <div
+              class="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-gray-500 uppercase"
+            >
+              JIRA Labels
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span
+                v-for="(lbl, idx) in jiraConfig.labels"
+                :key="idx"
+                class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400"
+              >
+                {{ lbl }}
+                <button
+                  class="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-blue-500/20 hover:text-blue-300"
+                  @click="jiraConfig.labels.splice(idx, 1)"
+                >
+                  <UIcon name="i-lucide-x" style="font-size: 0.7em" />
+                </button>
+              </span>
+              <input
+                v-model="newLabelInput"
+                class="w-24 min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+                placeholder="新增 label..."
+                @keydown.enter.prevent="addLabel()"
+              />
             </div>
           </div>
         </div>

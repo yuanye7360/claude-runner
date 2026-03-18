@@ -7,11 +7,16 @@ export default defineEventHandler(async (event) => {
   if (!baseUrl || !email || !apiToken) return [];
   const creds = { baseUrl: baseUrl.replace(/\/$/, ''), email, apiToken };
 
-  const label = getHeader(event, 'x-jira-label') || 'claude';
+  const labelsHeader = getHeader(event, 'x-jira-labels') || 'claude';
+  const labels = labelsHeader.split(',').map((l) => l.trim()).filter(Boolean);
   const query = getQuery(event);
+  const labelJql =
+    labels.length === 1
+      ? `labels = "${labels[0]}"`
+      : `labels in (${labels.map((l) => `"${l}"`).join(', ')})`;
   const jql =
     (query.jql as string) ||
-    `labels = "${label}" ORDER BY updated DESC`;
+    `${labelJql} AND statusCategory != "Done" ORDER BY updated DESC`;
   const startAt = Number(query.startAt) || 0;
   const maxResults = Number(query.maxResults) || 50;
 
