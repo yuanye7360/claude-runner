@@ -1,4 +1,4 @@
-import { getJob } from '../../../utils/jobStore';
+import { finishJob, getJob } from '../../../utils/jobStore';
 
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id') ?? '';
@@ -7,7 +7,7 @@ export default defineEventHandler((event) => {
   if (job.status !== 'running')
     throw createError({ statusCode: 409, message: 'Job not running' });
 
-  job.status = 'cancelled';
   job.kill?.();
+  finishJob(job, job.results, true, 'cancelled');
   return { ok: true };
 });

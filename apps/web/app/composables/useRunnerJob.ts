@@ -239,7 +239,13 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       sseSource = null;
       stopElapsedTimer();
       idleSecs.value = 0;
-      if (activeJob.value) activeJob.value.status = 'cancelled';
+      if (activeJob.value) {
+        activeJob.value.status = 'cancelled';
+        activeJob.value.durationSecs = Math.floor(
+          (Date.now() - activeJob.value.startedAt) / 1000,
+        );
+        options.onComplete?.(activeJob.value.id, activeJob.value);
+      }
       localStorage.removeItem(storageKey);
     }
   }

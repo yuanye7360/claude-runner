@@ -1,6 +1,7 @@
 import prisma from './prisma';
 
 export interface RepoMapping {
+  id: string;
   name: string;
   githubRepo: string;
   label: string;
@@ -10,6 +11,7 @@ export interface RepoMapping {
 export async function getAllRepos(): Promise<RepoMapping[]> {
   const repos = await prisma.repo.findMany();
   return repos.map((r) => ({
+    id: r.id,
     name: r.name,
     githubRepo: r.githubRepo,
     label: r.label,

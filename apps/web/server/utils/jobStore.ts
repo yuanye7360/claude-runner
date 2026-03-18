@@ -90,8 +90,13 @@ export function pushPhase(
   broadcast(job, { type: 'phase', phase, label, issueKey });
 }
 
-export function finishJob(job: Job, results: RunResult[], persist = true) {
-  job.status = 'done';
+export function finishJob(
+  job: Job,
+  results: RunResult[],
+  persist = true,
+  status: Job['status'] = 'done',
+) {
+  job.status = status;
   job.results = results;
   job.kill = undefined;
   broadcast(job, { type: 'eof' });
