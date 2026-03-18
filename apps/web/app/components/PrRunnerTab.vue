@@ -203,16 +203,20 @@ defineExpose({
           size="sm"
           color="success"
           :disabled="
-            !prRunner.selectedCount.value || prRunner.pr.isRunning.value
+            !prRunner.selectedCount.value ||
+            prRunner.pr.isRunning.value ||
+            prRunner.starting.value
           "
-          :loading="prRunner.pr.isRunning.value"
+          :loading="prRunner.pr.isRunning.value || prRunner.starting.value"
           icon="i-lucide-git-pull-request"
           @click="prRunner.runPR()"
         >
           {{
-            prRunner.pr.isRunning.value
-              ? '修復中...'
-              : `修復 Review${prRunner.selectedCount.value ? ` (${prRunner.selectedCount.value})` : ''}`
+            prRunner.starting.value
+              ? '準備中...'
+              : prRunner.pr.isRunning.value
+                ? '修復中...'
+                : `修復 Review${prRunner.selectedCount.value ? ` (${prRunner.selectedCount.value})` : ''}`
           }}
         </UButton>
       </div>

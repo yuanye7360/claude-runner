@@ -623,7 +623,7 @@ defineExpose({
             "
             :loading="jira.cr.isRunning.value || jira.starting.value"
             icon="i-lucide-zap"
-            @click="jira.analyzeThenRun()"
+            @click="jira.runClaude()"
           >
             {{
               jira.starting.value

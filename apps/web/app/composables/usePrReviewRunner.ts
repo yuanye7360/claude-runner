@@ -45,6 +45,7 @@ export function usePrReviewRunner(options?: {
   const selected = ref<Set<string>>(new Set());
   const loading = ref(true);
   const loadError = ref('');
+  const starting = ref(false);
 
   const filteredGroups = computed(() => repoGroups.value);
 
@@ -121,7 +122,8 @@ export function usePrReviewRunner(options?: {
 
   async function runPR() {
     const prs = getSelectedPRItems();
-    if (prs.length === 0 || pr.isRunning.value) return;
+    if (prs.length === 0 || pr.isRunning.value || starting.value) return;
+    starting.value = true;
     rightTab.value = 'progress';
     try {
       const { jobId } = await $fetch<{ jobId: string }>('/api/pr-runner/run', {
@@ -139,7 +141,12 @@ export function usePrReviewRunner(options?: {
         })),
       );
     } catch (error) {
-      console.error('Failed to start PR Runner:', error);
+      const msg =
+        (error as any)?.data?.message ||
+        (error instanceof Error ? error.message : 'Failed to start PR Runner');
+      useToast().add({ title: '啟動失敗', description: msg, color: 'error' });
+    } finally {
+      starting.value = false;
     }
   }
 
@@ -157,6 +164,7 @@ export function usePrReviewRunner(options?: {
     selected,
     loading,
     loadError,
+    starting,
     history,
     rowExpanded,
     rightTab,
