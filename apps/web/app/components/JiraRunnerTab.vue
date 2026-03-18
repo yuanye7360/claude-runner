@@ -148,18 +148,42 @@ defineExpose({
               style="font-size: 0.85em"
             />
           </button>
-          <button
-            class="flex items-center rounded px-1.5 py-1 transition-colors"
-            :class="
-              showConfig
-                ? 'text-primary-400 bg-primary-500/10'
-                : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'
-            "
-            title="JIRA 設定"
-            @click="showConfig = !showConfig"
-          >
-            <UIcon name="i-lucide-settings-2" style="font-size: 0.85em" />
-          </button>
+          <div class="relative">
+            <button
+              class="relative flex items-center rounded px-1.5 py-1 transition-colors"
+              :class="
+                showConfig
+                  ? 'text-primary-400 bg-primary-500/10'
+                  : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'
+              "
+              title="JIRA 設定"
+              @click="showConfig = !showConfig"
+            >
+              <UIcon name="i-lucide-settings-2" style="font-size: 0.85em" />
+              <!-- Pulse dot when not configured -->
+              <span
+                v-if="!jiraConfigured && !showConfig"
+                class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5"
+              >
+                <span
+                  class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"
+                ></span>
+              </span>
+            </button>
+            <!-- Tooltip arrow pointing to gear -->
+            <div
+              v-if="!jiraConfigured && !showConfig"
+              class="absolute right-0 top-full z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-gray-900 px-3 py-2 text-xs text-orange-300 shadow-lg"
+            >
+              <div
+                class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-l border-t border-orange-500/30 bg-gray-900"
+              ></div>
+              點此設定 JIRA 連線和 Repos
+            </div>
+          </div>
         </div>
       </div>
 
