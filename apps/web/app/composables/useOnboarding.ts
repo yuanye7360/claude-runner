@@ -1,6 +1,6 @@
 import type { ComputedRef } from 'vue';
 
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 export interface OnboardingStep {
   id: 'jira' | 'repos' | 'skills';
@@ -11,18 +11,10 @@ export interface OnboardingStep {
 
 const DISMISSED_KEY = 'cr-onboarding-dismissed';
 
-// Module-level shared state (same pattern as useJiraConfig, useRepoConfigs)
-const dismissed = ref(
-  typeof localStorage === 'undefined'
-    ? false
-    : localStorage.getItem(DISMISSED_KEY) === 'true',
-);
-
-watch(dismissed, (v) => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(DISMISSED_KEY, String(v));
-  }
-});
+// Module-level shared state — starts hidden (true) to avoid SSR flash,
+// then reads the real value from localStorage after client mount.
+const dismissed = ref(true);
+let mounted = false;
 
 export function useOnboarding(deps: {
   jiraConfigured: ComputedRef<boolean>;
@@ -30,6 +22,20 @@ export function useOnboarding(deps: {
   repoCount: ComputedRef<number>;
   skillCount: ComputedRef<number>;
 }) {
+  // Read localStorage after hydration — onMounted is guaranteed client-only
+  onMounted(() => {
+    if (!mounted) {
+      dismissed.value = localStorage.getItem(DISMISSED_KEY) === 'true';
+      mounted = true;
+    }
+  });
+
+  watch(dismissed, (v) => {
+    if (import.meta.client) {
+      localStorage.setItem(DISMISSED_KEY, String(v));
+    }
+  });
+
   const steps: OnboardingStep[] = [
     {
       id: 'jira',
