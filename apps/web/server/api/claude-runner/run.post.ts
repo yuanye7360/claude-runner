@@ -13,8 +13,9 @@ import { join } from 'node:path';
 import process from 'node:process';
 
 import matter from 'gray-matter';
+
+
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
-import { spawnClaude } from '../../utils/claude-spawn';
 import {
   buildDynamicPrompt,
   generateDynamicPhases,
@@ -23,6 +24,7 @@ import {
   PROMPT_NORMAL,
   PROMPT_SMART,
 } from '../../utils/claude-runner.config';
+import { spawnClaude } from '../../utils/claude-spawn';
 import {
   createJob,
   finishJob,

@@ -123,6 +123,24 @@ async function onDeleteRepo(id: string) {
   }
 }
 
+const LABEL_COLORS = [
+  'bg-blue-500/20 text-blue-300',
+  'bg-emerald-500/20 text-emerald-300',
+  'bg-amber-500/20 text-amber-300',
+  'bg-purple-500/20 text-purple-300',
+  'bg-rose-500/20 text-rose-300',
+  'bg-cyan-500/20 text-cyan-300',
+  'bg-orange-500/20 text-orange-300',
+  'bg-indigo-500/20 text-indigo-300',
+];
+
+function labelColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++)
+    hash = Math.trunc(hash * 31 + name.codePointAt(i)!);
+  return LABEL_COLORS[Math.abs(hash) % LABEL_COLORS.length];
+}
+
 defineExpose({
   loadIssues: jira.loadIssues,
   loadHistory: jira.loadHistory,
@@ -500,6 +518,24 @@ defineExpose({
                 <p class="mt-1 truncate text-sm leading-snug text-gray-400">
                   {{ issue.summary }}
                 </p>
+                <div
+                  v-if="
+                    issue.labels?.filter((l) => !jiraConfig.labels.includes(l))
+                      .length
+                  "
+                  class="mt-1 flex flex-wrap gap-1"
+                >
+                  <span
+                    v-for="label in issue.labels.filter(
+                      (l) => !jiraConfig.labels.includes(l),
+                    )"
+                    :key="label"
+                    class="rounded px-1.5 py-0.5 text-xs"
+                    :class="labelColor(label)"
+                  >
+                    {{ label }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

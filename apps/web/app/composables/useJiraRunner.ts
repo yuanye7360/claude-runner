@@ -15,9 +15,12 @@ export interface JiraIssue {
   labels?: string[];
 }
 
-export const STATUS_COLOR: Record<string, 'info' | 'neutral' | 'success'> = {
+export const STATUS_COLOR: Record<
+  string,
+  'info' | 'neutral' | 'success' | 'warning'
+> = {
   'To Do': 'neutral',
-  'In Progress': 'info',
+  'In Progress': 'warning',
   Done: 'success',
 };
 
