@@ -55,7 +55,9 @@ describe('issues.get handler', () => {
     expect(mockSearchJiraIssues).toHaveBeenCalledTimes(1);
     const [creds, opts] = mockSearchJiraIssues.mock.calls[0];
     expect(creds.baseUrl).toBe('https://test.atlassian.net');
-    expect(opts.jql).toBe('labels = "claude" AND statusCategory != "Done" ORDER BY updated DESC');
+    expect(opts.jql).toBe(
+      'labels = "claude" AND statusCategory != "Done" ORDER BY updated DESC',
+    );
   });
 
   it('returns empty array when no JIRA credentials in headers', async () => {
