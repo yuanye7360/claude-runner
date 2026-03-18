@@ -56,6 +56,141 @@ const jira = useJiraRunner({
 // ── Config panel toggle ──
 const showConfig = ref(!jiraConfigured.value);
 
+// ── Auto-run toggle ──
+const autoRunEnabled = ref(false);
+const autoRunInterval = ref(2);
+const autoRunLoading = ref(false);
+
+async function loadAutoRunSetting() {
+  try {
+    const data = await $fetch<{ enabled: boolean; interval: number }>(
+      '/api/settings/jira-auto-run',
+    );
+    autoRunEnabled.value = data.enabled;
+    autoRunInterval.value = data.interval;
+  } catch {
+    // ignore
+  }
+}
+
+async function toggleAutoRun(val: boolean) {
+  autoRunLoading.value = true;
+  try {
+    // When enabling, sync JIRA creds to server-side storage first
+    if (val) {
+      const c = jiraConfig.value;
+      await $fetch('/api/settings/jira-creds', {
+        method: 'PUT',
+        body: {
+          baseUrl: c.baseUrl,
+          email: c.email,
+          apiToken: c.apiToken,
+          labels: c.labels,
+        },
+      });
+    }
+    await $fetch('/api/settings/jira-auto-run', {
+      method: 'PUT',
+      body: { enabled: val, interval: autoRunInterval.value },
+    });
+    autoRunEnabled.value = val;
+  } catch (error) {
+    useToast().add({
+      title: '設定失敗',
+      description: (error as Error).message,
+      color: 'error',
+    });
+  } finally {
+    autoRunLoading.value = false;
+  }
+}
+
+// ── Auto-run job detection ──
+let autoRunPollTimer: null | ReturnType<typeof setInterval> = null;
+
+async function checkAutoRunJobs() {
+  if (!autoRunEnabled.value) return;
+  if (jira.cr.isRunning.value) return; // already tracking a job
+  try {
+    const activeJobs = await $fetch<
+      Array<{
+        id: string;
+        issues: { key: string; summary: string }[];
+        startedAt: number;
+        trigger: string;
+      }>
+    >('/api/claude-runner/jobs/active', {
+      params: { trigger: 'auto' },
+    });
+    if (activeJobs.length > 0 && activeJobs[0]) {
+      const job = activeJobs[0];
+      // Auto-connect to the running auto-triggered job
+      jira.cr.startJob(job.id, job.issues);
+      jira.rightTab.value = 'progress';
+      jira.rowExpanded.value = true;
+      useToast().add({
+        title: '自動執行中',
+        description: `${job.issues.map((i) => i.key).join(', ')}`,
+        color: 'info',
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function startAutoRunPoll() {
+  stopAutoRunPoll();
+  autoRunPollTimer = setInterval(checkAutoRunJobs, 15_000); // 15s
+}
+
+function stopAutoRunPoll() {
+  if (autoRunPollTimer) {
+    clearInterval(autoRunPollTimer);
+    autoRunPollTimer = null;
+  }
+}
+
+watch(autoRunEnabled, (val) => {
+  if (val) {
+    startAutoRunPoll();
+    checkAutoRunJobs(); // check immediately
+  } else {
+    stopAutoRunPoll();
+  }
+});
+
+// Load auto-run setting on mount
+onMounted(async () => {
+  await loadAutoRunSetting();
+  if (autoRunEnabled.value) {
+    startAutoRunPoll();
+    checkAutoRunJobs();
+  }
+});
+
+onUnmounted(() => {
+  stopAutoRunPoll();
+});
+
+function onDoneConfig() {
+  showConfig.value = false;
+  jira.loadIssues();
+  // Sync JIRA creds to server if auto-run is enabled
+  if (autoRunEnabled.value) {
+    const c = jiraConfig.value;
+    $fetch('/api/settings/jira-creds', {
+      method: 'PUT',
+      body: {
+        baseUrl: c.baseUrl,
+        email: c.email,
+        apiToken: c.apiToken,
+        labels: c.labels,
+      },
+    }).catch(() => {});
+  }
+}
+
 // ── Label input ──
 const newLabelInput = ref('');
 function addLabel() {
@@ -382,6 +517,35 @@ defineExpose({
               />
             </div>
           </div>
+
+          <!-- ── Section 4: Auto Run ── -->
+          <div>
+            <div
+              class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase"
+            >
+              自動執行
+            </div>
+            <div class="space-y-2">
+              <label
+                class="flex items-center justify-between rounded-md border border-gray-700 bg-gray-800/40 px-3 py-2"
+                :class="{ 'opacity-50': !jiraConfigured || autoRunLoading }"
+              >
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-xs text-gray-300">
+                    狀態切 In Development 時自動觸發
+                  </span>
+                  <span class="text-[10px] text-gray-500">
+                    每 {{ autoRunInterval }} 分鐘輪詢 JIRA
+                  </span>
+                </div>
+                <USwitch
+                  :model-value="autoRunEnabled"
+                  :disabled="!jiraConfigured || autoRunLoading"
+                  @update:model-value="toggleAutoRun"
+                />
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Done button -->
@@ -394,10 +558,7 @@ defineExpose({
                 : 'cursor-not-allowed bg-gray-800 text-gray-600'
             "
             :disabled="!jiraConfigured"
-            @click="
-              showConfig = false;
-              jira.loadIssues();
-            "
+            @click="onDoneConfig"
           >
             {{ jiraConfigured ? '完成設定' : '請填寫 JIRA 連線資訊' }}
           </button>

@@ -14,7 +14,6 @@ import process from 'node:process';
 
 import matter from 'gray-matter';
 
-
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import {
   buildDynamicPrompt,
@@ -48,6 +47,7 @@ interface RunRequest {
   enabledSkills?: string[];
   analysisResult?: AnalysisResult;
   repoCwds?: string[];
+  trigger?: 'auto' | 'manual';
 }
 
 const DEFAULT_SKILLS = [
@@ -269,6 +269,7 @@ export default defineEventHandler(async (event) => {
     enabledSkills,
     analysisResult,
     repoCwds: _repoCwds,
+    trigger = 'manual',
   } = await readBody<RunRequest>(event);
 
   // Read JIRA credentials from request headers (set by frontend from localStorage)
@@ -323,7 +324,7 @@ export default defineEventHandler(async (event) => {
     : issues.map((i) => ({ key: i.key ?? '', summary: i.summary ?? '' }));
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const job = createJob(jobId, jobIssues, 'claude-runner');
+  const job = createJob(jobId, jobIssues, 'claude-runner', trigger);
 
   if (analysisResult) {
     job.analysisResult = analysisResult;

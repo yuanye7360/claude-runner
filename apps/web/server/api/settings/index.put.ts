@@ -1,6 +1,13 @@
 import { setSetting } from '../../utils/app-settings';
 
-const ALLOWED_KEYS = new Set<string>();
+const ALLOWED_KEYS = new Set<string>([
+  'jira-auto-run-enabled',
+  'jira-auto-run-interval',
+  'jira-creds-api-token',
+  'jira-creds-base-url',
+  'jira-creds-email',
+  'jira-creds-labels',
+]);
 
 export default defineEventHandler(async (event) => {
   const { key, value } = await readBody<{ key: string; value: string }>(event);

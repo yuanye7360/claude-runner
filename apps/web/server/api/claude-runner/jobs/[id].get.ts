@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   if (job) {
     return {
       id: job.id,
+      trigger: job.trigger,
       status: job.status,
       startedAt: job.startedAt,
       issues: job.issues,
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     id: dbJob.id,
+    trigger: dbJob.trigger,
     status: dbJob.status,
     startedAt: Number(dbJob.startedAt),
     issues: dbJob.issues.map((i) => ({ key: i.key, summary: i.summary })),

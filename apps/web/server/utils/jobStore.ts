@@ -16,9 +16,12 @@ export type JobEvent =
 
 export type JobType = 'claude-runner' | 'pr-runner';
 
+export type JobTrigger = 'auto' | 'manual';
+
 export interface Job {
   id: string;
   type: JobType;
+  trigger: JobTrigger;
   status:
     | 'analysing'
     | 'awaiting_input'
@@ -45,11 +48,13 @@ export function createJob(
   id: string,
   issues: { key: string; summary: string }[],
   type: JobType = 'claude-runner',
+  trigger: JobTrigger = 'manual',
 ): Job {
   const now = Date.now();
   const job: Job = {
     id,
     type,
+    trigger,
     status: 'running',
     startedAt: now,
     lastActivityAt: now,
@@ -64,6 +69,21 @@ export function createJob(
 
 export function getJob(id: string): Job | undefined {
   return jobs.get(id);
+}
+
+/** List active (in-memory, running) jobs, optionally filtered. */
+export function listActiveJobs(filter?: {
+  trigger?: JobTrigger;
+  type?: JobType;
+}): Job[] {
+  const result: Job[] = [];
+  for (const job of jobs.values()) {
+    if (job.status !== 'running') continue;
+    if (filter?.type && job.type !== filter.type) continue;
+    if (filter?.trigger && job.trigger !== filter.trigger) continue;
+    result.push(job);
+  }
+  return result;
 }
 
 export function broadcast(job: Job, event: JobEvent) {
@@ -117,6 +137,7 @@ async function persistJob(job: Job) {
     data: {
       id: job.id,
       type: job.type,
+      trigger: job.trigger,
       status: job.status,
       startedAt: job.startedAt,
       finishedAt: BigInt(Date.now()),

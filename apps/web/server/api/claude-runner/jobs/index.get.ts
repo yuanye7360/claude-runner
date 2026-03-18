@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
   return jobs.map((job) => ({
     id: job.id,
     type: job.type,
+    trigger: job.trigger,
     status: job.status,
     timestamp: Number(job.startedAt),
     durationSecs:

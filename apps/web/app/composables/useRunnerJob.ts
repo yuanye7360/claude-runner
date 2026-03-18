@@ -56,6 +56,7 @@ export interface HistoryEntry {
   id: string;
   status: 'cancelled' | 'done' | 'error';
   type?: string;
+  trigger?: 'auto' | 'manual';
   timestamp: number;
   durationSecs?: number;
   issues: Array<{ key: string; summary: string }>;

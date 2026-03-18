@@ -99,6 +99,13 @@ function formatTime(ts: number) {
                 <span class="font-medium text-gray-300">{{
                   formatTime(entry.timestamp)
                 }}</span>
+                <span
+                  v-if="entry.trigger === 'auto'"
+                  class="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-400"
+                >
+                  <UIcon name="i-lucide-bot" style="font-size: 0.9em" />
+                  自動
+                </span>
                 <span class="text-muted">·</span>
                 <span class="text-muted">{{ entry.issues.length }} 個任務</span>
                 <template v-if="entry.durationSecs">

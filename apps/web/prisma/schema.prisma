@@ -9,6 +9,7 @@ datasource db {
 model Job {
   id             String      @id
   type           String      @default("claude-runner")
+  trigger        String      @default("manual")
   status         String
   startedAt      BigInt
   finishedAt     BigInt?
