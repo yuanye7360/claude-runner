@@ -1,6 +1,8 @@
 // apps/web/server/utils/__tests__/app-settings.test.ts
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getSetting, setSetting } from '../app-settings';
+
 const mockPrisma = vi.hoisted(() => ({
   appSetting: {
     findUnique: vi.fn(),
@@ -11,8 +13,6 @@ const mockPrisma = vi.hoisted(() => ({
 
 vi.mock('../prisma', () => ({ default: mockPrisma }));
 
-import { getGitHubOrg, getSetting, setSetting } from '../app-settings';
-
 describe('app-settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -20,10 +20,15 @@ describe('app-settings', () => {
 
   describe('getSetting', () => {
     it('returns value when setting exists', async () => {
-      mockPrisma.appSetting.findUnique.mockResolvedValue({ key: 'github.org', value: 'kkday-it' });
+      mockPrisma.appSetting.findUnique.mockResolvedValue({
+        key: 'github.org',
+        value: 'kkday-it',
+      });
       const result = await getSetting('github.org');
       expect(result).toBe('kkday-it');
-      expect(mockPrisma.appSetting.findUnique).toHaveBeenCalledWith({ where: { key: 'github.org' } });
+      expect(mockPrisma.appSetting.findUnique).toHaveBeenCalledWith({
+        where: { key: 'github.org' },
+      });
     });
 
     it('returns null when setting does not exist', async () => {
@@ -35,7 +40,10 @@ describe('app-settings', () => {
 
   describe('setSetting', () => {
     it('upserts the setting', async () => {
-      mockPrisma.appSetting.upsert.mockResolvedValue({ key: 'github.org', value: 'new-org' });
+      mockPrisma.appSetting.upsert.mockResolvedValue({
+        key: 'github.org',
+        value: 'new-org',
+      });
       await setSetting('github.org', 'new-org');
       expect(mockPrisma.appSetting.upsert).toHaveBeenCalledWith({
         where: { key: 'github.org' },
@@ -57,16 +65,4 @@ describe('app-settings', () => {
     });
   });
 
-  describe('getGitHubOrg', () => {
-    it('returns the github.org setting', async () => {
-      mockPrisma.appSetting.findUnique.mockResolvedValue({ key: 'github.org', value: 'kkday-it' });
-      const result = await getGitHubOrg();
-      expect(result).toBe('kkday-it');
-    });
-
-    it('throws when github.org is not set', async () => {
-      mockPrisma.appSetting.findUnique.mockResolvedValue(null);
-      await expect(getGitHubOrg()).rejects.toThrow('GitHub Org 尚未設定');
-    });
-  });
 });

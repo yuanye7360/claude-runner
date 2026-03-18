@@ -4,12 +4,12 @@ export interface RepoConfig {
   githubRepo: string;
   label: string;
   cwd: string;
-  validationStatus?: 'valid' | 'invalid' | null;
+  validationStatus?: 'invalid' | 'valid' | null;
   validationError?: string;
 }
 
 const repoConfigs = ref<RepoConfig[]>([]);
-const editingConfig = ref<null | Partial<RepoConfig> & { id?: string }>(null);
+const editingConfig = ref<null | (Partial<RepoConfig> & { id?: string })>(null);
 let fetched = false;
 
 async function fetchFromServer() {
@@ -57,7 +57,13 @@ export function useRepoConfigs() {
       });
       repoConfigs.value = repoConfigs.value.map((c) =>
         c.id === form.id
-          ? { ...c, name: updated.name, githubRepo: updated.githubRepo, label: updated.label, cwd: updated.path }
+          ? {
+              ...c,
+              name: updated.name,
+              githubRepo: updated.githubRepo,
+              label: updated.label,
+              cwd: updated.path,
+            }
           : c,
       );
     } else {
@@ -91,14 +97,18 @@ export function useRepoConfigs() {
     repoConfigs.value = repoConfigs.value.filter((c) => c.id !== id);
   }
 
-  async function validatePath(path: string): Promise<{ valid: boolean; error?: string }> {
+  async function validatePath(
+    path: string,
+  ): Promise<{ error?: string; valid: boolean }> {
     return await $fetch('/api/repos/validate', {
       method: 'POST',
       body: { path },
     });
   }
 
-  async function testConnection(githubRepo: string): Promise<{ valid: boolean; error?: string }> {
+  async function testConnection(
+    githubRepo: string,
+  ): Promise<{ error?: string; valid: boolean }> {
     return await $fetch('/api/repos/test-connection', {
       method: 'POST',
       body: { githubRepo },

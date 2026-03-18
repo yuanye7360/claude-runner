@@ -50,35 +50,36 @@ const SAMPLE_CONFIG = JSON.stringify({
 describe('migrateConfigYaml', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma.appSetting.upsert.mockResolvedValue({});
     mockPrisma.repo.upsert.mockResolvedValue({});
   });
 
   it('does nothing when config.yaml does not exist', async () => {
     mockExistsSync.mockReturnValue(false);
     await migrateConfigYaml('/project');
-    expect(mockPrisma.appSetting.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.repo.upsert).not.toHaveBeenCalled();
   });
 
-  it('migrates config.yaml to DB and deletes it', async () => {
+  it('migrates config.yaml to DB with org prepended to githubRepo', async () => {
     mockExistsSync.mockImplementation((p: string) => p.endsWith('config.yaml'));
     mockReadFileSync.mockReturnValue(SAMPLE_CONFIG);
 
     await migrateConfigYaml('/project');
-
-    expect(mockPrisma.appSetting.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { key: 'github.org' },
-        create: { key: 'github.org', value: 'kkday-it' },
-      }),
-    );
 
     expect(mockPrisma.repo.upsert).toHaveBeenCalledTimes(2);
     expect(mockPrisma.repo.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { label: 'b2c-web' },
         create: expect.objectContaining({
+          githubRepo: 'kkday-it/kkday-b2c-web',
           path: '/Users/testuser/KKday/kkday-b2c-web',
+        }),
+      }),
+    );
+    expect(mockPrisma.repo.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { label: 'member-ci' },
+        create: expect.objectContaining({
+          githubRepo: 'kkday-it/kkday-member-ci',
         }),
       }),
     );
@@ -108,16 +109,13 @@ describe('migrateConfigYaml', () => {
 
     await migrateConfigYaml('/project');
 
-    expect(mockPrisma.appSetting.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: { key: 'github.org', value: 'local-org' },
-      }),
-    );
-
     expect(mockPrisma.repo.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { label: 'b2c-web' },
-        create: expect.objectContaining({ path: '/local/path' }),
+        create: expect.objectContaining({
+          githubRepo: 'local-org/kkday-b2c-web',
+          path: '/local/path',
+        }),
       }),
     );
 
@@ -128,7 +126,7 @@ describe('migrateConfigYaml', () => {
   it('does not delete config.yaml if DB write fails', async () => {
     mockExistsSync.mockImplementation((p: string) => p.endsWith('config.yaml'));
     mockReadFileSync.mockReturnValue(SAMPLE_CONFIG);
-    mockPrisma.appSetting.upsert.mockRejectedValue(new Error('DB error'));
+    mockPrisma.repo.upsert.mockRejectedValue(new Error('DB error'));
 
     await expect(migrateConfigYaml('/project')).rejects.toThrow('DB error');
     expect(mockUnlinkSync).not.toHaveBeenCalled();

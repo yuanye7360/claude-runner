@@ -1,6 +1,6 @@
 import { setSetting } from '../../utils/app-settings';
 
-const ALLOWED_KEYS = ['github.org'];
+const ALLOWED_KEYS = new Set<string>([]);
 
 export default defineEventHandler(async (event) => {
   const { key, value } = await readBody<{ key: string; value: string }>(event);
@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  if (!ALLOWED_KEYS.includes(key)) {
+  if (!ALLOWED_KEYS.has(key)) {
     throw createError({
       statusCode: 400,
       message: `Unknown setting key: ${key}`,

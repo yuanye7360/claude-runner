@@ -5,7 +5,10 @@ export default defineEventHandler(async (event) => {
   const { path } = await readBody<{ path: string }>(event);
 
   if (!path) {
-    throw createError({ statusCode: 400, message: 'Missing required field: path' });
+    throw createError({
+      statusCode: 400,
+      message: 'Missing required field: path',
+    });
   }
 
   if (!existsSync(path)) {
@@ -17,7 +20,11 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    execSync('git rev-parse --git-dir', { cwd: path, timeout: 5000, stdio: 'pipe' });
+    execSync('git rev-parse --git-dir', {
+      cwd: path,
+      timeout: 5000,
+      stdio: 'pipe',
+    });
   } catch {
     return { valid: false, error: '不是有效的 Git repository' };
   }

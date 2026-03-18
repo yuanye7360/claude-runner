@@ -1,4 +1,3 @@
-import { getGitHubOrg } from './app-settings';
 import prisma from './prisma';
 
 export interface RepoMapping {
@@ -32,15 +31,13 @@ export async function getRepoByLabel(
   return allRepos.find((r) => r.label === label);
 }
 
-export async function getGhRepo(mapping: RepoMapping): Promise<string> {
-  const org = await getGitHubOrg();
-  return `${org}/${mapping.githubRepo}`;
+export function getGhRepo(mapping: RepoMapping): string {
+  return mapping.githubRepo;
 }
 
 export async function getAllGhRepos(): Promise<string[]> {
-  const org = await getGitHubOrg();
   const repos = await getAllRepos();
-  return repos.map((r) => `${org}/${r.githubRepo}`);
+  return repos.map((r) => r.githubRepo);
 }
 
 export async function getRepoLabelList(): Promise<string> {

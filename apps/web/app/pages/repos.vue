@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useGitHubConfig } from '~/composables/useGitHubConfig';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 
 useHead({ title: 'Claude Runner — Repos' });
@@ -16,8 +15,6 @@ const {
   testConnection,
   validateRepo,
 } = useRepoConfigs();
-
-const { isConfigured: githubConfigured } = useGitHubConfig();
 
 const showModal = computed(() => editingConfig.value !== null);
 const modalPathResult = ref<null | { error?: string; valid: boolean }>(null);
@@ -51,15 +48,15 @@ async function onTestConnection() {
   testing.value = false;
 }
 
-const saveError = ref<string | null>(null);
+const saveError = ref<null | string>(null);
 async function onSave() {
   try {
     saveError.value = null;
     await saveConfig();
     modalPathResult.value = null;
     modalConnResult.value = null;
-  } catch (e: unknown) {
-    saveError.value = e instanceof Error ? e.message : 'Failed to save';
+  } catch (error: unknown) {
+    saveError.value = error instanceof Error ? error.message : 'Failed to save';
   }
 }
 
@@ -205,7 +202,7 @@ async function onDelete(id: string) {
               <input
                 v-model="editingConfig!.githubRepo"
                 class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
-                placeholder="kkday-b2c-web"
+                placeholder="kkday-it/kkday-b2c-web"
               />
             </div>
             <div>
@@ -236,16 +233,8 @@ async function onDelete(id: string) {
               {{ validating ? '驗證中...' : '驗證路徑' }}
             </button>
             <button
-              class="rounded-md border border-blue-600 px-3 py-1.5 text-xs transition-colors"
-              :class="
-                githubConfigured
-                  ? 'text-blue-400 hover:bg-blue-600/10'
-                  : 'cursor-not-allowed text-gray-600'
-              "
-              :disabled="
-                !editingConfig?.githubRepo || !githubConfigured || testing
-              "
-              :title="!githubConfigured ? '請先設定 GitHub Org' : ''"
+              class="rounded-md border border-blue-600 px-3 py-1.5 text-xs text-blue-400 transition-colors hover:bg-blue-600/10 disabled:cursor-not-allowed disabled:text-gray-600"
+              :disabled="!editingConfig?.githubRepo || testing"
               @click="onTestConnection()"
             >
               {{ testing ? '測試中...' : '測試 GitHub 連線' }}
@@ -291,7 +280,9 @@ async function onDelete(id: string) {
               儲存
             </button>
           </div>
-          <p v-if="saveError" class="mt-2 text-sm text-red-400">{{ saveError }}</p>
+          <p v-if="saveError" class="mt-2 text-sm text-red-400">
+            {{ saveError }}
+          </p>
         </div>
       </div>
     </Teleport>

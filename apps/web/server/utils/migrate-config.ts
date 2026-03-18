@@ -61,13 +61,7 @@ export async function migrateConfigYaml(projectRoot: string): Promise<void> {
     }
   }
 
-  if (mergedConfig.github?.org) {
-    await prisma.appSetting.upsert({
-      where: { key: 'github.org' },
-      update: { value: mergedConfig.github.org },
-      create: { key: 'github.org', value: mergedConfig.github.org },
-    });
-  }
+  const org = mergedConfig.github?.org ?? '';
 
   const seenLabels = new Set<string>();
   for (const repo of mergedConfig.repos ?? []) {
@@ -80,16 +74,19 @@ export async function migrateConfigYaml(projectRoot: string): Promise<void> {
     seenLabels.add(repo.label);
 
     const expandedPath = expandTilde(repo.path);
+    const fullGithubRepo = org
+      ? `${org}/${repo.githubRepo}`
+      : repo.githubRepo;
     await prisma.repo.upsert({
       where: { label: repo.label },
       update: {
         name: repo.name,
-        githubRepo: repo.githubRepo,
+        githubRepo: fullGithubRepo,
         path: expandedPath,
       },
       create: {
         name: repo.name,
-        githubRepo: repo.githubRepo,
+        githubRepo: fullGithubRepo,
         label: repo.label,
         path: expandedPath,
       },
