@@ -124,10 +124,12 @@ export function useJiraRunner(options: {
   }
 
   async function analyzeThenRun() {
+    if (starting.value || cr.isRunning.value) return;
     const picked = issues.value.filter((i) => selected.value.has(i.key));
-    if (picked.length === 0 || cr.isRunning.value || starting.value) return;
+    if (picked.length === 0) return;
 
     starting.value = true;
+    rightTab.value = 'progress';
     try {
       // Analyze first issue as representative
       const first = picked[0];
@@ -156,7 +158,8 @@ export function useJiraRunner(options: {
     picked: JiraIssue[],
     analysis: AnalysisResult,
   ) {
-    if (picked.length === 0 || cr.isRunning.value) return;
+    if (picked.length === 0 || cr.isRunning.value || starting.value) return;
+    starting.value = true;
     rightTab.value = 'progress';
     try {
       const { jobId, jobIssues } = await $fetch<{
@@ -195,12 +198,16 @@ export function useJiraRunner(options: {
       analyzer.reset();
     } catch (error) {
       console.error('Failed to start Claude Runner:', error);
+    } finally {
+      starting.value = false;
     }
   }
 
   async function runClaude() {
+    if (starting.value || cr.isRunning.value) return;
     const picked = issues.value.filter((i) => selected.value.has(i.key));
-    if (picked.length === 0 || cr.isRunning.value) return;
+    if (picked.length === 0) return;
+    starting.value = true;
     rightTab.value = 'progress';
     try {
       const { jobId, jobIssues } = await $fetch<{
@@ -219,6 +226,8 @@ export function useJiraRunner(options: {
       cr.startJob(jobId, jobIssues);
     } catch (error) {
       console.error('Failed to start Claude Runner:', error);
+    } finally {
+      starting.value = false;
     }
   }
 

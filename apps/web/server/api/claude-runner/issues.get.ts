@@ -8,7 +8,10 @@ export default defineEventHandler(async (event) => {
   const creds = { baseUrl: baseUrl.replace(/\/$/, ''), email, apiToken };
 
   const labelsHeader = getHeader(event, 'x-jira-labels') || 'claude';
-  const labels = labelsHeader.split(',').map((l) => l.trim()).filter(Boolean);
+  const labels = labelsHeader
+    .split(',')
+    .map((l) => l.trim())
+    .filter(Boolean);
   const query = getQuery(event);
   const labelJql =
     labels.length === 1

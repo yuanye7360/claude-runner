@@ -698,6 +698,24 @@ defineExpose({
           :active-job="jira.cr.activeJob.value"
           class="flex-1 overflow-hidden"
         />
+        <!-- Preparing / Analyzing state -->
+        <div
+          v-else-if="jira.starting.value || jira.analyzer.analysing.value"
+          class="flex flex-1 flex-col items-center justify-center gap-4 select-none"
+        >
+          <UIcon
+            name="i-lucide-loader-circle"
+            class="text-primary-400 h-10 w-10 animate-spin"
+          />
+          <div class="text-center">
+            <p class="font-medium text-gray-300">
+              {{ jira.analyzer.analysing.value ? '分析 Issue 中...' : '準備執行...' }}
+            </p>
+            <p class="mt-1 text-xs text-gray-500">
+              正在規劃修復策略，請稍候
+            </p>
+          </div>
+        </div>
         <OnboardingChecklist
           v-else-if="onboarding.showChecklist.value"
           :steps="onboarding.steps"
