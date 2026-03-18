@@ -61,5 +61,9 @@ model Repo {
   githubRepo String
   label      String  @unique
   path       String
-  isCustom   Boolean @default(true)
+}
+
+model AppSetting {
+  key   String @id
+  value String
 }
