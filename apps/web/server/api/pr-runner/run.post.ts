@@ -5,7 +5,7 @@ import process from 'node:process';
 import pty from 'node-pty';
 
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
-import { getGitHubOrg } from '../../utils/config-loader';
+import { getGitHubOrg } from '../../utils/app-settings';
 import {
   createJob,
   finishJob,
@@ -124,16 +124,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Resolve repoCwd from PR's repo field via config.yaml
+  // Resolve repoCwd from PR's repo field
   const firstPr = prs[0];
   const allRepos = await getAllRepos();
+  const org = await getGitHubOrg();
   const matchedRepo = allRepos.find(
-    (r) => `${getGitHubOrg()}/${r.githubRepo}` === firstPr.repo,
+    (r) => `${org}/${r.githubRepo}` === firstPr.repo,
   );
   const repoCwd = repoConfig?.cwd ?? matchedRepo?.cwd;
   if (!repoCwd) {
     throw new Error(
-      `No repo matched for "${firstPr.repo}". Ensure it is configured in config.yaml.`,
+      `No repo matched for "${firstPr.repo}". Ensure it is configured in the Repos page.`,
     );
   }
 
