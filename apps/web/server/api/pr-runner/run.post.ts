@@ -129,9 +129,10 @@ export default defineEventHandler(async (event) => {
   const matchedRepo = allRepos.find((r) => r.githubRepo === firstPr.repo);
   const repoCwd = repoConfig?.cwd ?? matchedRepo?.cwd;
   if (!repoCwd) {
-    throw new Error(
-      `No repo matched for "${firstPr.repo}". Ensure it is configured in the Repos page.`,
-    );
+    throw createError({
+      statusCode: 400,
+      message: `No repo matched for "${firstPr?.repo}". Ensure it is configured in the Repos page.`,
+    });
   }
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);

@@ -291,9 +291,11 @@ export default defineEventHandler(async (event) => {
       ? mappedRepos.map((r) => r.cwd)
       : ([repoConfig?.cwd].filter(Boolean) as string[]);
   if (repoCwds.length === 0) {
-    throw new Error(
-      'No repo matched. Ensure the JIRA issue has a label matching a repo in the Repos page.',
-    );
+    throw createError({
+      statusCode: 400,
+      message:
+        'No repo matched. Ensure the JIRA issue has a label matching a repo in the Repos page.',
+    });
   }
 
   const { skills, injectMap } = loadSkillContent(

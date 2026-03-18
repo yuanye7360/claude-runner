@@ -197,7 +197,12 @@ export function useJiraRunner(options: {
       cr.startJob(jobId, jobIssues, phaseLabels);
       analyzer.reset();
     } catch (error) {
-      console.error('Failed to start Claude Runner:', error);
+      const msg =
+        (error as any)?.data?.message ||
+        (error instanceof Error
+          ? error.message
+          : 'Failed to start Claude Runner');
+      useToast().add({ title: '啟動失敗', description: msg, color: 'error' });
     } finally {
       starting.value = false;
     }
@@ -225,7 +230,12 @@ export function useJiraRunner(options: {
       rowExpanded.value = true;
       cr.startJob(jobId, jobIssues);
     } catch (error) {
-      console.error('Failed to start Claude Runner:', error);
+      const msg =
+        (error as any)?.data?.message ||
+        (error instanceof Error
+          ? error.message
+          : 'Failed to start Claude Runner');
+      useToast().add({ title: '啟動失敗', description: msg, color: 'error' });
     } finally {
       starting.value = false;
     }
