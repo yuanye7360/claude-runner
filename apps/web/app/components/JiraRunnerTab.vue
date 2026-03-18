@@ -163,7 +163,7 @@ defineExpose({
               <!-- Pulse dot when not configured -->
               <span
                 v-if="!jiraConfigured && !showConfig"
-                class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5"
+                class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5"
               >
                 <span
                   class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"
@@ -176,10 +176,10 @@ defineExpose({
             <!-- Tooltip arrow pointing to gear -->
             <div
               v-if="!jiraConfigured && !showConfig"
-              class="absolute right-0 top-full z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-gray-900 px-3 py-2 text-xs text-orange-300 shadow-lg"
+              class="absolute top-full right-0 z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-gray-900 px-3 py-2 text-xs text-orange-300 shadow-lg"
             >
               <div
-                class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-l border-t border-orange-500/30 bg-gray-900"
+                class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-t border-l border-orange-500/30 bg-gray-900"
               ></div>
               點此設定 JIRA 連線和 Repos
             </div>
@@ -222,6 +222,14 @@ defineExpose({
                 class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-2.5 py-1.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
                 placeholder="ATATT3x..."
               />
+              <div class="flex items-center gap-2">
+                <span class="shrink-0 text-xs text-gray-600">Issue Label</span>
+                <input
+                  v-model="jiraConfig.label"
+                  class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-2.5 py-1.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+                  placeholder="claude"
+                />
+              </div>
             </div>
           </div>
 

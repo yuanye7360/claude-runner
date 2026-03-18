@@ -7,9 +7,11 @@ export default defineEventHandler(async (event) => {
   if (!baseUrl || !email || !apiToken) return [];
   const creds = { baseUrl: baseUrl.replace(/\/$/, ''), email, apiToken };
 
+  const label = getHeader(event, 'x-jira-label') || 'claude';
   const query = getQuery(event);
   const jql =
-    (query.jql as string) || 'labels = "claude" ORDER BY updated DESC';
+    (query.jql as string) ||
+    `labels = "${label}" ORDER BY updated DESC`;
   const startAt = Number(query.startAt) || 0;
   const maxResults = Number(query.maxResults) || 50;
 
