@@ -13,7 +13,7 @@ vi.mock('../../utils/prisma', () => ({
 }));
 
 // Mock pr-monitor's getGhUser via a shared module mock
-const mockGetGhUser = vi.fn().mockReturnValue('yuanye7360');
+const mockGetGhUser = vi.fn().mockReturnValue('test-user');
 vi.mock('../../utils/pr-monitor', () => ({
   getGhUser: () => mockGetGhUser(),
 }));
@@ -28,7 +28,7 @@ describe('notifications.get handler', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.resetModules();
-    mockGetGhUser.mockReturnValue('yuanye7360');
+    mockGetGhUser.mockReturnValue('test-user');
     mockCount.mockResolvedValue(0);
     mockGroupBy.mockResolvedValue([]);
   });
@@ -51,7 +51,7 @@ describe('notifications.get handler', () => {
     expect(mockCount).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: expect.objectContaining({ author: 'yuanye7360' }),
+          NOT: expect.objectContaining({ author: 'test-user' }),
         }),
       }),
     );
@@ -67,7 +67,7 @@ describe('notifications.get handler', () => {
     expect(mockGroupBy).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          NOT: expect.objectContaining({ author: 'yuanye7360' }),
+          NOT: expect.objectContaining({ author: 'test-user' }),
         }),
       }),
     );
