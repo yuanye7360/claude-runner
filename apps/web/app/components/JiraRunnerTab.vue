@@ -13,8 +13,11 @@ const emit = defineEmits<{
   (e: 'prCreated', urls: string[]): void;
 }>();
 
-const { config: jiraConfig, jiraHeaders, isConfigured: jiraConfigured } =
-  useJiraConfig();
+const {
+  config: jiraConfig,
+  jiraHeaders,
+  isConfigured: jiraConfigured,
+} = useJiraConfig();
 const {
   repoConfigs,
   editingConfig,
@@ -125,7 +128,9 @@ defineExpose({
           {{ showConfig ? 'JIRA 設定' : 'JIRA Issues' }}
         </span>
         <span
-          v-if="!showConfig && !jira.loading.value && jira.issues.value.length > 0"
+          v-if="
+            !showConfig && !jira.loading.value && jira.issues.value.length > 0
+          "
           class="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400"
         >
           {{ jira.issues.value.length }}
@@ -205,13 +210,13 @@ defineExpose({
                 Repos
                 <span
                   v-if="repoConfigs.length > 0"
-                  class="ml-1 font-normal normal-case text-gray-600"
+                  class="ml-1 font-normal text-gray-600 normal-case"
                 >
                   ({{ repoConfigs.length }})
                 </span>
               </span>
               <button
-                class="rounded px-1.5 py-0.5 text-xs normal-case text-blue-400 transition-colors hover:bg-blue-500/10"
+                class="rounded px-1.5 py-0.5 text-xs text-blue-400 normal-case transition-colors hover:bg-blue-500/10"
                 @click="openNewRepo()"
               >
                 + 新增
@@ -297,7 +302,7 @@ defineExpose({
             class="w-full rounded-md py-1.5 text-xs font-medium transition-colors"
             :class="
               jiraConfigured
-                ? 'bg-primary-600 text-white hover:bg-primary-500'
+                ? 'bg-primary-600 hover:bg-primary-500 text-white'
                 : 'cursor-not-allowed bg-gray-800 text-gray-600'
             "
             :disabled="!jiraConfigured"
@@ -362,10 +367,7 @@ defineExpose({
           </div>
 
           <div v-else-if="jira.loadError.value" class="p-4 text-center">
-            <UIcon
-              name="i-lucide-wifi-off"
-              class="mb-2 text-xl text-red-500"
-            />
+            <UIcon name="i-lucide-wifi-off" class="mb-2 text-xl text-red-500" />
             <p class="mb-2 text-xs text-gray-500">
               {{ jira.loadError.value }}
             </p>
@@ -439,10 +441,7 @@ defineExpose({
           class="shrink-0 border-t border-gray-800 px-3 py-2"
         >
           <div class="flex items-center gap-2 text-gray-400">
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="h-4 w-4 animate-spin"
-            />
+            <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
             <span>分析中...</span>
           </div>
         </div>

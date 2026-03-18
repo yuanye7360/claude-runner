@@ -33,13 +33,13 @@ export function useOnboarding(deps: {
   const steps: OnboardingStep[] = [
     {
       id: 'jira',
-      label: '設定 JIRA 連線',
+      label: '設定 JIRA 連線（左側齒輪）',
       completed: deps.jiraConfigured,
       action: deps.openSettings,
     },
     {
       id: 'repos',
-      label: '確認 Repo 設定',
+      label: '新增 Repo（左側齒輪 → Repos）',
       completed: computed(() => deps.repoCount.value > 0),
       action: deps.openSettings,
     },

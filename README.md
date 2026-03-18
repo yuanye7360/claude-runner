@@ -48,8 +48,8 @@ Open http://localhost:5688 after setup completes.
 
 All settings are managed through the Web UI:
 
-- **GitHub Org** — Settings panel (gear icon) → GitHub section
-- **Repos** — /repos page (nav bar → Repos)
+- **JIRA 連線 & Repos** — JIRA tab 左側齒輪 icon
+- **模式 & 字體大小** — 頂部 Settings 齒輪
 
 On first startup, if a `config.yaml` exists from a previous version, it will be automatically migrated to the database and deleted.
 
