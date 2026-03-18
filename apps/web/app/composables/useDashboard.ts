@@ -202,8 +202,8 @@ export function useDashboard(jobs: Ref<HistoryEntry[]>) {
   const preset = ref<PresetRange>('all');
   const customRange = ref<DateRange | null>(null);
 
-  const dateRange: ComputedRef<DateRange | null> = computed(() =>
-    customRange.value ?? getPresetRange(preset.value),
+  const dateRange: ComputedRef<DateRange | null> = computed(
+    () => customRange.value ?? getPresetRange(preset.value),
   );
 
   const filtered = computed(() =>
