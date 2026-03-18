@@ -292,7 +292,7 @@ export default defineEventHandler(async (event) => {
       : ([repoConfig?.cwd].filter(Boolean) as string[]);
   if (repoCwds.length === 0) {
     throw new Error(
-      'No repo matched. Ensure the JIRA issue has a label matching a repo in config.yaml.',
+      'No repo matched. Ensure the JIRA issue has a label matching a repo in the Repos page.',
     );
   }
 
