@@ -167,6 +167,13 @@ onBeforeUnmount(() => {
             class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-400"
           ></span>
         </button>
+        <NuxtLink
+          to="/dashboard"
+          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
+        >
+          <UIcon name="i-lucide-chart-bar" style="font-size: 0.85em" />
+          Dashboard
+        </NuxtLink>
       </div>
 
       <!-- ── Right side controls ── -->
