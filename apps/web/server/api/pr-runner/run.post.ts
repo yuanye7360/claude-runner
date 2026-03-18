@@ -2,9 +2,8 @@ import type { RunResult } from '../../utils/jobStore';
 
 import process from 'node:process';
 
-import pty from 'node-pty';
-
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
+import { spawnClaude } from '../../utils/claude-spawn';
 import {
   createJob,
   finishJob,
@@ -184,12 +183,11 @@ export default defineEventHandler(async (event) => {
       const output = await new Promise<{ ok: boolean; text: string }>(
         (resolve) => {
           const allText: string[] = [];
-          let child: ReturnType<typeof pty.spawn>;
+          let child: ReturnType<typeof spawnClaude>;
 
           try {
-            child = pty.spawn(
-              resolveClaudeCliPath(),
-              [
+            child = spawnClaude(resolveClaudeCliPath(), {
+              args: [
                 '--dangerously-skip-permissions',
                 '--output-format',
                 'stream-json',
@@ -197,18 +195,13 @@ export default defineEventHandler(async (event) => {
                 '-p',
                 prompt,
               ],
-              {
-                cwd: repoCwd,
-                env: cleanEnv,
-                cols: 220,
-                rows: 50,
-                name: 'xterm-color',
-              },
-            );
+              cwd: repoCwd,
+              env: cleanEnv,
+            });
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            pushChunk(job, `❌ pty.spawn failed: ${msg}\n`);
-            resolve({ ok: false, text: `pty.spawn failed: ${msg}` });
+            pushChunk(job, `❌ spawn failed: ${msg}\n`);
+            resolve({ ok: false, text: `spawn failed: ${msg}` });
             return;
           }
 

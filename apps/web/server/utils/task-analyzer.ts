@@ -1,9 +1,9 @@
 // apps/web/server/utils/task-analyzer.ts
 import process from 'node:process';
 
-import pty from 'node-pty';
 import { z } from 'zod';
 
+import { spawnClaude } from './claude-spawn';
 import { getRepoLabelList } from './repo-mapping';
 
 // ─── Zod Schemas ────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export async function runTaskAnalyzer(
 
   return new Promise((resolve) => {
     const allText: string[] = [];
-    let child: ReturnType<typeof pty.spawn>;
+    let child: ReturnType<typeof spawnClaude>;
 
     const timeout = setTimeout(() => {
       try {
@@ -114,23 +114,17 @@ export async function runTaskAnalyzer(
     }, 60_000);
 
     try {
-      child = pty.spawn(
-        '/opt/homebrew/bin/claude',
-        [
+      child = spawnClaude('/opt/homebrew/bin/claude', {
+        args: [
           '--dangerously-skip-permissions',
           '--output-format',
           'stream-json',
           '-p',
           prompt,
         ],
-        {
-          cwd: process.cwd(),
-          env,
-          cols: 220,
-          rows: 50,
-          name: 'xterm-color',
-        },
-      );
+        cwd: process.cwd(),
+        env,
+      });
     } catch {
       clearTimeout(timeout);
       resolve(null);

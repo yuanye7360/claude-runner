@@ -13,9 +13,8 @@ import { join } from 'node:path';
 import process from 'node:process';
 
 import matter from 'gray-matter';
-import pty from 'node-pty';
-
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
+import { spawnClaude } from '../../utils/claude-spawn';
 import {
   buildDynamicPrompt,
   generateDynamicPhases,
@@ -144,11 +143,10 @@ function runIssue(
       ),
     );
 
-    let child: ReturnType<typeof pty.spawn>;
+    let child: ReturnType<typeof spawnClaude>;
     try {
-      child = pty.spawn(
-        resolveClaudeCliPath(),
-        [
+      child = spawnClaude(resolveClaudeCliPath(), {
+        args: [
           '--dangerously-skip-permissions',
           '--output-format',
           'stream-json',
@@ -156,22 +154,17 @@ function runIssue(
           '-p',
           buildPrompt(issue),
         ],
-        {
-          cwd: worktreePath,
-          env: cleanEnv,
-          cols: 220,
-          rows: 50,
-          name: 'xterm-color',
-        },
-      );
+        cwd: worktreePath,
+        env: cleanEnv,
+      });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       pushChunk(
         job,
-        `❌ [${tag}] pty.spawn failed: ${msg}\n`,
+        `❌ [${tag}] spawn failed: ${msg}\n`,
         repoLabel ? tag : undefined,
       );
-      resolve({ ok: false, text: `pty.spawn failed: ${msg}` });
+      resolve({ ok: false, text: `spawn failed: ${msg}` });
       return;
     }
 
