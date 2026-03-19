@@ -348,131 +348,134 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
 
-    try {
     // Execute repos in parallel
     await Promise.all(
       repoCwds.map(async (repoCwd) => {
         if (job.status === 'cancelled') return;
 
-        const repoName = repoCwd.split('/').pop() ?? repoCwd;
-        pushChunk(job, `\n📂 开始处理 repo: ${repoName}\n`);
-
-        // Fetch latest and get base branch for this repo
-        const mainBranch = getMainBranch(repoCwd);
         try {
-          execSync(`git fetch origin ${mainBranch}`, {
-            cwd: repoCwd,
-            timeout: 30_000,
-          });
-        } catch {
-          // non-fatal
-        }
+          const repoName = repoCwd.split('/').pop() ?? repoCwd;
+          pushChunk(job, `\n📂 开始处理 repo: ${repoName}\n`);
 
-        for (const issue of issues) {
-          if (job.status === 'cancelled') break;
-
-          const safeKey = (issue.key ?? 'issue').replaceAll(/[^a-z0-9]/gi, '-');
-          const worktreePath = `/tmp/cr-${jobId}-${safeKey}-${repoName}`;
-
-          // Check if a branch already exists for this ticket (e.g. task/KB2CW-123-*)
-          let existingBranch = '';
+          // Fetch latest and get base branch for this repo
+          const mainBranch = getMainBranch(repoCwd);
           try {
-            const branches = execSync(
-              `git branch -r --list "origin/task/${issue.key}-*"`,
-              { cwd: repoCwd, encoding: 'utf8', timeout: 5000 },
-            ).trim();
-            if (branches) {
-              // Use the first matching branch (strip "origin/" prefix)
-              existingBranch =
-                branches.split('\n')[0]?.trim().replace('origin/', '') ?? '';
-            }
+            execSync(`git fetch origin ${mainBranch}`, {
+              cwd: repoCwd,
+              timeout: 30_000,
+            });
           } catch {
-            // no matching branch
+            // non-fatal
           }
 
-          try {
-            if (existingBranch) {
+          for (const issue of issues) {
+            if (job.status === 'cancelled') break;
+
+            const safeKey = (issue.key ?? 'issue').replaceAll(
+              /[^a-z0-9]/gi,
+              '-',
+            );
+            const worktreePath = `/tmp/cr-${jobId}-${safeKey}-${repoName}`;
+
+            // Check if a branch already exists for this ticket (e.g. task/KB2CW-123-*)
+            let existingBranch = '';
+            try {
+              const branches = execSync(
+                `git branch -r --list "origin/task/${issue.key}-*"`,
+                { cwd: repoCwd, encoding: 'utf8', timeout: 5000 },
+              ).trim();
+              if (branches) {
+                // Use the first matching branch (strip "origin/" prefix)
+                existingBranch =
+                  branches.split('\n')[0]?.trim().replace('origin/', '') ?? '';
+              }
+            } catch {
+              // no matching branch
+            }
+
+            try {
+              if (existingBranch) {
+                pushChunk(
+                  job,
+                  `♻️ [${issue.key}@${repoName}] 使用已有分支: ${existingBranch}\n`,
+                );
+                execSync(
+                  `git worktree add "${worktreePath}" "origin/${existingBranch}"`,
+                  { cwd: repoCwd, timeout: 15_000 },
+                );
+              } else {
+                execSync(
+                  `git worktree add "${worktreePath}" "origin/${mainBranch}"`,
+                  { cwd: repoCwd, timeout: 15_000 },
+                );
+              }
+            } catch (error) {
+              const msg =
+                error instanceof Error ? error.message : String(error);
               pushChunk(
                 job,
-                `♻️ [${issue.key}@${repoName}] 使用已有分支: ${existingBranch}\n`,
+                `❌ [${issue.key}@${repoName}] Failed to create worktree: ${msg}\n`,
               );
-              execSync(
-                `git worktree add "${worktreePath}" "origin/${existingBranch}"`,
-                { cwd: repoCwd, timeout: 15_000 },
-              );
-            } else {
-              execSync(
-                `git worktree add "${worktreePath}" "origin/${mainBranch}"`,
-                { cwd: repoCwd, timeout: 15_000 },
-              );
+              const issueTag = isMultiRepo
+                ? `${issue.key}@${repoName}`
+                : (issue.key ?? '');
+              results.push({ issueKey: issueTag, error: msg });
+              continue;
             }
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            pushChunk(
-              job,
-              `❌ [${issue.key}@${repoName}] Failed to create worktree: ${msg}\n`,
-            );
-            const issueTag = isMultiRepo
-              ? `${issue.key}@${repoName}`
-              : (issue.key ?? '');
-            results.push({ issueKey: issueTag, error: msg });
-            continue;
-          }
 
-          try {
-            const issueTag = isMultiRepo
-              ? `${issue.key}@${repoName}`
-              : (issue.key ?? '');
-            // Wrap buildPrompt to append existing branch/PR context
-            const wrappedBuildPrompt = existingBranch
-              ? (i: JiraIssue) => {
-                  const base = buildPrompt(i);
-                  return `${base}\n\n⚠️ EXISTING BRANCH DETECTED: \`${existingBranch}\`\nThis ticket already has a branch (and likely an open PR). Do NOT create a new branch or PR. Instead:\n- Work on the existing branch\n- Push commits to it\n- If a PR exists, it will update automatically`;
-                }
-              : buildPrompt;
-
-            const output = await runIssue(
-              issue,
-              worktreePath,
-              job,
-              phases,
-              wrappedBuildPrompt,
-              env,
-              killFns,
-              isMultiRepo ? repoName : undefined,
-            );
-            if (job.status !== 'cancelled') {
-              const prMatch =
-                /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i.exec(
-                  output.text,
-                );
-              results.push({
-                issueKey: issueTag,
-                ...(output.ok
-                  ? { output: output.text }
-                  : { error: output.text }),
-                ...(prMatch ? { prUrl: prMatch[1] } : {}),
-              });
-            }
-          } finally {
             try {
-              execSync(`git worktree remove "${worktreePath}" --force`, {
-                cwd: repoCwd,
-                timeout: 15_000,
-              });
-            } catch {
-              // non-fatal
+              const issueTag = isMultiRepo
+                ? `${issue.key}@${repoName}`
+                : (issue.key ?? '');
+              // Wrap buildPrompt to append existing branch/PR context
+              const wrappedBuildPrompt = existingBranch
+                ? (i: JiraIssue) => {
+                    const base = buildPrompt(i);
+                    return `${base}\n\n⚠️ EXISTING BRANCH DETECTED: \`${existingBranch}\`\nThis ticket already has a branch (and likely an open PR). Do NOT create a new branch or PR. Instead:\n- Work on the existing branch\n- Push commits to it\n- If a PR exists, it will update automatically`;
+                  }
+                : buildPrompt;
+
+              const output = await runIssue(
+                issue,
+                worktreePath,
+                job,
+                phases,
+                wrappedBuildPrompt,
+                env,
+                killFns,
+                isMultiRepo ? repoName : undefined,
+              );
+              if (job.status !== 'cancelled') {
+                const prMatch =
+                  /PR:\s*(https:\/\/github\.com\/\S+\/pull\/\d+)/i.exec(
+                    output.text,
+                  );
+                results.push({
+                  issueKey: issueTag,
+                  ...(output.ok
+                    ? { output: output.text }
+                    : { error: output.text }),
+                  ...(prMatch ? { prUrl: prMatch[1] } : {}),
+                });
+              }
+            } finally {
+              try {
+                execSync(`git worktree remove "${worktreePath}" --force`, {
+                  cwd: repoCwd,
+                  timeout: 15_000,
+                });
+              } catch {
+                // non-fatal
+              }
             }
           }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error('[claude-runner] Unhandled error:', msg);
+          pushChunk(job, `\n❌ 未預期錯誤: ${msg}\n`);
         }
       }),
     );
-
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error('[claude-runner] Unhandled error:', msg);
-      pushChunk(job, `\n❌ 未預期錯誤: ${msg}\n`);
-    }
 
     if (job.status !== 'cancelled') finishJob(job, results);
   })();
