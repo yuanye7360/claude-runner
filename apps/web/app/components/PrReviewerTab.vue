@@ -5,7 +5,6 @@ const prReviewer = usePrReviewer();
 
 defineExpose({
   loadPRs: prReviewer.loadPRs,
-  loadRepos: prReviewer.loadRepos,
   loadHistory: prReviewer.loadHistory,
   loadReviewHistory: prReviewer.reviewHistory.fetch,
   reviewer: prReviewer.reviewer,

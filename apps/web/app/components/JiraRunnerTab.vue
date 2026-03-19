@@ -6,7 +6,6 @@ import {
   requestOpenSettings,
   requestResetTour,
 } from '~/composables/useOnboarding';
-import { useRepoConfigs } from '~/composables/useRepoConfigs';
 import { useTransitionDialog } from '~/composables/useTransitionDialog';
 
 const props = defineProps<{
@@ -23,9 +22,6 @@ const {
   jiraHeaders,
   isConfigured: jiraConfigured,
 } = useJiraConfig();
-const { repoConfigs, newConfig, startEditConfig, deleteConfig, validateRepo } =
-  useRepoConfigs();
-
 const jira = useJiraRunner({
   mode: toRef(props, 'mode'),
   enabledSkillNames: toRef(props, 'enabledSkillNames'),
@@ -207,15 +203,10 @@ defineExpose({
         v-if="showConfig"
         :jira-config="jiraConfig"
         :jira-configured="jiraConfigured"
-        :repo-configs="repoConfigs"
         :auto-run-enabled="autoRun.enabled.value"
         :auto-run-interval="autoRun.interval.value"
         :auto-run-loading="autoRun.loading.value"
         @update:jira-config="Object.assign(jiraConfig, $event)"
-        @new-repo="newConfig()"
-        @edit-repo="startEditConfig($event)"
-        @delete-repo="deleteConfig($event)"
-        @validate-repo="validateRepo($event)"
         @toggle-auto-run="autoRun.toggle($event)"
         @done="onDoneConfig"
       />
@@ -377,9 +368,6 @@ defineExpose({
         />
       </template>
     </div>
-
-    <!-- Repo Modal -->
-    <JiraRepoModal />
 
     <!-- Transition Dialog -->
     <JiraTransitionDialog

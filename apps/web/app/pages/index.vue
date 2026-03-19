@@ -76,7 +76,6 @@ const prTab = ref<{
 const reviewTab = ref<{
   loadHistory: () => Promise<void>;
   loadPRs: () => Promise<void>;
-  loadRepos: () => Promise<void>;
   loadReviewHistory: () => Promise<void>;
   reviewer: RunnerJob;
 }>();
@@ -94,7 +93,6 @@ onMounted(async () => {
   prTab.value?.loadPRs();
   fetchSkills();
   prTab.value?.prNotifications.startPolling();
-  reviewTab.value?.loadRepos();
   reviewTab.value?.loadHistory();
   reviewTab.value?.loadReviewHistory();
 
@@ -238,6 +236,7 @@ onBeforeUnmount(() => {
             設定指引
           </button>
         </UTooltip>
+        <RepoManager />
         <NuxtLink
           to="/skills"
           data-tour="skills"
@@ -252,6 +251,14 @@ onBeforeUnmount(() => {
             {{ enabledSkillNames.length }}
           </span>
         </NuxtLink>
+        <UTooltip text="使用指引">
+          <button
+            class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            @click="requestResetTour = true"
+          >
+            <UIcon name="i-lucide-circle-help" style="font-size: 1em" />
+          </button>
+        </UTooltip>
         <button
           class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
           :class="{ 'text-primary-400': showSettings }"

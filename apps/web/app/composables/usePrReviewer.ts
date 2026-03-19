@@ -1,5 +1,7 @@
 import type { HistoryEntry } from '~/composables/useRunnerJob';
 
+import { useRepoConfigs } from '~/composables/useRepoConfigs';
+
 interface PrItem {
   number: number;
   title: string;
@@ -42,8 +44,14 @@ export function usePrReviewer() {
     }
   }
 
-  // ── PR List ──
-  const repos = ref<Array<{ githubRepo: string; label: string }>>([]);
+  // ── PR List (repos from shared useRepoConfigs) ──
+  const { repoConfigs } = useRepoConfigs();
+  const repos = computed(() =>
+    repoConfigs.value.map((r) => ({
+      githubRepo: r.githubRepo,
+      label: r.label,
+    })),
+  );
   const selectedRepos = ref<Set<string>>(new Set());
   const prList = ref<PrItem[]>([]);
   const selected = ref<Set<string>>(new Set()); // "repoLabel#prNumber"
@@ -52,6 +60,17 @@ export function usePrReviewer() {
   const starting = ref(false);
 
   const selectedCount = computed(() => selected.value.size);
+
+  // Auto-select first repo when repos load
+  watch(
+    repos,
+    (val) => {
+      if (val.length > 0 && selectedRepos.value.size === 0 && val[0]) {
+        selectedRepos.value = new Set([val[0].label]);
+      }
+    },
+    { immediate: true },
+  );
 
   // ── Filters ──
   type StatusFilter = 'all' | 'not-reviewed' | 'outdated' | 'reviewed';
@@ -138,21 +157,6 @@ export function usePrReviewer() {
       if (key.startsWith(`${repoLabel}#`)) next.delete(key);
     }
     selected.value = next;
-  }
-
-  async function loadRepos() {
-    try {
-      const data =
-        await $fetch<Array<{ githubRepo: string; label: string }>>(
-          '/api/repos',
-        );
-      repos.value = data;
-      if (data.length > 0 && selectedRepos.value.size === 0 && data[0]) {
-        selectedRepos.value = new Set([data[0].label]);
-      }
-    } catch (error) {
-      console.error('Failed to load repos:', error);
-    }
   }
 
   function toggleRepo(label: string) {
@@ -330,11 +334,10 @@ export function usePrReviewer() {
   const reviewHistory = usePrReviewHistory();
 
   return {
-    // Repos
+    // Repos (from shared useRepoConfigs)
     repos,
     selectedRepos,
     toggleRepo,
-    loadRepos,
     // PR list
     prList,
     prListGrouped,
