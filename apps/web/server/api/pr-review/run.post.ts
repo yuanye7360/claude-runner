@@ -176,13 +176,13 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
     const pendingReviews: Array<{
-      prNumber: number;
-      prTitle: string;
-      prAuthor: string;
-      commitSha: string;
       blockers: number;
+      commitSha: string;
       majors: number;
       minors: number;
+      prAuthor: string;
+      prNumber: number;
+      prTitle: string;
       suggestions: number;
       summaryComment: null | string;
     }> = [];
@@ -374,14 +374,22 @@ export default defineEventHandler(async (event) => {
 
     if (job.status !== 'cancelled') finishJob(job, results);
 
-    // Save PrReview records after finishJob (Job row must exist for FK)
-    for (const rev of pendingReviews) {
-      try {
-        await prisma.prReview.create({
-          data: { jobId, repoLabel, ...rev },
-        });
-      } catch (dbError) {
-        console.error('[pr-review] Failed to save PrReview:', dbError);
+    // Wait for Job row to be persisted (finishJob uses fire-and-forget async)
+    if (pendingReviews.length > 0) {
+      for (let i = 0; i < 10; i++) {
+        const exists = await prisma.job.findUnique({ where: { id: jobId } });
+        if (exists) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      for (const rev of pendingReviews) {
+        try {
+          await prisma.prReview.create({
+            data: { jobId, repoLabel, ...rev },
+          });
+        } catch (dbError) {
+          console.error('[pr-review] Failed to save PrReview:', dbError);
+        }
       }
     }
   })();
