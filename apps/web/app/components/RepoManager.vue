@@ -30,7 +30,7 @@ watch(open, (v) => {
     </button>
 
     <template #content>
-      <div class="w-80 p-3">
+      <div class="w-80 rounded-xl border border-gray-700 bg-gray-900 p-3">
         <div class="mb-2 flex items-center justify-between">
           <span class="text-xs font-medium text-gray-300">Repos</span>
           <button
@@ -49,7 +49,7 @@ watch(open, (v) => {
           <div
             v-for="repo in repoConfigs"
             :key="repo.id"
-            class="group rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2 transition-colors hover:border-gray-700"
+            class="group rounded-lg border border-gray-700/50 bg-gray-800/60 px-3 py-2 transition-colors hover:border-gray-600"
           >
             <div class="flex items-center justify-between">
               <div class="min-w-0 flex-1">
