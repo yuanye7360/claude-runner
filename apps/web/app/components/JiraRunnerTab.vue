@@ -54,31 +54,38 @@ const autoRun = useAutoRun({
 
 watch(autoRun.enabled, (val) => {
   if (val) {
-    autoRun.startPoll();
+    autoRun.startPoll(connectJob);
     connectAutoRunJob();
   } else {
     autoRun.stopPoll();
   }
 });
 
+function connectJob(job: {
+  id: string;
+  issues: { key: string; summary: string }[];
+}) {
+  jira.cr.startJob(job.id, job.issues, undefined, 'auto');
+  jira.rightTab.value = 'progress';
+  jira.rowExpanded.value = true;
+  useToast().add({
+    title: '自動執行中',
+    description: job.issues.map((i) => i.key).join(', '),
+    color: 'info',
+  });
+}
+
 async function connectAutoRunJob() {
   const job = await autoRun.checkJobs();
   if (job) {
-    jira.cr.startJob(job.id, job.issues, undefined, 'auto');
-    jira.rightTab.value = 'progress';
-    jira.rowExpanded.value = true;
-    useToast().add({
-      title: '自動執行中',
-      description: job.issues.map((i) => i.key).join(', '),
-      color: 'info',
-    });
+    connectJob(job);
   }
 }
 
 onMounted(async () => {
   await autoRun.loadSettings();
   if (autoRun.enabled.value) {
-    autoRun.startPoll();
+    autoRun.startPoll(connectJob);
     connectAutoRunJob();
   }
 });

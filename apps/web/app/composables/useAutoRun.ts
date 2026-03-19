@@ -29,6 +29,7 @@ export function useAutoRun(options: {
   const isPolling = ref(false);
 
   let pollTimer: null | ReturnType<typeof setInterval> = null;
+  let onJobDetected: ((job: AutoRunJob) => void) | null = null;
 
   async function loadSettings() {
     try {
@@ -90,10 +91,18 @@ export function useAutoRun(options: {
     return null;
   }
 
-  function startPoll() {
+  async function pollAndConnect() {
+    const job = await checkJobs();
+    if (job && onJobDetected) {
+      onJobDetected(job);
+    }
+  }
+
+  function startPoll(callback?: (job: AutoRunJob) => void) {
     stopPoll();
+    if (callback) onJobDetected = callback;
     isPolling.value = true;
-    pollTimer = setInterval(checkJobs, 15_000);
+    pollTimer = setInterval(pollAndConnect, 15_000);
   }
 
   function stopPoll() {
