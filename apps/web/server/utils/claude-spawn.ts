@@ -35,6 +35,9 @@ export function spawnClaude(
     for (const cb of dataCallbacks) cb(chunk.toString());
   });
 
+  // Close stdin so the child process receives EOF and doesn't hang waiting for input
+  child.stdin.end();
+
   child.on('close', (code) => {
     for (const cb of exitCallbacks) cb({ exitCode: code ?? 1 });
   });
