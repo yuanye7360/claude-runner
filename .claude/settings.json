@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_evaluate",
+      "Bash(xargs ls:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(npx prisma:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"proceed with reset\" npx prisma migrate reset --force)",
+      "Bash(git restore:*)",
+      "Bash(git log:*)",
+      "Bash(npx nuxi:*)",
+      "Bash(npm install:*)",
+      "mcp__n8n-mcp__n8n_get_workflow",
+      "mcp__n8n-mcp__n8n_update_partial_workflow"
+    ]
+  }
+}

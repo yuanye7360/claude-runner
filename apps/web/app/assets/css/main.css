@@ -1,2 +1,65 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
+
+/* driver.js dark theme overrides */
+.cr-tour-popover.driver-popover {
+  background-color: #1a1a2e;
+  border: 1px solid #374151;
+}
+
+.cr-tour-popover.driver-popover,
+.cr-tour-popover .driver-popover-prev-btn:hover {
+  color: #e5e7eb;
+}
+
+.cr-tour-popover .driver-popover-title {
+  font-size: 0.95rem;
+  color: #f3f4f6;
+}
+
+.cr-tour-popover .driver-popover-description {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.cr-tour-popover .driver-popover-progress-text {
+  color: #6b7280;
+}
+
+.cr-tour-popover .driver-popover-arrow-side-bottom {
+  border-bottom-color: #1a1a2e;
+}
+
+.cr-tour-popover .driver-popover-arrow-side-top {
+  border-top-color: #1a1a2e;
+}
+
+.cr-tour-popover .driver-popover-arrow-side-left {
+  border-left-color: #1a1a2e;
+}
+
+.cr-tour-popover .driver-popover-arrow-side-right {
+  border-right-color: #1a1a2e;
+}
+
+.cr-tour-popover .driver-popover-prev-btn {
+  color: #9ca3af;
+  border-color: #374151;
+}
+
+.cr-tour-popover .driver-popover-prev-btn:hover {
+  border-color: #4b5563;
+}
+
+.cr-tour-popover .driver-popover-next-btn,
+.cr-tour-popover .driver-popover-close-btn-text {
+  color: #fff;
+  text-shadow: none;
+  background-color: #3b82f6;
+  border: none;
+}
+
+.cr-tour-popover .driver-popover-next-btn:hover,
+.cr-tour-popover .driver-popover-close-btn-text:hover {
+  background-color: #2563eb;
+}
