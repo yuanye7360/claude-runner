@@ -36,7 +36,9 @@ const config = ref<JiraConfig>(load());
 watch(
   config,
   (v) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(v));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(v));
+    }
   },
   { deep: true },
 );
