@@ -206,14 +206,32 @@ async function handleSendToSlack() {
                 >
               </span>
               <button
-                class="text-xs text-purple-400/70 transition-colors hover:text-purple-300"
-                :class="{
-                  'pointer-events-none opacity-50':
-                    prReviewer.reviewer.isRunning.value,
-                }"
-                @click="prReviewer.selectAllUnreviewed(repoLabel)"
+                class="text-xs transition-colors hover:text-purple-300"
+                :class="[
+                  prReviewer.reviewer.isRunning.value
+                    ? 'pointer-events-none opacity-50'
+                    : '',
+                  repoPrs.some((p: any) =>
+                    prReviewer.selected.value.has(`${repoLabel}#${p.number}`),
+                  )
+                    ? 'text-purple-400'
+                    : 'text-purple-400/70',
+                ]"
+                @click="
+                  repoPrs.some((p: any) =>
+                    prReviewer.selected.value.has(`${repoLabel}#${p.number}`),
+                  )
+                    ? prReviewer.deselectAllInRepo(repoLabel)
+                    : prReviewer.selectAllUnreviewed(repoLabel)
+                "
               >
-                全選未 review
+                {{
+                  repoPrs.some((p: any) =>
+                    prReviewer.selected.value.has(`${repoLabel}#${p.number}`),
+                  )
+                    ? '取消全選'
+                    : '全選未 review'
+                }}
               </button>
             </div>
             <div
