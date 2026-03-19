@@ -2,6 +2,7 @@
 CREATE TABLE "Job" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "type" TEXT NOT NULL DEFAULT 'claude-runner',
+    "trigger" TEXT NOT NULL DEFAULT 'manual',
     "status" TEXT NOT NULL,
     "startedAt" BIGINT NOT NULL,
     "finishedAt" BIGINT,

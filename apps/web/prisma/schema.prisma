@@ -17,6 +17,7 @@ model Job {
   analysisResult Json?
   issues         JobIssue[]
   results        JobResult[]
+  reviews        PrReview[]
 }
 
 model JobIssue {
@@ -35,6 +36,25 @@ model JobResult {
   output   String?
   error    String?
   prUrl    String?
+}
+
+model PrReview {
+  id             Int      @id @default(autoincrement())
+  jobId          String
+  job            Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  repoLabel      String
+  prNumber       Int
+  prTitle        String
+  prAuthor       String
+  commitSha      String
+  blockers       Int      @default(0)
+  majors         Int      @default(0)
+  minors         Int      @default(0)
+  suggestions    Int      @default(0)
+  summaryComment String?
+  reviewedAt     DateTime @default(now())
+
+  @@unique([repoLabel, prNumber, commitSha])
 }
 
 model PrReviewComment {

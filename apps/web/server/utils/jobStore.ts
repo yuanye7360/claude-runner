@@ -14,7 +14,7 @@ export type JobEvent =
   | { issueKey: string; label: string; phase: number; type: 'phase' }
   | { type: 'eof' };
 
-export type JobType = 'claude-runner' | 'pr-runner';
+export type JobType = 'claude-runner' | 'pr-review' | 'pr-runner';
 
 export type JobTrigger = 'auto' | 'manual';
 
