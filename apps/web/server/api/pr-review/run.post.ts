@@ -243,6 +243,12 @@ export default defineEventHandler(async (event) => {
                     break;
                   }
                   case 'result': {
+                    const resultText = (ev.result as string) ?? '';
+                    if (resultText) {
+                      text = resultText.endsWith('\n')
+                        ? resultText
+                        : `${resultText}\n`;
+                    }
                     break;
                   }
                   case 'tool_result': {
