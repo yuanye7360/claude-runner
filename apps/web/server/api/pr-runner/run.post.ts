@@ -165,10 +165,10 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
 
-    try {
-      for (const pr of prs) {
-        if (job.status === 'cancelled') break;
+    for (const pr of prs) {
+      if (job.status === 'cancelled') break;
 
+      try {
         let currentPhase = 1;
         pushPhase(
           job,
@@ -301,11 +301,12 @@ export default defineEventHandler(async (event) => {
             ...(output.ok ? { output: output.text } : { error: output.text }),
           });
         }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error(`[pr-runner] Error processing PR #${pr.number}:`, msg);
+        pushChunk(job, `\n❌ PR #${pr.number} 處理失敗: ${msg}\n`);
+        results.push({ issueKey: `#${pr.number}`, error: msg });
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error('[pr-runner] Unhandled error:', msg);
-      pushChunk(job, `\n❌ 未預期錯誤: ${msg}\n`);
     }
 
     if (job.status !== 'cancelled') finishJob(job, results);
