@@ -3,9 +3,7 @@ import type { JiraCredentials } from './jira-client';
 
 import { getSetting } from './app-settings';
 import { searchJiraIssues } from './jira-client';
-
-/** Issue keys that have already been dispatched (avoid re-triggering). */
-const dispatched = new Set<string>();
+import prisma from './prisma';
 
 export interface AutoRunCandidate {
   key: string;
@@ -57,8 +55,37 @@ export async function getStoredJiraLabels(): Promise<string[]> {
 }
 
 /**
- * Poll JIRA for issues with status "In Development" that haven't been dispatched yet.
- * Returns new candidates that should be triggered.
+ * Find issue keys that already have a successful auto-run job (status = 'done')
+ * or are currently running. These should be skipped.
+ */
+async function getCompletedOrRunningAutoRunKeys(
+  issueKeys: string[],
+): Promise<Set<string>> {
+  if (issueKeys.length === 0) return new Set();
+
+  // Check DB for completed successful auto-run jobs
+  const dbJobs = await prisma.job.findMany({
+    where: {
+      trigger: 'auto',
+      status: { in: ['done', 'running'] },
+      issues: { some: { key: { in: issueKeys } } },
+    },
+    include: { issues: { select: { key: true } } },
+  });
+
+  const skipKeys = new Set<string>();
+  for (const job of dbJobs) {
+    for (const issue of job.issues) {
+      skipKeys.add(issue.key);
+    }
+  }
+
+  return skipKeys;
+}
+
+/**
+ * Poll JIRA for issues with status "In Development" that haven't been
+ * successfully auto-run yet. Cancelled/errored jobs will be retried.
  */
 export async function pollInDevelopmentIssues(): Promise<AutoRunCandidate[]> {
   const creds = await getStoredJiraCreds();
@@ -70,39 +97,14 @@ export async function pollInDevelopmentIssues(): Promise<AutoRunCandidate[]> {
       ? `labels = "${labels[0]}"`
       : `labels in (${labels.map((l) => `"${l}"`).join(', ')})`;
 
-  // Find issues that are "In Development" (common JIRA status name)
-  // Also try "In Progress" as fallback since status names vary
   const jql = `${labelJql} AND status = "In Development" ORDER BY updated DESC`;
-
   const result = await searchJiraIssues(creds, { jql, maxResults: 20 });
 
-  const candidates: AutoRunCandidate[] = [];
-  for (const issue of result.issues) {
-    if (!dispatched.has(issue.key)) {
-      candidates.push(issue);
-    }
-  }
+  if (result.issues.length === 0) return [];
 
-  return candidates;
-}
+  // Filter out issues that already have a successful or running auto-run job
+  const allKeys = result.issues.map((i) => i.key);
+  const skipKeys = await getCompletedOrRunningAutoRunKeys(allKeys);
 
-/**
- * Mark issue keys as dispatched so they won't be triggered again.
- */
-export function markDispatched(keys: string[]) {
-  for (const key of keys) dispatched.add(key);
-}
-
-/**
- * Clear dispatched set (for testing or reset).
- */
-export function clearDispatched() {
-  dispatched.clear();
-}
-
-/**
- * Get current dispatched keys (for debugging).
- */
-export function getDispatchedKeys(): string[] {
-  return [...dispatched];
+  return result.issues.filter((issue) => !skipKeys.has(issue.key));
 }

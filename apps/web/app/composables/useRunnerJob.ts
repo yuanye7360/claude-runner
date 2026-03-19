@@ -13,6 +13,7 @@ export interface PhaseInfo {
 
 export interface ActiveJob {
   id: string;
+  trigger?: 'auto' | 'manual';
   status:
     | 'analysing'
     | 'awaiting_input'
@@ -255,6 +256,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     jobId: string,
     issues: { key: string; summary: string }[],
     dynamicPhases?: { label: string }[],
+    trigger?: 'auto' | 'manual',
   ) {
     const phasesByIssue: Record<string, PhaseInfo[]> = {};
     for (const issue of issues) {
@@ -262,6 +264,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     }
     activeJob.value = {
       id: jobId,
+      trigger,
       status: 'running',
       startedAt: Date.now(),
       issues,

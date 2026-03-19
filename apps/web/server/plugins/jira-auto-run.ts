@@ -4,7 +4,6 @@ import {
   getStoredJiraCreds,
   getStoredJiraLabels,
   isAutoRunEnabled,
-  markDispatched,
   pollInDevelopmentIssues,
 } from '../utils/jira-auto-run';
 
@@ -33,9 +32,6 @@ export default defineNitroPlugin((nitro) => {
         console.error('[jira-auto-run] No JIRA credentials configured');
         return;
       }
-
-      // Mark as dispatched before triggering to prevent re-triggering
-      markDispatched(candidates.map((c) => c.key));
 
       // Call the run API internally
       try {

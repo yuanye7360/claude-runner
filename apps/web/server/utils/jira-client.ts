@@ -77,6 +77,70 @@ export async function searchJiraIssues(
   return { issues, total: data.total };
 }
 
+interface JiraTransition {
+  id: string;
+  name: string;
+  to: { name: string };
+}
+
+/**
+ * Get available transitions for a JIRA issue.
+ */
+export async function getJiraTransitions(
+  creds: JiraCredentials,
+  issueKey: string,
+): Promise<JiraTransition[]> {
+  const { baseUrl, email, apiToken } = creds;
+
+  const response = await fetch(
+    `${baseUrl}/rest/api/3/issue/${issueKey}/transitions`,
+    {
+      headers: {
+        Authorization: buildAuthHeader(email, apiToken),
+        Accept: 'application/json',
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`JIRA API error (${response.status}): ${errorBody}`);
+  }
+
+  const data = (await response.json()) as {
+    transitions: Array<{ id: string; name: string; to: { name: string } }>;
+  };
+  return data.transitions;
+}
+
+/**
+ * Transition a JIRA issue to a new status.
+ */
+export async function transitionJiraIssue(
+  creds: JiraCredentials,
+  issueKey: string,
+  transitionId: string,
+): Promise<void> {
+  const { baseUrl, email, apiToken } = creds;
+
+  const response = await fetch(
+    `${baseUrl}/rest/api/3/issue/${issueKey}/transitions`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: buildAuthHeader(email, apiToken),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ transition: { id: transitionId } }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`JIRA API error (${response.status}): ${errorBody}`);
+  }
+}
+
 /**
  * Get a single JIRA issue by key.
  */

@@ -125,7 +125,7 @@ async function checkAutoRunJobs() {
     if (activeJobs.length > 0 && activeJobs[0]) {
       const job = activeJobs[0];
       // Auto-connect to the running auto-triggered job
-      jira.cr.startJob(job.id, job.issues);
+      jira.cr.startJob(job.id, job.issues, undefined, 'auto');
       jira.rightTab.value = 'progress';
       jira.rowExpanded.value = true;
       useToast().add({
@@ -189,6 +189,72 @@ function onDoneConfig() {
       },
     }).catch(() => {});
   }
+}
+
+// ── Cancel auto-run → transition dialog ──
+const showTransitionDialog = ref(false);
+const cancelledIssueKeys = ref<string[]>([]);
+const transitioning = ref(false);
+
+async function handleCancel() {
+  const job = jira.cr.activeJob.value;
+  const isAutoTriggered = job?.trigger === 'auto';
+  const issueKeys = job?.issues.map((i) => i.key) ?? [];
+
+  await jira.cr.cancelJob();
+
+  if (isAutoTriggered && issueKeys.length > 0) {
+    // Strip repo suffix from multi-repo keys (e.g. "KB2CW-123@repo" → "KB2CW-123")
+    cancelledIssueKeys.value = [
+      ...new Set(issueKeys.map((k) => k.split('@')[0] ?? k)),
+    ];
+    showTransitionDialog.value = true;
+  }
+}
+
+async function transitionToOpen() {
+  transitioning.value = true;
+  try {
+    const result = await $fetch<{
+      results: Array<{ error?: string; issueKey: string; ok: boolean }>;
+    }>('/api/claude-runner/transition', {
+      method: 'POST',
+      headers: jiraHeaders(),
+      body: {
+        issueKeys: cancelledIssueKeys.value,
+        targetStatus: 'Open',
+      },
+    });
+    const failed = result.results.filter((r) => !r.ok);
+    if (failed.length > 0) {
+      useToast().add({
+        title: '部分轉換失敗',
+        description: failed.map((f) => `${f.issueKey}: ${f.error}`).join('\n'),
+        color: 'warning',
+      });
+    } else {
+      useToast().add({
+        title: '已切回 Open',
+        description: cancelledIssueKeys.value.join(', '),
+        color: 'success',
+      });
+    }
+  } catch (error) {
+    useToast().add({
+      title: '轉換失敗',
+      description: (error as Error).message,
+      color: 'error',
+    });
+  } finally {
+    transitioning.value = false;
+    showTransitionDialog.value = false;
+    cancelledIssueKeys.value = [];
+  }
+}
+
+function dismissTransitionDialog() {
+  showTransitionDialog.value = false;
+  cancelledIssueKeys.value = [];
 }
 
 // ── Label input ──
@@ -907,7 +973,7 @@ defineExpose({
         :expanded="jira.rowExpanded.value"
         :get-item-url="jira.jiraUrl"
         @update:expanded="jira.rowExpanded.value = $event"
-        @cancel="jira.cr.cancelJob"
+        @cancel="handleCancel"
       />
 
       <!-- Progress -->
@@ -1074,5 +1140,67 @@ defineExpose({
         </div>
       </div>
     </Teleport>
+
+    <!-- Auto-run cancel → transition dialog -->
+    <UModal v-model:open="showTransitionDialog">
+      <template #content>
+        <div class="p-6">
+          <div class="mb-4 flex items-center gap-3">
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10"
+            >
+              <UIcon
+                name="i-lucide-circle-alert"
+                class="text-xl text-yellow-400"
+              />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-gray-200">
+                自動任務已中斷
+              </h3>
+              <p class="text-xs text-gray-500">
+                是否將 JIRA 狀態切回 Open？避免下次輪詢重複觸發
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="mb-5 rounded-lg border border-gray-700 bg-gray-800/50 p-3"
+          >
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="key in cancelledIssueKeys"
+                :key="key"
+                class="rounded bg-gray-700 px-2 py-0.5 font-mono text-xs text-gray-300"
+              >
+                {{ key }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button
+              class="rounded-md px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-300"
+              :disabled="transitioning"
+              @click="dismissTransitionDialog"
+            >
+              不用，保持原狀態
+            </button>
+            <button
+              class="flex items-center gap-1.5 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-yellow-500 disabled:opacity-50"
+              :disabled="transitioning"
+              @click="transitionToOpen"
+            >
+              <UIcon
+                v-if="transitioning"
+                name="i-lucide-loader-2"
+                class="animate-spin"
+              />
+              切回 Open
+            </button>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
