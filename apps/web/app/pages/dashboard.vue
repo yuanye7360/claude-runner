@@ -54,9 +54,9 @@ const presetLabels: {
 ];
 
 const typeLabels: {
+  color: string;
   label: string;
   value: 'all' | 'claude-runner' | 'pr-review' | 'pr-runner';
-  color: string;
 }[] = [
   { label: '全部', value: 'all', color: 'text-white' },
   { label: 'JIRA', value: 'claude-runner', color: 'text-blue-400' },

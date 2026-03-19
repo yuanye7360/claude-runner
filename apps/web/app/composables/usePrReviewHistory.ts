@@ -47,13 +47,14 @@ export function usePrReviewHistory() {
   async function sendToSlack(channel: string, date?: string) {
     sending.value = true;
     try {
-      const result = await $fetch<{ channel: string; ok: boolean; reviewCount: number }>(
-        '/api/pr-review/send-report',
-        {
-          method: 'POST',
-          body: { channel, ...(date ? { date } : {}) },
-        },
-      );
+      const result = await $fetch<{
+        channel: string;
+        ok: boolean;
+        reviewCount: number;
+      }>('/api/pr-review/send-report', {
+        method: 'POST',
+        body: { channel, ...(date ? { date } : {}) },
+      });
       useToast().add({
         title: '已發送',
         description: `報告已發送到 ${result.channel}（${result.reviewCount} 筆 review）`,

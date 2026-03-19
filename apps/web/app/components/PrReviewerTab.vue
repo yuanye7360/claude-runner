@@ -366,9 +366,7 @@ async function handleSendToSlack() {
             發送今日 Review 報告到 Slack
           </h3>
           <div class="mb-4">
-            <label class="mb-1 block text-xs text-gray-400"
-              >Channel 名稱</label
-            >
+            <label class="mb-1 block text-xs text-gray-400">Channel 名稱</label>
             <input
               v-model="slackChannel"
               class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-purple-500 focus:outline-none"

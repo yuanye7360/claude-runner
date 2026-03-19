@@ -168,7 +168,9 @@ function goToJob(jobId: string) {
             <td class="px-4 py-2">
               <span
                 class="rounded-full px-2 py-0.5 text-xs"
-                :class="typeColor[row.jobType ?? ''] ?? 'text-gray-400 bg-gray-500/10'"
+                :class="
+                  typeColor[row.jobType ?? ''] ?? 'bg-gray-500/10 text-gray-400'
+                "
               >
                 {{ typeLabel[row.jobType ?? ''] ?? row.jobType ?? '-' }}
               </span>
