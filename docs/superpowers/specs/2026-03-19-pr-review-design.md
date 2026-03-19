@@ -186,4 +186,3 @@ New skill at `/Users/yeyuan/.claude/skills/pr-reviewer/`.
 
 - `apps/web/prisma/schema.prisma` — add PrReview model + Job relation
 - `apps/web/app/pages/index.vue` — add third tab
-- `apps/web/server/utils/skill-inject.ts` — add pr-reviewer skill mapping
