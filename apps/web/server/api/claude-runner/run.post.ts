@@ -348,6 +348,7 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
 
+    try {
     // Execute repos in parallel
     await Promise.all(
       repoCwds.map(async (repoCwd) => {
@@ -478,6 +479,11 @@ export default defineEventHandler(async (event) => {
     );
 
     if (job.status !== 'cancelled') finishJob(job, results);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      pushChunk(job, `\n❌ Job failed: ${msg}\n`);
+      finishJob(job, results);
+    }
   })();
 
   return { jobId, jobIssues };
