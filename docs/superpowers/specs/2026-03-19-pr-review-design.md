@@ -23,7 +23,7 @@ New feature in ClaudeRunner that reviews other people's PRs automatically. Claud
 model PrReview {
   id             Int      @id @default(autoincrement())
   jobId          String
-  job            Job      @relation(fields: [jobId], references: [jobId])
+  job            Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   repoLabel      String
   prNumber       Int
   prTitle        String
@@ -41,6 +41,8 @@ model PrReview {
 ```
 
 Unique constraint on `repoLabel + prNumber + commitSha` enforces deduplication at the DB level.
+
+Add `reviews PrReview[]` relation field to the existing Job model.
 
 Job type: `"pr-review"` (new value for existing Job.type field).
 
