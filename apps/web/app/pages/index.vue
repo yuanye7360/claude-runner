@@ -45,7 +45,8 @@ watch(mode, (v) => {
 const activeFeature = ref<'jira' | 'pr' | 'review'>(
   typeof localStorage === 'undefined'
     ? 'jira'
-    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr' | 'review') || 'jira',
+    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr' | 'review') ||
+        'jira',
 );
 watch(activeFeature, (v) => localStorage.setItem('cr-active-feature', v));
 
@@ -74,8 +75,8 @@ const prTab = ref<{
 }>();
 const reviewTab = ref<{
   loadHistory: () => Promise<void>;
-  loadRepos: () => Promise<void>;
   loadPRs: () => Promise<void>;
+  loadRepos: () => Promise<void>;
   reviewer: RunnerJob;
 }>();
 
@@ -355,10 +356,7 @@ onBeforeUnmount(() => {
         :cr-created-pr-urls="crCreatedPrUrls"
       />
 
-      <PrReviewerTab
-        v-show="activeFeature === 'review'"
-        ref="reviewTab"
-      />
+      <PrReviewerTab v-show="activeFeature === 'review'" ref="reviewTab" />
     </div>
   </div>
 </template>

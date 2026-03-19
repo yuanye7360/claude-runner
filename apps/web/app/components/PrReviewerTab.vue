@@ -35,9 +35,7 @@ const statusLabel: Record<string, string> = {
       >
         <span class="text-sm font-medium text-gray-300">PR Review</span>
         <span
-          v-if="
-            !prReviewer.loading.value && prReviewer.prList.value.length > 0
-          "
+          v-if="!prReviewer.loading.value && prReviewer.prList.value.length > 0"
           class="rounded-full bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-400"
         >
           {{ prReviewer.prList.value.length }}
@@ -175,7 +173,9 @@ const statusLabel: Record<string, string> = {
             prReviewer.reviewer.isRunning.value ||
             prReviewer.starting.value
           "
-          :loading="prReviewer.reviewer.isRunning.value || prReviewer.starting.value"
+          :loading="
+            prReviewer.reviewer.isRunning.value || prReviewer.starting.value
+          "
           icon="i-lucide-search-code"
           @click="prReviewer.runReview()"
         >

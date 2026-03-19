@@ -16,10 +16,18 @@ export function usePrReviewHistory() {
   const reviews = ref<PrReviewRecord[]>([]);
   const loading = ref(false);
 
-  const totalBlockers = computed(() => reviews.value.reduce((s, r) => s + r.blockers, 0));
-  const totalMajors = computed(() => reviews.value.reduce((s, r) => s + r.majors, 0));
-  const totalMinors = computed(() => reviews.value.reduce((s, r) => s + r.minors, 0));
-  const totalSuggestions = computed(() => reviews.value.reduce((s, r) => s + r.suggestions, 0));
+  const totalBlockers = computed(() =>
+    reviews.value.reduce((s, r) => s + r.blockers, 0),
+  );
+  const totalMajors = computed(() =>
+    reviews.value.reduce((s, r) => s + r.majors, 0),
+  );
+  const totalMinors = computed(() =>
+    reviews.value.reduce((s, r) => s + r.minors, 0),
+  );
+  const totalSuggestions = computed(() =>
+    reviews.value.reduce((s, r) => s + r.suggestions, 0),
+  );
 
   async function fetch(date?: string) {
     loading.value = true;
@@ -41,9 +49,17 @@ export function usePrReviewHistory() {
         { params: date ? { date } : {} },
       );
       await navigator.clipboard.writeText(markdown);
-      useToast().add({ title: '已複製', description: '每日報告已複製到剪貼簿', color: 'success' });
+      useToast().add({
+        title: '已複製',
+        description: '每日報告已複製到剪貼簿',
+        color: 'success',
+      });
     } catch (error) {
-      useToast().add({ title: '複製失敗', description: String(error), color: 'error' });
+      useToast().add({
+        title: '複製失敗',
+        description: String(error),
+        color: 'error',
+      });
     }
   }
 

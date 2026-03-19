@@ -99,7 +99,9 @@ export function usePrReviewer() {
     if (reviewer.isRunning.value || starting.value || selected.value.size === 0)
       return;
 
-    const prsToReview = prList.value.filter((p) => selected.value.has(p.number));
+    const prsToReview = prList.value.filter((p) =>
+      selected.value.has(p.number),
+    );
     if (prsToReview.length === 0) return;
 
     starting.value = true;

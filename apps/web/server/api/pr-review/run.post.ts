@@ -55,10 +55,7 @@ PR #${prNumber}
 Review the PR code and leave your findings as inline comments and a summary comment on GitHub.`.trim();
 }
 
-function fetchPrMeta(
-  prNumber: number,
-  ghRepo: string,
-): PrMeta {
+function fetchPrMeta(prNumber: number, ghRepo: string): PrMeta {
   let title: string;
   let author: string;
   let headSha: string;
@@ -281,8 +278,7 @@ export default defineEventHandler(async (event) => {
               if (next > currentPhase) {
                 currentPhase = next;
                 const phaseInfo = PHASES.find((q) => q.phase === next);
-                if (phaseInfo)
-                  pushPhase(job, next, phaseInfo.label, issueKey);
+                if (phaseInfo) pushPhase(job, next, phaseInfo.label, issueKey);
               }
             }
 
@@ -361,10 +357,7 @@ export default defineEventHandler(async (event) => {
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        console.error(
-          `[pr-review] Error reviewing PR #${pr.number}:`,
-          msg,
-        );
+        console.error(`[pr-review] Error reviewing PR #${pr.number}:`, msg);
         pushChunk(job, `\n❌ PR #${pr.number} Review 失敗: ${msg}\n`);
         results.push({ issueKey, error: msg });
       }
