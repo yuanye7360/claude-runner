@@ -40,9 +40,12 @@ export function usePrReviewer() {
   const repos = ref<Array<{ githubRepo: string; label: string }>>([]);
   const selectedRepo = ref('');
   const prList = ref<PrItem[]>([]);
+  const selected = ref<Set<number>>(new Set());
   const loading = ref(false);
   const loadError = ref('');
   const starting = ref(false);
+
+  const selectedCount = computed(() => selected.value.size);
 
   async function loadRepos() {
     try {
@@ -76,15 +79,28 @@ export function usePrReviewer() {
 
   watch(selectedRepo, () => {
     prList.value = [];
+    selected.value = new Set();
     loadPRs();
   });
 
-  // ── Run Review ──
-  async function runReview(prNumber: number) {
-    if (reviewer.isRunning.value || starting.value) return;
+  function togglePR(prNumber: number) {
+    if (reviewer.isRunning.value) return;
+    const next = new Set(selected.value);
+    if (next.has(prNumber)) {
+      next.delete(prNumber);
+    } else {
+      next.add(prNumber);
+    }
+    selected.value = next;
+  }
 
-    const pr = prList.value.find((p) => p.number === prNumber);
-    if (!pr) return;
+  // ── Run Review (batch) ──
+  async function runReview() {
+    if (reviewer.isRunning.value || starting.value || selected.value.size === 0)
+      return;
+
+    const prsToReview = prList.value.filter((p) => selected.value.has(p.number));
+    if (prsToReview.length === 0) return;
 
     starting.value = true;
     rightTab.value = 'progress';
@@ -92,29 +108,49 @@ export function usePrReviewer() {
       const result = await $fetch<{
         jobId?: string;
         message?: string;
-        skipped?: boolean;
+        skipped?: boolean | string[];
       }>('/api/pr-review/run', {
         method: 'POST',
-        body: { repoLabel: selectedRepo.value, prNumber },
+        body: {
+          repoLabel: selectedRepo.value,
+          prNumbers: prsToReview.map((p) => p.number),
+        },
       });
 
-      if (result.skipped) {
+      if (result.skipped === true) {
         useToast().add({
           title: '已跳過',
-          description: result.message ?? 'Already reviewed',
+          description: result.message ?? 'All PRs already reviewed',
           color: 'warning',
         });
         starting.value = false;
         return;
       }
 
+      if (Array.isArray(result.skipped) && result.skipped.length > 0) {
+        useToast().add({
+          title: '部分跳過',
+          description: `已跳過: ${result.skipped.join(', ')}`,
+          color: 'warning',
+        });
+      }
+
       if (result.jobId) {
-        reviewer.startJob(result.jobId, [
-          {
-            key: `#${prNumber}`,
-            summary: `${selectedRepo.value} — ${pr.title}`,
-          },
-        ]);
+        reviewer.startJob(
+          result.jobId,
+          prsToReview
+            .filter((p) => {
+              if (Array.isArray(result.skipped)) {
+                return !result.skipped.includes(`#${p.number}`);
+              }
+              return true;
+            })
+            .map((p) => ({
+              key: `#${p.number}`,
+              summary: `${selectedRepo.value} — ${p.title}`,
+            })),
+        );
+        selected.value = new Set();
       }
     } catch (error) {
       const msg =
@@ -136,9 +172,12 @@ export function usePrReviewer() {
     loadRepos,
     // PR list
     prList,
+    selected,
+    selectedCount,
     loading,
     loadError,
     loadPRs,
+    togglePR,
     // Run
     starting,
     runReview,

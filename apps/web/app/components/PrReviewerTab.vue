@@ -34,10 +34,20 @@ const statusLabel: Record<string, string> = {
         class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-800 px-4"
       >
         <span class="text-sm font-medium text-gray-300">PR Review</span>
+        <span
+          v-if="
+            !prReviewer.loading.value && prReviewer.prList.value.length > 0
+          "
+          class="rounded-full bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-400"
+        >
+          {{ prReviewer.prList.value.length }}
+        </span>
         <div class="ml-auto flex items-center gap-1">
           <button
             class="flex items-center rounded px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-            :class="{ 'pointer-events-none opacity-50': prReviewer.loading.value }"
+            :class="{
+              'pointer-events-none opacity-50': prReviewer.loading.value,
+            }"
             @click="prReviewer.loadPRs()"
           >
             <UIcon
@@ -66,6 +76,16 @@ const statusLabel: Record<string, string> = {
         </select>
       </div>
 
+      <!-- Selection count -->
+      <div
+        v-if="prReviewer.selectedCount.value"
+        class="shrink-0 border-b border-gray-800/60 px-4 py-1.5"
+      >
+        <span class="text-xs font-medium text-purple-400">
+          已選 {{ prReviewer.selectedCount.value }}
+        </span>
+      </div>
+
       <!-- PR list -->
       <div class="flex-1 overflow-y-auto">
         <div v-if="prReviewer.loading.value" class="space-y-1.5 p-2">
@@ -78,7 +98,9 @@ const statusLabel: Record<string, string> = {
 
         <div v-else-if="prReviewer.loadError.value" class="p-4 text-center">
           <UIcon name="i-lucide-wifi-off" class="mb-2 text-xl text-red-500" />
-          <p class="mb-2 text-xs text-gray-500">{{ prReviewer.loadError.value }}</p>
+          <p class="mb-2 text-xs text-gray-500">
+            {{ prReviewer.loadError.value }}
+          </p>
           <UButton size="xs" @click="prReviewer.loadPRs()">重試</UButton>
         </div>
 
@@ -88,7 +110,9 @@ const statusLabel: Record<string, string> = {
         >
           <UIcon name="i-lucide-search" class="mb-2 text-2xl" />
           <p class="text-xs">
-            {{ prReviewer.selectedRepo.value ? '沒有 Open PR' : '請先選擇 Repo' }}
+            {{
+              prReviewer.selectedRepo.value ? '沒有 Open PR' : '請先選擇 Repo'
+            }}
           </p>
         </div>
 
@@ -96,8 +120,23 @@ const statusLabel: Record<string, string> = {
           <div
             v-for="pr in prReviewer.prList.value"
             :key="pr.number"
-            class="group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-all duration-150 hover:border-gray-700/50 hover:bg-gray-800/60"
+            role="button"
+            tabindex="0"
+            class="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all duration-150"
+            :class="[
+              prReviewer.reviewer.isRunning.value
+                ? 'cursor-default opacity-70'
+                : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
+              prReviewer.selected.value.has(pr.number)
+                ? 'border-purple-500/20 bg-purple-500/5'
+                : '',
+            ]"
+            @click="prReviewer.togglePR(pr.number)"
           >
+            <UCheckbox
+              :model-value="prReviewer.selected.value.has(pr.number)"
+              class="pointer-events-none mt-0.5 shrink-0"
+            />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
                 <a
@@ -121,22 +160,33 @@ const statusLabel: Record<string, string> = {
               </p>
               <p class="mt-0.5 text-xs text-gray-600">by @{{ pr.author }}</p>
             </div>
-            <UButton
-              size="xs"
-              color="primary"
-              variant="soft"
-              :disabled="
-                prReviewer.reviewer.isRunning.value ||
-                prReviewer.starting.value ||
-                pr.reviewStatus === 'reviewed'
-              "
-              :loading="prReviewer.starting.value"
-              @click="prReviewer.runReview(pr.number)"
-            >
-              {{ pr.reviewStatus === 'reviewed' ? '已完成' : 'Review' }}
-            </UButton>
           </div>
         </div>
+      </div>
+
+      <!-- Run button (pinned to bottom) -->
+      <div class="shrink-0 border-t border-gray-800 px-3 py-2">
+        <UButton
+          class="w-full justify-center"
+          size="sm"
+          color="primary"
+          :disabled="
+            !prReviewer.selectedCount.value ||
+            prReviewer.reviewer.isRunning.value ||
+            prReviewer.starting.value
+          "
+          :loading="prReviewer.reviewer.isRunning.value || prReviewer.starting.value"
+          icon="i-lucide-search-code"
+          @click="prReviewer.runReview()"
+        >
+          {{
+            prReviewer.starting.value
+              ? '準備中...'
+              : prReviewer.reviewer.isRunning.value
+                ? 'Review 中...'
+                : `Review${prReviewer.selectedCount.value ? ` (${prReviewer.selectedCount.value})` : ''}`
+          }}
+        </UButton>
       </div>
     </div>
 
@@ -206,7 +256,7 @@ const statusLabel: Record<string, string> = {
           <UIcon name="i-lucide-search" class="text-5xl" />
           <div class="text-center">
             <p class="font-medium text-gray-600">
-              從左側選擇 PR，開始自動 Code Review
+              從左側勾選 PR，開始自動 Code Review
             </p>
             <p class="mt-1 text-xs text-gray-600">
               Claude 會分析程式碼並在 GitHub 上留下 Review 意見
@@ -217,9 +267,7 @@ const statusLabel: Record<string, string> = {
 
       <!-- History -->
       <template v-else-if="prReviewer.rightTab.value === 'history'">
-        <RunnerJobHistory
-          :history="prReviewer.history.value"
-        />
+        <RunnerJobHistory :history="prReviewer.history.value" />
       </template>
 
       <!-- Today's review summary (always visible at bottom) -->
@@ -229,7 +277,9 @@ const statusLabel: Record<string, string> = {
       >
         <div class="flex items-center justify-between px-4 py-2">
           <span class="text-xs font-medium text-gray-400">
-            今日 Review 摘要 ({{ prReviewer.reviewHistory.reviews.value.length }})
+            今日 Review 摘要 ({{
+              prReviewer.reviewHistory.reviews.value.length
+            }})
           </span>
           <UButton
             size="xs"
@@ -246,18 +296,30 @@ const statusLabel: Record<string, string> = {
             :key="review.id"
             class="flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs"
           >
-            <span class="font-mono text-blue-400">{{ review.repoLabel }}#{{ review.prNumber }}</span>
+            <span class="font-mono text-blue-400"
+              >{{ review.repoLabel }}#{{ review.prNumber }}</span
+            >
             <span class="truncate text-gray-500">{{ review.prTitle }}</span>
             <div class="ml-auto flex shrink-0 items-center gap-2">
-              <span v-if="review.blockers > 0" class="text-red-400">🔴 {{ review.blockers }}</span>
-              <span v-if="review.majors > 0" class="text-yellow-400">🟡 {{ review.majors }}</span>
-              <span v-if="review.minors > 0" class="text-green-400">🟢 {{ review.minors }}</span>
-              <span v-if="review.suggestions > 0" class="text-blue-400">💡 {{ review.suggestions }}</span>
+              <span v-if="review.blockers > 0" class="text-red-400"
+                >🔴 {{ review.blockers }}</span
+              >
+              <span v-if="review.majors > 0" class="text-yellow-400"
+                >🟡 {{ review.majors }}</span
+              >
+              <span v-if="review.minors > 0" class="text-green-400"
+                >🟢 {{ review.minors }}</span
+              >
+              <span v-if="review.suggestions > 0" class="text-blue-400"
+                >💡 {{ review.suggestions }}</span
+              >
             </div>
           </div>
         </div>
         <!-- Stats bar -->
-        <div class="flex items-center gap-4 border-t border-gray-800/50 px-4 py-2 text-xs text-gray-500">
+        <div
+          class="flex items-center gap-4 border-t border-gray-800/50 px-4 py-2 text-xs text-gray-500"
+        >
           <span>🔴 {{ prReviewer.reviewHistory.totalBlockers.value }}</span>
           <span>🟡 {{ prReviewer.reviewHistory.totalMajors.value }}</span>
           <span>🟢 {{ prReviewer.reviewHistory.totalMinors.value }}</span>

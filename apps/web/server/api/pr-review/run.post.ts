@@ -14,9 +14,16 @@ import {
 import prisma from '../../utils/prisma';
 import { getRepoByLabel } from '../../utils/repo-mapping';
 
+interface PrMeta {
+  number: number;
+  title: string;
+  author: string;
+  headSha: string;
+}
+
 interface RunRequest {
   repoLabel: string;
-  prNumber: number;
+  prNumbers: number[];
 }
 
 const PHASES = [
@@ -48,20 +55,55 @@ PR #${prNumber}
 Review the PR code and leave your findings as inline comments and a summary comment on GitHub.`.trim();
 }
 
-export default defineEventHandler(async (event) => {
-  const { repoLabel, prNumber } = await readBody<RunRequest>(event);
+function fetchPrMeta(
+  prNumber: number,
+  ghRepo: string,
+): PrMeta {
+  let title: string;
+  let author: string;
+  let headSha: string;
 
-  if (!repoLabel || !prNumber) {
+  try {
+    const raw = execSync(
+      `gh pr view ${prNumber} --repo ${ghRepo} --json title,author,headRefOid`,
+      { encoding: 'utf8', timeout: 10_000 },
+    );
+    const meta = JSON.parse(raw) as {
+      author: { login: string };
+      headRefOid: string;
+      title: string;
+    };
+    title = meta.title;
+    author = meta.author.login;
+    headSha = meta.headRefOid;
+  } catch {
+    title = `PR #${prNumber}`;
+    author = 'unknown';
+    headSha = '';
+  }
+
+  return { number: prNumber, title, author, headSha };
+}
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody<RunRequest>(event);
+  const { repoLabel } = body;
+  const prNumbers = body.prNumbers;
+
+  if (!repoLabel || !Array.isArray(prNumbers) || prNumbers.length === 0) {
     throw createError({
       statusCode: 400,
-      message: 'repoLabel and prNumber are required',
+      message: 'repoLabel and prNumbers (non-empty array) are required',
     });
   }
-  if (!Number.isInteger(prNumber) || prNumber <= 0) {
-    throw createError({
-      statusCode: 400,
-      message: `Invalid PR number: ${prNumber}`,
-    });
+
+  for (const n of prNumbers) {
+    if (!Number.isInteger(n) || n <= 0) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid PR number: ${n}`,
+      });
+    }
   }
 
   const repo = await getRepoByLabel(repoLabel);
@@ -72,63 +114,49 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Get latest commit SHA
-  let headSha: string;
-  try {
-    headSha = execSync(
-      `gh pr view ${prNumber} --repo ${repo.githubRepo} --json headRefOid -q .headRefOid`,
-      { encoding: 'utf8', timeout: 10_000 },
-    ).trim();
-  } catch {
-    throw createError({
-      statusCode: 502,
-      message: 'Failed to fetch PR head SHA',
+  // Fetch metadata for all PRs upfront
+  const prMetas = prNumbers.map((n) => fetchPrMeta(n, repo.githubRepo));
+
+  // Filter out already-reviewed PRs
+  const toReview: PrMeta[] = [];
+  const skipped: string[] = [];
+  for (const pr of prMetas) {
+    if (!pr.headSha) {
+      toReview.push(pr); // can't check dedup without SHA, let it run
+      continue;
+    }
+    const existing = await prisma.prReview.findUnique({
+      where: {
+        repoLabel_prNumber_commitSha: {
+          repoLabel,
+          prNumber: pr.number,
+          commitSha: pr.headSha,
+        },
+      },
     });
+    if (existing) {
+      skipped.push(`#${pr.number}`);
+    } else {
+      toReview.push(pr);
+    }
   }
 
-  // Check for duplicate review
-  const existing = await prisma.prReview.findUnique({
-    where: {
-      repoLabel_prNumber_commitSha: {
-        repoLabel,
-        prNumber,
-        commitSha: headSha,
-      },
-    },
-  });
-  if (existing) {
+  if (toReview.length === 0) {
     return {
       skipped: true,
-      message: `PR #${prNumber} at commit ${headSha.slice(0, 7)} already reviewed`,
+      message: `All PRs already reviewed: ${skipped.join(', ')}`,
     };
   }
 
-  // Get PR metadata
-  let prTitle: string;
-  let prAuthor: string;
-  try {
-    const meta = JSON.parse(
-      execSync(
-        `gh pr view ${prNumber} --repo ${repo.githubRepo} --json title,author`,
-        { encoding: 'utf8', timeout: 10_000 },
-      ),
-    ) as { author: { login: string }; title: string };
-    prTitle = meta.title;
-    prAuthor = meta.author.login;
-  } catch {
-    prTitle = `PR #${prNumber}`;
-    prAuthor = 'unknown';
-  }
-
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const issueKey = `#${prNumber}`;
   const job = createJob(
     jobId,
-    [{ key: issueKey, summary: `${repo.githubRepo} — ${prTitle}` }],
+    toReview.map((pr) => ({
+      key: `#${pr.number}`,
+      summary: `${repo.githubRepo} — ${pr.title}`,
+    })),
     'pr-review',
   );
-
-  const prompt = buildPrompt(repo.githubRepo, prNumber);
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -149,183 +177,201 @@ export default defineEventHandler(async (event) => {
   /* eslint-enable no-control-regex */
 
   void (async () => {
-    try {
-      let currentPhase = 1;
-      pushPhase(job, 1, PHASES[0]?.label ?? '分析 PR', issueKey);
+    const results: RunResult[] = [];
 
-      const output = await new Promise<{ ok: boolean; text: string }>(
-        (resolve) => {
-          const allText: string[] = [];
-          let child: ReturnType<typeof spawnClaude>;
+    for (const pr of toReview) {
+      if (job.status === 'cancelled') break;
 
-          try {
-            child = spawnClaude(resolveClaudeCliPath(), {
-              args: [
-                '--dangerously-skip-permissions',
-                '--output-format',
-                'stream-json',
-                '--verbose',
-                '-p',
-                prompt,
-              ],
-              cwd: repo.cwd,
-              env: cleanEnv,
-            });
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            pushChunk(job, `❌ spawn failed: ${msg}\n`);
-            resolve({ ok: false, text: `spawn failed: ${msg}` });
-            return;
-          }
+      const issueKey = `#${pr.number}`;
 
-          job.kill = () => child.kill();
-          pushChunk(job, `▶ Claude 已啟動，開始 Review PR #${prNumber}...\n`);
+      try {
+        let currentPhase = 1;
+        pushPhase(job, 1, PHASES[0]?.label ?? '分析 PR', issueKey);
 
-          let lineBuffer = '';
+        const prompt = buildPrompt(repo.githubRepo, pr.number);
 
-          function processLine(line: string) {
-            const trimmed = line.trim();
-            if (!trimmed) return;
-            let text = '';
+        const output = await new Promise<{ ok: boolean; text: string }>(
+          (resolve) => {
+            const allText: string[] = [];
+            let child: ReturnType<typeof spawnClaude>;
+
             try {
-              const ev = JSON.parse(trimmed) as Record<string, unknown>;
-              switch (ev.type) {
-                case 'assistant': {
-                  const content = (
-                    ev.message as {
-                      content: Array<{ text?: string; type: string }>;
-                    }
-                  )?.content;
-                  text =
-                    content
-                      ?.filter((c) => c.type === 'text')
-                      .map((c) => c.text ?? '')
-                      .join('') ?? '';
-                  if (text && !text.endsWith('\n')) text += '\n';
-                  break;
-                }
-                case 'result': {
-                  break;
-                }
-                case 'tool_result': {
-                  const content = ev.content as
-                    | Array<{ text?: string; type: string }>
-                    | string;
-                  text = Array.isArray(content)
-                    ? `${content
-                        .filter((c) => c.type === 'text')
+              child = spawnClaude(resolveClaudeCliPath(), {
+                args: [
+                  '--dangerously-skip-permissions',
+                  '--output-format',
+                  'stream-json',
+                  '--verbose',
+                  '-p',
+                  prompt,
+                ],
+                cwd: repo.cwd,
+                env: cleanEnv,
+              });
+            } catch (error) {
+              const msg =
+                error instanceof Error ? error.message : String(error);
+              pushChunk(job, `❌ spawn failed: ${msg}\n`);
+              resolve({ ok: false, text: `spawn failed: ${msg}` });
+              return;
+            }
+
+            job.kill = () => child.kill();
+            pushChunk(
+              job,
+              `▶ Claude 已啟動，開始 Review PR #${pr.number}...\n`,
+            );
+
+            let lineBuffer = '';
+
+            function processLine(line: string) {
+              const trimmed = line.trim();
+              if (!trimmed) return;
+              let text = '';
+              try {
+                const ev = JSON.parse(trimmed) as Record<string, unknown>;
+                switch (ev.type) {
+                  case 'assistant': {
+                    const content = (
+                      ev.message as {
+                        content: Array<{ text?: string; type: string }>;
+                      }
+                    )?.content;
+                    text =
+                      content
+                        ?.filter((c) => c.type === 'text')
                         .map((c) => c.text ?? '')
-                        .join('')}\n`
-                    : `${content as string}\n`;
-                  break;
+                        .join('') ?? '';
+                    if (text && !text.endsWith('\n')) text += '\n';
+                    break;
+                  }
+                  case 'result': {
+                    break;
+                  }
+                  case 'tool_result': {
+                    const content = ev.content as
+                      | Array<{ text?: string; type: string }>
+                      | string;
+                    text = Array.isArray(content)
+                      ? `${content
+                          .filter((c) => c.type === 'text')
+                          .map((c) => c.text ?? '')
+                          .join('')}\n`
+                      : `${content as string}\n`;
+                    break;
+                  }
+                  case 'tool_use': {
+                    const name = ev.name as string;
+                    const input = ev.input as Record<string, unknown>;
+                    const detail =
+                      name === 'Bash'
+                        ? (input.command as string)
+                        : JSON.stringify(input).slice(0, 120);
+                    text = `\n▶ ${name}: ${detail}\n`;
+                    break;
+                  }
                 }
-                case 'tool_use': {
-                  const name = ev.name as string;
-                  const input = ev.input as Record<string, unknown>;
-                  const detail =
-                    name === 'Bash'
-                      ? (input.command as string)
-                      : JSON.stringify(input).slice(0, 120);
-                  text = `\n▶ ${name}: ${detail}\n`;
-                  break;
-                }
+              } catch {
+                text = `${trimmed}\n`;
               }
-            } catch {
-              text = `${trimmed}\n`;
+              if (!text) return;
+              allText.push(text);
+              pushChunk(job, text, issueKey);
+              const next = detectPhaseTransition(text, currentPhase);
+              if (next > currentPhase) {
+                currentPhase = next;
+                const phaseInfo = PHASES.find((q) => q.phase === next);
+                if (phaseInfo)
+                  pushPhase(job, next, phaseInfo.label, issueKey);
+              }
             }
-            if (!text) return;
-            allText.push(text);
-            pushChunk(job, text);
-            const next = detectPhaseTransition(text, currentPhase);
-            if (next > currentPhase) {
-              currentPhase = next;
-              const phaseInfo = PHASES.find((q) => q.phase === next);
-              if (phaseInfo) pushPhase(job, next, phaseInfo.label, issueKey);
-            }
+
+            child.onData((data: string) => {
+              const clean = data
+                .replaceAll(ANSI_RE, '')
+                .replaceAll('\r\n', '\n')
+                .replaceAll('\r', '\n');
+              lineBuffer += clean;
+              const lines = lineBuffer.split('\n');
+              lineBuffer = lines.pop() ?? '';
+              for (const line of lines) processLine(line);
+            });
+
+            child.onExit(({ exitCode }) => {
+              if (lineBuffer.trim()) processLine(lineBuffer);
+              resolve({ text: allText.join(''), ok: exitCode === 0 });
+            });
+          },
+        );
+
+        // Parse REVIEW_RESULT from output
+        let blockers = 0;
+        let majors = 0;
+        let minors = 0;
+        let suggestions = 0;
+        let summaryComment: null | string = null;
+        const resultMatch = /REVIEW_RESULT:(\{.*\})/i.exec(output.text);
+        if (resultMatch?.[1]) {
+          try {
+            const parsed = JSON.parse(resultMatch[1]) as {
+              blockers?: number;
+              majors?: number;
+              minors?: number;
+              suggestions?: number;
+              summaryComment?: string;
+            };
+            blockers = parsed.blockers ?? 0;
+            majors = parsed.majors ?? 0;
+            minors = parsed.minors ?? 0;
+            suggestions = parsed.suggestions ?? 0;
+            summaryComment = parsed.summaryComment ?? null;
+          } catch {
+            /* ignore parse error */
           }
-
-          child.onData((data: string) => {
-            const clean = data
-              .replaceAll(ANSI_RE, '')
-              .replaceAll('\r\n', '\n')
-              .replaceAll('\r', '\n');
-            lineBuffer += clean;
-            const lines = lineBuffer.split('\n');
-            lineBuffer = lines.pop() ?? '';
-            for (const line of lines) processLine(line);
-          });
-
-          child.onExit(({ exitCode }) => {
-            if (lineBuffer.trim()) processLine(lineBuffer);
-            resolve({ text: allText.join(''), ok: exitCode === 0 });
-          });
-        },
-      );
-
-      // Parse REVIEW_RESULT from output
-      let blockers = 0;
-      let majors = 0;
-      let minors = 0;
-      let suggestions = 0;
-      let summaryComment: null | string = null;
-      const resultMatch = /REVIEW_RESULT:(\{.*\})/i.exec(output.text);
-      if (resultMatch?.[1]) {
-        try {
-          const parsed = JSON.parse(resultMatch[1]) as {
-            blockers?: number;
-            majors?: number;
-            minors?: number;
-            suggestions?: number;
-            summaryComment?: string;
-          };
-          blockers = parsed.blockers ?? 0;
-          majors = parsed.majors ?? 0;
-          minors = parsed.minors ?? 0;
-          suggestions = parsed.suggestions ?? 0;
-          summaryComment = parsed.summaryComment ?? null;
-        } catch {
-          /* ignore parse error */
         }
-      }
 
-      // Save PrReview record only when review completed successfully
-      if (resultMatch?.[1]) {
-        try {
-          await prisma.prReview.create({
-            data: {
-              jobId,
-              repoLabel,
-              prNumber,
-              prTitle,
-              prAuthor,
-              commitSha: headSha,
-              blockers,
-              majors,
-              minors,
-              suggestions,
-              summaryComment,
-            },
-          });
-        } catch (dbError) {
-          console.error('[pr-review] Failed to save PrReview:', dbError);
+        // Save PrReview record only when review completed successfully
+        if (resultMatch?.[1] && pr.headSha) {
+          try {
+            await prisma.prReview.create({
+              data: {
+                jobId,
+                repoLabel,
+                prNumber: pr.number,
+                prTitle: pr.title,
+                prAuthor: pr.author,
+                commitSha: pr.headSha,
+                blockers,
+                majors,
+                minors,
+                suggestions,
+                summaryComment,
+              },
+            });
+          } catch (dbError) {
+            console.error('[pr-review] Failed to save PrReview:', dbError);
+          }
         }
+
+        if (job.status !== 'cancelled') {
+          results.push({
+            issueKey,
+            ...(output.ok ? { output: output.text } : { error: output.text }),
+          });
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error(
+          `[pr-review] Error reviewing PR #${pr.number}:`,
+          msg,
+        );
+        pushChunk(job, `\n❌ PR #${pr.number} Review 失敗: ${msg}\n`);
+        results.push({ issueKey, error: msg });
       }
-
-      const results: RunResult[] = [
-        {
-          issueKey,
-          ...(output.ok ? { output: output.text } : { error: output.text }),
-        },
-      ];
-
-      if (job.status !== 'cancelled') finishJob(job, results);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[pr-review] Error reviewing PR #${prNumber}:`, msg);
-      pushChunk(job, `\n❌ PR #${prNumber} Review 失敗: ${msg}\n`);
-      finishJob(job, [{ issueKey, error: msg }], true, 'error');
     }
+
+    if (job.status !== 'cancelled') finishJob(job, results);
   })();
 
-  return { jobId };
+  return { jobId, skipped: skipped.length > 0 ? skipped : undefined };
 });
