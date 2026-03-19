@@ -175,6 +175,17 @@ export default defineEventHandler(async (event) => {
 
   void (async () => {
     const results: RunResult[] = [];
+    const pendingReviews: Array<{
+      prNumber: number;
+      prTitle: string;
+      prAuthor: string;
+      commitSha: string;
+      blockers: number;
+      majors: number;
+      minors: number;
+      suggestions: number;
+      summaryComment: null | string;
+    }> = [];
 
     for (const pr of toReview) {
       if (job.status === 'cancelled') break;
@@ -332,27 +343,19 @@ export default defineEventHandler(async (event) => {
           }
         }
 
-        // Save PrReview record when review completed (ok exit or has result)
+        // Queue PrReview record for saving after finishJob creates the Job row
         if ((output.ok || resultMatch?.[1]) && pr.headSha) {
-          try {
-            await prisma.prReview.create({
-              data: {
-                jobId,
-                repoLabel,
-                prNumber: pr.number,
-                prTitle: pr.title,
-                prAuthor: pr.author,
-                commitSha: pr.headSha,
-                blockers,
-                majors,
-                minors,
-                suggestions,
-                summaryComment,
-              },
-            });
-          } catch (dbError) {
-            console.error('[pr-review] Failed to save PrReview:', dbError);
-          }
+          pendingReviews.push({
+            prNumber: pr.number,
+            prTitle: pr.title,
+            prAuthor: pr.author,
+            commitSha: pr.headSha,
+            blockers,
+            majors,
+            minors,
+            suggestions,
+            summaryComment,
+          });
         }
 
         if (job.status !== 'cancelled') {
@@ -370,6 +373,17 @@ export default defineEventHandler(async (event) => {
     }
 
     if (job.status !== 'cancelled') finishJob(job, results);
+
+    // Save PrReview records after finishJob (Job row must exist for FK)
+    for (const rev of pendingReviews) {
+      try {
+        await prisma.prReview.create({
+          data: { jobId, repoLabel, ...rev },
+        });
+      } catch (dbError) {
+        console.error('[pr-review] Failed to save PrReview:', dbError);
+      }
+    }
   })();
 
   return { jobId, skipped: skipped.length > 0 ? skipped : undefined };
