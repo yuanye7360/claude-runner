@@ -321,8 +321,7 @@ async function handleSendToSlack() {
               :key="review.id"
               class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs"
             >
-              <span
-                class="shrink-0 font-mono text-blue-400"
+              <span class="shrink-0 font-mono text-blue-400"
                 >{{ review.repoLabel }}#{{ review.prNumber }}</span
               >
               <span class="min-w-0 truncate text-gray-500">{{
@@ -358,45 +357,47 @@ async function handleSendToSlack() {
         </template>
       </div>
     </div>
-  </div>
 
-  <!-- Slack send modal -->
-  <UModal v-model:open="showSlackModal">
-    <template #content>
-      <div class="p-6">
-        <h3 class="mb-4 text-sm font-semibold text-white">
-          發送今日 Review 報告到 Slack
-        </h3>
-        <div class="mb-4">
-          <label class="mb-1 block text-xs text-gray-400">Channel 名稱</label>
-          <input
-            v-model="slackChannel"
-            class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-purple-500 focus:outline-none"
-            placeholder="#channel-name"
-            @keydown.enter="handleSendToSlack"
-          />
-          <p class="mt-1 text-xs text-gray-600">
-            輸入 Slack channel 名稱，例如 #code-review
-          </p>
+    <!-- Slack send modal -->
+    <UModal v-model:open="showSlackModal">
+      <template #content>
+        <div class="p-6">
+          <h3 class="mb-4 text-sm font-semibold text-white">
+            發送今日 Review 報告到 Slack
+          </h3>
+          <div class="mb-4">
+            <label class="mb-1 block text-xs text-gray-400"
+              >Channel 名稱</label
+            >
+            <input
+              v-model="slackChannel"
+              class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-purple-500 focus:outline-none"
+              placeholder="#channel-name"
+              @keydown.enter="handleSendToSlack"
+            />
+            <p class="mt-1 text-xs text-gray-600">
+              輸入 Slack channel 名稱，例如 #code-review
+            </p>
+          </div>
+          <div class="flex justify-end gap-2">
+            <UButton size="sm" variant="ghost" @click="showSlackModal = false">
+              取消
+            </UButton>
+            <UButton
+              size="sm"
+              color="primary"
+              icon="i-lucide-send"
+              :disabled="
+                !slackChannel.trim() || prReviewer.reviewHistory.sending.value
+              "
+              :loading="prReviewer.reviewHistory.sending.value"
+              @click="handleSendToSlack"
+            >
+              發送
+            </UButton>
+          </div>
         </div>
-        <div class="flex justify-end gap-2">
-          <UButton size="sm" variant="ghost" @click="showSlackModal = false">
-            取消
-          </UButton>
-          <UButton
-            size="sm"
-            color="primary"
-            icon="i-lucide-send"
-            :disabled="
-              !slackChannel.trim() || prReviewer.reviewHistory.sending.value
-            "
-            :loading="prReviewer.reviewHistory.sending.value"
-            @click="handleSendToSlack"
-          >
-            發送
-          </UButton>
-        </div>
-      </div>
-    </template>
-  </UModal>
+      </template>
+    </UModal>
+  </div>
 </template>
