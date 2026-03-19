@@ -3,6 +3,7 @@ import process from 'node:process';
 
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import prisma from '../../utils/prisma';
+import { getAllRepos } from '../../utils/repo-mapping';
 
 interface SendReportRequest {
   channel: string;
@@ -12,47 +13,57 @@ interface SendReportRequest {
 function buildReportMarkdown(
   reviews: Array<{
     blockers: number;
-    commitSha: string;
+    githubRepo: string;
     majors: number;
     minors: number;
-    prAuthor: string;
     prNumber: number;
     prTitle: string;
     repoLabel: string;
     suggestions: number;
-    summaryComment: null | string;
   }>,
   dateStr: string,
 ): string {
   if (reviews.length === 0) {
-    return `# PR Review Daily Report — ${dateStr}\n\nNo PRs reviewed today.`;
+    return `📋 *PR Review — ${dateStr}*\n今天沒有 Review 紀錄`;
   }
 
   const totalBlockers = reviews.reduce((s, r) => s + r.blockers, 0);
   const totalMajors = reviews.reduce((s, r) => s + r.majors, 0);
-  const totalMinors = reviews.reduce((s, r) => s + r.minors, 0);
-  const totalSuggestions = reviews.reduce((s, r) => s + r.suggestions, 0);
 
   const lines: string[] = [
-    `# PR Review Daily Report — ${dateStr}`,
-    '',
-    '## Summary',
-    `- Total PRs reviewed: ${reviews.length}`,
-    `- 🔴 Blockers: ${totalBlockers} | 🟡 Majors: ${totalMajors} | 🟢 Minors: ${totalMinors} | 💡 Suggestions: ${totalSuggestions}`,
-    '',
-    '## Reviews',
+    `📋 *PR Review — ${dateStr}*  (${reviews.length} PRs)`,
   ];
 
-  for (const [i, r] of reviews.entries()) {
-    lines.push(
-      '',
-      `### ${i + 1}. ${r.repoLabel}#${r.prNumber} — ${r.prTitle}`,
-      `- **Author:** @${r.prAuthor}`,
-      `- **Commit:** ${r.commitSha.slice(0, 7)}`,
-      `- **Findings:** 🔴 ${r.blockers} | 🟡 ${r.majors} | 🟢 ${r.minors} | 💡 ${r.suggestions}`,
-    );
-    if (r.summaryComment) {
-      lines.push(`- **Key Issues:** ${r.summaryComment}`);
+  if (totalBlockers > 0 || totalMajors > 0) {
+    const parts: string[] = [];
+    if (totalBlockers > 0) parts.push(`🔴 ${totalBlockers}`);
+    if (totalMajors > 0) parts.push(`🟡 ${totalMajors}`);
+    lines.push(parts.join(' '));
+  }
+
+  // Group by repo
+  const byRepo = new Map<string, typeof reviews>();
+  for (const r of reviews) {
+    const key = r.repoLabel;
+    const arr = byRepo.get(key);
+    if (arr) {
+      arr.push(r);
+    } else {
+      byRepo.set(key, [r]);
+    }
+  }
+
+  for (const [repoLabel, repoReviews] of byRepo) {
+    lines.push('', `*${repoLabel}*`);
+    for (const r of repoReviews) {
+      const badges: string[] = [];
+      if (r.blockers > 0) badges.push(`🔴${r.blockers}`);
+      if (r.majors > 0) badges.push(`🟡${r.majors}`);
+      if (r.minors > 0) badges.push(`🟢${r.minors}`);
+      if (r.suggestions > 0) badges.push(`💡${r.suggestions}`);
+      const badgeStr = badges.length > 0 ? `  ${badges.join(' ')}` : '  ✅';
+      const prUrl = `https://github.com/${r.githubRepo}/pull/${r.prNumber}`;
+      lines.push(`• <${prUrl}|#${r.prNumber}> ${r.prTitle}${badgeStr}`);
     }
   }
 
@@ -82,8 +93,17 @@ export default defineEventHandler(async (event) => {
     orderBy: { reviewedAt: 'asc' },
   });
 
+  // Build repoLabel → githubRepo lookup
+  const allRepos = await getAllRepos();
+  const repoMap = new Map(allRepos.map((r) => [r.label, r.githubRepo]));
+
+  const enriched = reviews.map((r) => ({
+    ...r,
+    githubRepo: repoMap.get(r.repoLabel) ?? r.repoLabel,
+  }));
+
   const dateStr = targetDate.toISOString().slice(0, 10);
-  const markdown = buildReportMarkdown(reviews, dateStr);
+  const markdown = buildReportMarkdown(enriched, dateStr);
 
   // Use Claude CLI to send via Slack MCP
   const prompt = `Send the following message to the Slack channel "${channel}". Use the slack_send_message tool. Do NOT modify the message content — send it exactly as provided.

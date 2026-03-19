@@ -23,6 +23,13 @@ const statusLabel: Record<string, string> = {
   outdated: '有更新',
 };
 
+const statusFilterOptions = [
+  { label: '全部', value: 'all' as const },
+  { label: '未 review', value: 'not-reviewed' as const },
+  { label: '有更新', value: 'outdated' as const },
+  { label: '已 review', value: 'reviewed' as const },
+];
+
 // Slack send modal
 const showSlackModal = ref(false);
 const slackChannel = ref('');
@@ -72,21 +79,66 @@ async function handleSendToSlack() {
         </div>
       </div>
 
-      <!-- Repo selector -->
+      <!-- Repo selector (multi) with counts -->
       <div class="shrink-0 border-b border-gray-800/60 px-4 py-2">
-        <select
-          v-model="prReviewer.selectedRepo.value"
-          class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-300 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="" disabled>選擇 Repo</option>
-          <option
+        <div class="flex flex-wrap gap-1.5">
+          <button
             v-for="repo in prReviewer.repos.value"
             :key="repo.label"
-            :value="repo.label"
+            class="rounded-md px-2.5 py-1 text-xs transition-colors"
+            :class="
+              prReviewer.selectedRepos.value.has(repo.label)
+                ? 'bg-purple-500/20 font-medium text-purple-300'
+                : 'bg-gray-800 text-gray-500 hover:text-gray-300'
+            "
+            @click="prReviewer.toggleRepo(repo.label)"
           >
             {{ repo.label }}
-          </option>
-        </select>
+            <span
+              v-if="prReviewer.repoCount.value.get(repo.label)"
+              class="ml-0.5 opacity-60"
+            >
+              ({{ prReviewer.repoCount.value.get(repo.label) }})
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search + Filters -->
+      <div class="shrink-0 space-y-1.5 border-b border-gray-800/60 px-4 py-2">
+        <input
+          v-model="prReviewer.searchQuery.value"
+          class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-2.5 py-1.5 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+          placeholder="搜尋 JIRA 單號、PR 標題..."
+        />
+        <div class="flex items-center gap-1">
+          <button
+            v-for="opt in statusFilterOptions"
+            :key="opt.value"
+            class="shrink-0 rounded-md px-2 py-1 text-xs whitespace-nowrap transition-colors"
+            :class="
+              prReviewer.statusFilter.value === opt.value
+                ? 'bg-gray-700 font-medium text-white'
+                : 'text-gray-500 hover:text-gray-300'
+            "
+            @click="prReviewer.statusFilter.value = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+          <select
+            v-model="prReviewer.authorFilter.value"
+            class="ml-auto min-w-0 truncate rounded-md border border-gray-700 bg-gray-800/60 px-2 py-1 text-xs text-gray-300 outline-none focus:border-gray-600"
+          >
+            <option value="">全部作者</option>
+            <option
+              v-for="author in prReviewer.authors.value"
+              :key="author"
+              :value="author"
+            >
+              @{{ author }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <!-- Selection count -->
@@ -124,56 +176,93 @@ async function handleSendToSlack() {
           <UIcon name="i-lucide-search" class="mb-2 text-2xl" />
           <p class="text-xs">
             {{
-              prReviewer.selectedRepo.value ? '沒有 Open PR' : '請先選擇 Repo'
+              prReviewer.selectedRepos.value.size > 0
+                ? '沒有 Open PR'
+                : '請先選擇 Repo'
             }}
           </p>
         </div>
 
+        <div
+          v-else-if="prReviewer.filteredGrouped.value.size === 0"
+          class="p-6 text-center text-gray-600"
+        >
+          <UIcon name="i-lucide-filter-x" class="mb-2 text-2xl" />
+          <p class="text-xs">沒有符合條件的 PR</p>
+        </div>
+
         <div v-else class="space-y-1 p-2">
-          <div
-            v-for="pr in prReviewer.prList.value"
-            :key="pr.number"
-            role="button"
-            tabindex="0"
-            class="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all duration-150"
-            :class="[
-              prReviewer.reviewer.isRunning.value
-                ? 'cursor-default opacity-70'
-                : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
-              prReviewer.selected.value.has(pr.number)
-                ? 'border-purple-500/20 bg-purple-500/5'
-                : '',
-            ]"
-            @click="prReviewer.togglePR(pr.number)"
+          <template
+            v-for="[repoLabel, repoPrs] in prReviewer.filteredGrouped.value"
+            :key="repoLabel"
           >
-            <UCheckbox
-              :model-value="prReviewer.selected.value.has(pr.number)"
-              class="pointer-events-none mt-0.5 shrink-0"
-            />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <a
-                  :href="pr.htmlUrl"
-                  target="_blank"
-                  rel="noopener"
-                  class="shrink-0 font-mono text-sm font-semibold text-blue-400 underline-offset-2 hover:underline"
-                  @click.stop
+            <div
+              class="sticky top-0 z-10 flex items-center justify-between bg-gray-950/90 px-2 py-1 backdrop-blur-sm"
+            >
+              <span class="text-xs font-semibold text-gray-500">
+                {{ repoLabel }}
+                <span class="font-normal opacity-60"
+                  >({{ repoPrs.length }})</span
                 >
-                  #{{ pr.number }}
-                </a>
-                <span
-                  class="rounded-full px-2 py-0.5 text-xs"
-                  :class="statusColor[pr.reviewStatus]"
-                >
-                  {{ statusLabel[pr.reviewStatus] }}
-                </span>
-              </div>
-              <p class="mt-1 truncate text-sm leading-snug text-gray-400">
-                {{ pr.title }}
-              </p>
-              <p class="mt-0.5 text-xs text-gray-600">by @{{ pr.author }}</p>
+              </span>
+              <button
+                class="text-xs text-purple-400/70 transition-colors hover:text-purple-300"
+                :class="{
+                  'pointer-events-none opacity-50':
+                    prReviewer.reviewer.isRunning.value,
+                }"
+                @click="prReviewer.selectAllUnreviewed(repoLabel)"
+              >
+                全選未 review
+              </button>
             </div>
-          </div>
+            <div
+              v-for="pr in repoPrs"
+              :key="`${repoLabel}-${pr.number}`"
+              role="button"
+              tabindex="0"
+              class="group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all duration-150"
+              :class="[
+                prReviewer.reviewer.isRunning.value
+                  ? 'cursor-default opacity-70'
+                  : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
+                prReviewer.selected.value.has(`${repoLabel}#${pr.number}`)
+                  ? 'border-purple-500/20 bg-purple-500/5'
+                  : '',
+              ]"
+              @click="prReviewer.togglePR(repoLabel, pr.number)"
+            >
+              <UCheckbox
+                :model-value="
+                  prReviewer.selected.value.has(`${repoLabel}#${pr.number}`)
+                "
+                class="pointer-events-none mt-0.5 shrink-0"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <a
+                    :href="pr.htmlUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="shrink-0 font-mono text-sm font-semibold text-blue-400 underline-offset-2 hover:underline"
+                    @click.stop
+                  >
+                    #{{ pr.number }}
+                  </a>
+                  <span
+                    class="rounded-full px-2 py-0.5 text-xs"
+                    :class="statusColor[pr.reviewStatus]"
+                  >
+                    {{ statusLabel[pr.reviewStatus] }}
+                  </span>
+                </div>
+                <p class="mt-1 truncate text-sm leading-snug text-gray-400">
+                  {{ pr.title }}
+                </p>
+                <p class="mt-0.5 text-xs text-gray-600">by @{{ pr.author }}</p>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
 

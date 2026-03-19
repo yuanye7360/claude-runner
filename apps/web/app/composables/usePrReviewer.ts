@@ -8,6 +8,12 @@ interface PrItem {
   updatedAt: string;
   htmlUrl: string;
   reviewStatus: 'not-reviewed' | 'outdated' | 'reviewed';
+  repoLabel: string;
+}
+
+/** Unique key for a PR across repos */
+function prKey(repoLabel: string, prNumber: number): string {
+  return `${repoLabel}#${prNumber}`;
 }
 
 export function usePrReviewer() {
@@ -38,14 +44,101 @@ export function usePrReviewer() {
 
   // ── PR List ──
   const repos = ref<Array<{ githubRepo: string; label: string }>>([]);
-  const selectedRepo = ref('');
+  const selectedRepos = ref<Set<string>>(new Set());
   const prList = ref<PrItem[]>([]);
-  const selected = ref<Set<number>>(new Set());
+  const selected = ref<Set<string>>(new Set()); // "repoLabel#prNumber"
   const loading = ref(false);
   const loadError = ref('');
   const starting = ref(false);
 
   const selectedCount = computed(() => selected.value.size);
+
+  // ── Filters ──
+  type StatusFilter = 'all' | 'not-reviewed' | 'outdated' | 'reviewed';
+  const statusFilter = ref<StatusFilter>('all');
+  const searchQuery = ref('');
+  const authorFilter = ref('');
+
+  /** Unique authors from loaded PRs */
+  const authors = computed(() => {
+    const set = new Set<string>();
+    for (const pr of prList.value) set.add(pr.author);
+    return [...set].toSorted();
+  });
+
+  const filteredPrList = computed(() => {
+    let list = prList.value;
+
+    // Status filter
+    if (statusFilter.value !== 'all') {
+      list = list.filter((p) => p.reviewStatus === statusFilter.value);
+    }
+
+    // Author filter
+    if (authorFilter.value) {
+      list = list.filter((p) => p.author === authorFilter.value);
+    }
+
+    // Search (JIRA ticket, title, @author)
+    const q = searchQuery.value.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          `#${p.number}`.includes(q) ||
+          `@${p.author}`.toLowerCase().includes(q) ||
+          p.author.toLowerCase().includes(q),
+      );
+    }
+
+    return list;
+  });
+
+  /** Filtered PR list grouped by repo */
+  const filteredGrouped = computed(() => {
+    const map = new Map<string, PrItem[]>();
+    for (const pr of filteredPrList.value) {
+      const arr = map.get(pr.repoLabel);
+      if (arr) {
+        arr.push(pr);
+      } else {
+        map.set(pr.repoLabel, [pr]);
+      }
+    }
+    return map;
+  });
+
+  /** PR count per repo (unfiltered) */
+  const repoCount = computed(() => {
+    const map = new Map<string, number>();
+    for (const pr of prList.value) {
+      map.set(pr.repoLabel, (map.get(pr.repoLabel) ?? 0) + 1);
+    }
+    return map;
+  });
+
+  /** Select all unreviewed PRs in a repo */
+  function selectAllUnreviewed(repoLabel: string) {
+    if (reviewer.isRunning.value) return;
+    const next = new Set(selected.value);
+    const prs = filteredPrList.value.filter(
+      (p) => p.repoLabel === repoLabel && p.reviewStatus !== 'reviewed',
+    );
+    for (const p of prs) {
+      next.add(prKey(repoLabel, p.number));
+    }
+    selected.value = next;
+  }
+
+  /** Deselect all PRs in a repo */
+  function deselectAllInRepo(repoLabel: string) {
+    if (reviewer.isRunning.value) return;
+    const next = new Set(selected.value);
+    for (const key of next) {
+      if (key.startsWith(`${repoLabel}#`)) next.delete(key);
+    }
+    selected.value = next;
+  }
 
   async function loadRepos() {
     try {
@@ -54,22 +147,42 @@ export function usePrReviewer() {
           '/api/repos',
         );
       repos.value = data;
-      if (data.length > 0 && !selectedRepo.value && data[0]) {
-        selectedRepo.value = data[0].label;
+      if (data.length > 0 && selectedRepos.value.size === 0 && data[0]) {
+        selectedRepos.value = new Set([data[0].label]);
       }
     } catch (error) {
       console.error('Failed to load repos:', error);
     }
   }
 
+  function toggleRepo(label: string) {
+    const next = new Set(selectedRepos.value);
+    if (next.has(label)) {
+      next.delete(label);
+    } else {
+      next.add(label);
+    }
+    selectedRepos.value = next;
+  }
+
   async function loadPRs() {
-    if (!selectedRepo.value) return;
+    if (selectedRepos.value.size === 0) {
+      prList.value = [];
+      return;
+    }
     loading.value = true;
     loadError.value = '';
     try {
-      prList.value = await $fetch<PrItem[]>('/api/pr-review/prs', {
-        params: { repoLabel: selectedRepo.value },
-      });
+      const results = await Promise.all(
+        [...selectedRepos.value].map(async (repoLabel) => {
+          const prs = await $fetch<Omit<PrItem, 'repoLabel'>[]>(
+            '/api/pr-review/prs',
+            { params: { repoLabel } },
+          );
+          return prs.map((pr) => ({ ...pr, repoLabel }));
+        }),
+      );
+      prList.value = results.flat();
     } catch (error) {
       loadError.value = (error as Error).message;
     } finally {
@@ -77,82 +190,131 @@ export function usePrReviewer() {
     }
   }
 
-  watch(selectedRepo, () => {
-    prList.value = [];
-    selected.value = new Set();
+  /** Group PR list by repo for display */
+  const prListGrouped = computed(() => {
+    const map = new Map<string, PrItem[]>();
+    for (const pr of prList.value) {
+      const arr = map.get(pr.repoLabel);
+      if (arr) {
+        arr.push(pr);
+      } else {
+        map.set(pr.repoLabel, [pr]);
+      }
+    }
+    return map;
+  });
+
+  watch(selectedRepos, () => {
+    // Remove selections from deselected repos
+    const next = new Set(selected.value);
+    for (const key of next) {
+      const repo = key.split('#')[0] ?? '';
+      if (!selectedRepos.value.has(repo)) next.delete(key);
+    }
+    selected.value = next;
     loadPRs();
   });
 
-  function togglePR(prNumber: number) {
+  function togglePR(repoLabel: string, prNumber: number) {
     if (reviewer.isRunning.value) return;
+    const key = prKey(repoLabel, prNumber);
     const next = new Set(selected.value);
-    if (next.has(prNumber)) {
-      next.delete(prNumber);
+    if (next.has(key)) {
+      next.delete(key);
     } else {
-      next.add(prNumber);
+      next.add(key);
     }
     selected.value = next;
   }
 
-  // ── Run Review (batch) ──
+  // ── Run Review (batch, multi-repo) ──
   async function runReview() {
     if (reviewer.isRunning.value || starting.value || selected.value.size === 0)
       return;
 
-    const prsToReview = prList.value.filter((p) =>
-      selected.value.has(p.number),
-    );
-    if (prsToReview.length === 0) return;
+    // Group selected PRs by repo
+    const byRepo = new Map<string, PrItem[]>();
+    for (const key of selected.value) {
+      const [repo] = key.split('#');
+      const prNumber = Number(key.split('#')[1]);
+      const pr = prList.value.find(
+        (p) => p.repoLabel === repo && p.number === prNumber,
+      );
+      if (!pr) continue;
+      const arr = byRepo.get(pr.repoLabel);
+      if (arr) {
+        arr.push(pr);
+      } else {
+        byRepo.set(pr.repoLabel, [pr]);
+      }
+    }
+
+    if (byRepo.size === 0) return;
 
     starting.value = true;
     rightTab.value = 'progress';
     try {
-      const result = await $fetch<{
-        jobId?: string;
-        message?: string;
-        skipped?: boolean | string[];
-      }>('/api/pr-review/run', {
-        method: 'POST',
-        body: {
-          repoLabel: selectedRepo.value,
-          prNumbers: prsToReview.map((p) => p.number),
-        },
-      });
+      // Send one request per repo, collect jobIds
+      const allIssues: Array<{ key: string; summary: string }> = [];
+      let firstJobId: string | undefined;
+      const allSkipped: string[] = [];
 
-      if (result.skipped === true) {
-        useToast().add({
-          title: '已跳過',
-          description: result.message ?? 'All PRs already reviewed',
-          color: 'warning',
+      for (const [repoLabel, prs] of byRepo) {
+        const result = await $fetch<{
+          jobId?: string;
+          message?: string;
+          skipped?: boolean | string[];
+        }>('/api/pr-review/run', {
+          method: 'POST',
+          body: {
+            repoLabel,
+            prNumbers: prs.map((p) => p.number),
+          },
         });
-        starting.value = false;
-        return;
+
+        if (result.skipped === true) {
+          allSkipped.push(result.message ?? `${repoLabel} all skipped`);
+          continue;
+        }
+
+        if (Array.isArray(result.skipped) && result.skipped.length > 0) {
+          allSkipped.push(...result.skipped.map((s) => `${repoLabel} ${s}`));
+        }
+
+        if (result.jobId) {
+          if (!firstJobId) firstJobId = result.jobId;
+          const activePrs = prs.filter((p) => {
+            if (Array.isArray(result.skipped)) {
+              return !result.skipped.includes(`#${p.number}`);
+            }
+            return true;
+          });
+          allIssues.push(
+            ...activePrs.map((p) => ({
+              key: `#${p.number}`,
+              summary: `${repoLabel} — ${p.title}`,
+            })),
+          );
+        }
       }
 
-      if (Array.isArray(result.skipped) && result.skipped.length > 0) {
+      if (allSkipped.length > 0) {
         useToast().add({
           title: '部分跳過',
-          description: `已跳過: ${result.skipped.join(', ')}`,
+          description: allSkipped.join(', '),
           color: 'warning',
         });
       }
 
-      if (result.jobId) {
-        reviewer.startJob(
-          result.jobId,
-          prsToReview
-            .filter((p) => {
-              if (Array.isArray(result.skipped)) {
-                return !result.skipped.includes(`#${p.number}`);
-              }
-              return true;
-            })
-            .map((p) => ({
-              key: `#${p.number}`,
-              summary: `${selectedRepo.value} — ${p.title}`,
-            })),
-        );
+      if (firstJobId && allIssues.length > 0) {
+        reviewer.startJob(firstJobId, allIssues);
         selected.value = new Set();
+      } else if (allIssues.length === 0) {
+        useToast().add({
+          title: '已跳過',
+          description: '所有 PR 已經 Review 過',
+          color: 'warning',
+        });
       }
     } catch (error) {
       const msg =
@@ -170,16 +332,27 @@ export function usePrReviewer() {
   return {
     // Repos
     repos,
-    selectedRepo,
+    selectedRepos,
+    toggleRepo,
     loadRepos,
     // PR list
     prList,
+    prListGrouped,
+    filteredGrouped,
+    repoCount,
     selected,
     selectedCount,
     loading,
     loadError,
     loadPRs,
     togglePR,
+    selectAllUnreviewed,
+    deselectAllInRepo,
+    // Filters
+    statusFilter,
+    searchQuery,
+    authorFilter,
+    authors,
     // Run
     starting,
     runReview,
