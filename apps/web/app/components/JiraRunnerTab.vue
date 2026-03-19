@@ -61,7 +61,10 @@ watch(autoRun.enabled, (val) => {
   }
 });
 
-function connectJob(job: { id: string; issues: { key: string; summary: string }[] }) {
+function connectJob(job: {
+  id: string;
+  issues: { key: string; summary: string }[];
+}) {
   jira.cr.startJob(job.id, job.issues, undefined, 'auto');
   jira.rightTab.value = 'progress';
   jira.rowExpanded.value = true;
