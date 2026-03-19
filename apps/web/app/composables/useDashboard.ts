@@ -32,6 +32,7 @@ export interface ChartData {
 
 export interface DetailRow {
   jobId: string;
+  jobStatus: string;
   timestamp: number;
   issueKey: string;
   summary: string;
@@ -39,6 +40,7 @@ export interface DetailRow {
   prUrl?: string;
   error?: string;
   durationSecs?: number;
+  trigger?: 'auto' | 'manual';
 }
 
 export type Granularity = 'daily' | 'weekly';
@@ -173,10 +175,12 @@ export function computeChartData(
 export function computeDetailRows(jobs: HistoryEntry[]): DetailRow[] {
   const rows: DetailRow[] = [];
   for (const job of jobs) {
+    const resultKeys = new Set(job.results.map((r) => r.issueKey));
     for (const result of job.results) {
       const issue = job.issues.find((i) => i.key === result.issueKey);
       rows.push({
         jobId: job.id,
+        jobStatus: job.status,
         timestamp: job.timestamp,
         issueKey: result.issueKey,
         summary: issue?.summary ?? '',
@@ -184,7 +188,24 @@ export function computeDetailRows(jobs: HistoryEntry[]): DetailRow[] {
         prUrl: result.prUrl,
         error: result.error,
         durationSecs: job.durationSecs,
+        trigger: job.trigger,
       });
+    }
+    // Add rows for issues that have no result (e.g. cancelled jobs)
+    for (const issue of job.issues) {
+      if (!resultKeys.has(issue.key)) {
+        rows.push({
+          jobId: job.id,
+          jobStatus: job.status,
+          timestamp: job.timestamp,
+          issueKey: issue.key,
+          summary: issue.summary,
+          success: false,
+          error: job.status === 'cancelled' ? '已中斷' : undefined,
+          durationSecs: job.durationSecs,
+          trigger: job.trigger,
+        });
+      }
     }
   }
   return rows;

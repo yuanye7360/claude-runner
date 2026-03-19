@@ -30,11 +30,19 @@ export default defineEventHandler(async (event) => {
   });
   if (!dbJob) throw createError({ statusCode: 404, message: 'Job not found' });
 
+  const startedAt = Number(dbJob.startedAt);
+  const finishedAt = dbJob.finishedAt ? Number(dbJob.finishedAt) : undefined;
+  const durationSecs =
+    finishedAt === undefined
+      ? undefined
+      : Math.round((finishedAt - startedAt) / 1000);
+
   return {
     id: dbJob.id,
     trigger: dbJob.trigger,
     status: dbJob.status,
-    startedAt: Number(dbJob.startedAt),
+    startedAt,
+    durationSecs,
     issues: dbJob.issues.map((i) => ({ key: i.key, summary: i.summary })),
     output: dbJob.log,
     results: dbJob.results.map((r) => {

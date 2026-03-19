@@ -88,6 +88,10 @@ function sortIcon(field: typeof sortField.value): string {
   if (sortField.value !== field) return 'i-lucide-chevrons-up-down';
   return sortAsc.value ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down';
 }
+
+function goToJob(jobId: string) {
+  navigateTo(`/jobs/${jobId}`);
+}
 </script>
 
 <template>
@@ -115,6 +119,7 @@ function sortIcon(field: typeof sortField.value): string {
                 <UIcon :name="sortIcon('time')" style="font-size: 0.8em" />
               </span>
             </th>
+            <th class="px-4 py-2">觸發</th>
             <th class="px-4 py-2">Issue</th>
             <th class="px-4 py-2">Summary</th>
             <th
@@ -142,10 +147,25 @@ function sortIcon(field: typeof sortField.value): string {
           <tr
             v-for="row in pagedRows"
             :key="`${row.jobId}-${row.issueKey}`"
-            class="border-b border-gray-800/50 transition-colors hover:bg-gray-800/30"
+            class="cursor-pointer border-b border-gray-800/50 transition-colors hover:bg-gray-800/30"
+            @click="goToJob(row.jobId)"
           >
             <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
               {{ fmtTime(row.timestamp) }}
+            </td>
+            <td class="px-4 py-2">
+              <span
+                v-if="row.trigger === 'auto'"
+                class="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs text-orange-400"
+              >
+                自動
+              </span>
+              <span
+                v-else
+                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-gray-400"
+              >
+                手動
+              </span>
             </td>
             <td class="px-4 py-2">
               <a
@@ -154,6 +174,7 @@ function sortIcon(field: typeof sortField.value): string {
                 target="_blank"
                 rel="noopener"
                 class="font-mono text-xs font-semibold text-blue-400 hover:underline"
+                @click.stop
               >
                 {{ row.issueKey }}
               </a>
@@ -172,7 +193,13 @@ function sortIcon(field: typeof sortField.value): string {
             </td>
             <td class="px-4 py-2">
               <span
-                v-if="row.success"
+                v-if="row.jobStatus === 'cancelled'"
+                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-gray-400"
+              >
+                已中斷
+              </span>
+              <span
+                v-else-if="row.success"
                 class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-400"
               >
                 成功
@@ -191,6 +218,7 @@ function sortIcon(field: typeof sortField.value): string {
                 target="_blank"
                 rel="noopener"
                 class="text-blue-400 hover:underline"
+                @click.stop
               >
                 {{ row.prUrl.split('/').slice(-2).join('/') }}
               </a>
@@ -208,7 +236,7 @@ function sortIcon(field: typeof sortField.value): string {
             </td>
           </tr>
           <tr v-if="pagedRows.length === 0">
-            <td colspan="6" class="px-4 py-8 text-center text-gray-600">
+            <td colspan="7" class="px-4 py-8 text-center text-gray-600">
               {{ search ? '沒有符合的結果' : '尚無執行紀錄' }}
             </td>
           </tr>
