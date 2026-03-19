@@ -319,24 +319,27 @@ async function handleSendToSlack() {
             <div
               v-for="review in prReviewer.reviewHistory.reviews.value"
               :key="review.id"
-              class="flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs"
+              class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs"
             >
-              <span class="font-mono text-blue-400"
+              <span
+                class="shrink-0 font-mono text-blue-400"
                 >{{ review.repoLabel }}#{{ review.prNumber }}</span
               >
-              <span class="truncate text-gray-500">{{ review.prTitle }}</span>
-              <div class="ml-auto flex shrink-0 items-center gap-2">
+              <span class="min-w-0 truncate text-gray-500">{{
+                review.prTitle
+              }}</span>
+              <div class="ml-auto flex shrink-0 items-center gap-1.5">
                 <span v-if="review.blockers > 0" class="text-red-400"
-                  >🔴 {{ review.blockers }}</span
+                  >🔴{{ review.blockers }}</span
                 >
                 <span v-if="review.majors > 0" class="text-yellow-400"
-                  >🟡 {{ review.majors }}</span
+                  >🟡{{ review.majors }}</span
                 >
                 <span v-if="review.minors > 0" class="text-green-400"
-                  >🟢 {{ review.minors }}</span
+                  >🟢{{ review.minors }}</span
                 >
                 <span v-if="review.suggestions > 0" class="text-blue-400"
-                  >💡 {{ review.suggestions }}</span
+                  >💡{{ review.suggestions }}</span
                 >
               </div>
             </div>
@@ -377,18 +380,16 @@ async function handleSendToSlack() {
           </p>
         </div>
         <div class="flex justify-end gap-2">
-          <UButton
-            size="sm"
-            variant="ghost"
-            @click="showSlackModal = false"
-          >
+          <UButton size="sm" variant="ghost" @click="showSlackModal = false">
             取消
           </UButton>
           <UButton
             size="sm"
             color="primary"
             icon="i-lucide-send"
-            :disabled="!slackChannel.trim() || prReviewer.reviewHistory.sending.value"
+            :disabled="
+              !slackChannel.trim() || prReviewer.reviewHistory.sending.value
+            "
             :loading="prReviewer.reviewHistory.sending.value"
             @click="handleSendToSlack"
           >
