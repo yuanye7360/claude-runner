@@ -17,11 +17,7 @@ export function usePrReviewer() {
   const reviewer = useRunnerJob({
     storageKey: 'pr-review-active-jobId',
     apiBase: '/api/claude-runner',
-    phases: [
-      { label: '分析 PR' },
-      { label: 'Review 中' },
-      { label: '完成' },
-    ],
+    phases: [{ label: '分析 PR' }, { label: 'Review 中' }, { label: '完成' }],
     onComplete: () => {
       loadHistory();
       reviewHistory.fetch();
@@ -40,7 +36,7 @@ export function usePrReviewer() {
   }
 
   // ── PR List ──
-  const repos = ref<Array<{ label: string; githubRepo: string }>>([]);
+  const repos = ref<Array<{ githubRepo: string; label: string }>>([]);
   const selectedRepo = ref('');
   const prList = ref<PrItem[]>([]);
   const loading = ref(false);
@@ -49,11 +45,12 @@ export function usePrReviewer() {
 
   async function loadRepos() {
     try {
-      const data = await $fetch<Array<{ label: string; githubRepo: string }>>(
-        '/api/repos',
-      );
+      const data =
+        await $fetch<Array<{ githubRepo: string; label: string }>>(
+          '/api/repos',
+        );
       repos.value = data;
-      if (data.length > 0 && !selectedRepo.value) {
+      if (data.length > 0 && !selectedRepo.value && data[0]) {
         selectedRepo.value = data[0].label;
       }
     } catch (error) {
@@ -91,13 +88,14 @@ export function usePrReviewer() {
     starting.value = true;
     rightTab.value = 'progress';
     try {
-      const result = await $fetch<{ jobId?: string; skipped?: boolean; message?: string }>(
-        '/api/pr-review/run',
-        {
-          method: 'POST',
-          body: { repoLabel: selectedRepo.value, prNumber },
-        },
-      );
+      const result = await $fetch<{
+        jobId?: string;
+        message?: string;
+        skipped?: boolean;
+      }>('/api/pr-review/run', {
+        method: 'POST',
+        body: { repoLabel: selectedRepo.value, prNumber },
+      });
 
       if (result.skipped) {
         useToast().add({
@@ -110,10 +108,12 @@ export function usePrReviewer() {
       }
 
       if (result.jobId) {
-        reviewer.startJob(
-          result.jobId,
-          [{ key: `#${prNumber}`, summary: `${selectedRepo.value} — ${pr.title}` }],
-        );
+        reviewer.startJob(result.jobId, [
+          {
+            key: `#${prNumber}`,
+            summary: `${selectedRepo.value} — ${pr.title}`,
+          },
+        ]);
       }
     } catch (error) {
       const msg =

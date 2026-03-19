@@ -1,7 +1,8 @@
-import process from 'node:process';
-import { execSync } from 'node:child_process';
+import type { RunResult } from '../../utils/jobStore';
 
-import prisma from '../../utils/prisma';
+import { execSync } from 'node:child_process';
+import process from 'node:process';
+
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import { spawnClaude } from '../../utils/claude-spawn';
 import {
@@ -10,9 +11,8 @@ import {
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
+import prisma from '../../utils/prisma';
 import { getRepoByLabel } from '../../utils/repo-mapping';
-
-import type { RunResult } from '../../utils/jobStore';
 
 interface RunRequest {
   repoLabel: string;
@@ -21,7 +21,11 @@ interface RunRequest {
 
 const PHASES = [
   { phase: 1, label: '分析 PR' },
-  { phase: 2, label: 'Review 中', pattern: /gh pr comment|gh pr review|gh api.*pulls.*comments/i },
+  {
+    phase: 2,
+    label: 'Review 中',
+    pattern: /gh pr comment|gh pr review|gh api.*pulls.*comments/i,
+  },
   { phase: 3, label: '完成', pattern: /REVIEW_RESULT:/i },
 ];
 
@@ -48,15 +52,24 @@ export default defineEventHandler(async (event) => {
   const { repoLabel, prNumber } = await readBody<RunRequest>(event);
 
   if (!repoLabel || !prNumber) {
-    throw createError({ statusCode: 400, message: 'repoLabel and prNumber are required' });
+    throw createError({
+      statusCode: 400,
+      message: 'repoLabel and prNumber are required',
+    });
   }
   if (!Number.isInteger(prNumber) || prNumber <= 0) {
-    throw createError({ statusCode: 400, message: `Invalid PR number: ${prNumber}` });
+    throw createError({
+      statusCode: 400,
+      message: `Invalid PR number: ${prNumber}`,
+    });
   }
 
   const repo = await getRepoByLabel(repoLabel);
   if (!repo) {
-    throw createError({ statusCode: 404, message: `Repo "${repoLabel}" not found` });
+    throw createError({
+      statusCode: 404,
+      message: `Repo "${repoLabel}" not found`,
+    });
   }
 
   // Get latest commit SHA
@@ -67,7 +80,10 @@ export default defineEventHandler(async (event) => {
       { encoding: 'utf8', timeout: 10_000 },
     ).trim();
   } catch {
-    throw createError({ statusCode: 502, message: 'Failed to fetch PR head SHA' });
+    throw createError({
+      statusCode: 502,
+      message: 'Failed to fetch PR head SHA',
+    });
   }
 
   // Check for duplicate review
@@ -81,7 +97,10 @@ export default defineEventHandler(async (event) => {
     },
   });
   if (existing) {
-    return { skipped: true, message: `PR #${prNumber} at commit ${headSha.slice(0, 7)} already reviewed` };
+    return {
+      skipped: true,
+      message: `PR #${prNumber} at commit ${headSha.slice(0, 7)} already reviewed`,
+    };
   }
 
   // Get PR metadata
@@ -93,7 +112,7 @@ export default defineEventHandler(async (event) => {
         `gh pr view ${prNumber} --repo ${repo.githubRepo} --json title,author`,
         { encoding: 'utf8', timeout: 10_000 },
       ),
-    ) as { title: string; author: { login: string } };
+    ) as { author: { login: string }; title: string };
     prTitle = meta.title;
     prAuthor = meta.author.login;
   } catch {
@@ -248,9 +267,9 @@ export default defineEventHandler(async (event) => {
       let majors = 0;
       let minors = 0;
       let suggestions = 0;
-      let summaryComment: string | null = null;
+      let summaryComment: null | string = null;
       const resultMatch = /REVIEW_RESULT:(\{[^}]*\})/i.exec(output.text);
-      if (resultMatch) {
+      if (resultMatch?.[1]) {
         try {
           const parsed = JSON.parse(resultMatch[1]) as {
             blockers?: number;
@@ -264,7 +283,9 @@ export default defineEventHandler(async (event) => {
           minors = parsed.minors ?? 0;
           suggestions = parsed.suggestions ?? 0;
           summaryComment = parsed.summaryComment ?? null;
-        } catch { /* ignore parse error */ }
+        } catch {
+          /* ignore parse error */
+        }
       }
 
       // Save PrReview record
@@ -288,10 +309,12 @@ export default defineEventHandler(async (event) => {
         console.error('[pr-review] Failed to save PrReview:', dbError);
       }
 
-      const results: RunResult[] = [{
-        issueKey,
-        ...(output.ok ? { output: output.text } : { error: output.text }),
-      }];
+      const results: RunResult[] = [
+        {
+          issueKey,
+          ...(output.ok ? { output: output.text } : { error: output.text }),
+        },
+      ];
 
       if (job.status !== 'cancelled') finishJob(job, results);
     } catch (error) {
