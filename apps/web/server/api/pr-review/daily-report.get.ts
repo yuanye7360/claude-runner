@@ -15,7 +15,9 @@ export default defineEventHandler(async (event) => {
   });
 
   if (reviews.length === 0) {
-    return { markdown: `# PR Review Daily Report — ${targetDate.toISOString().slice(0, 10)}\n\nNo PRs reviewed today.` };
+    return {
+      markdown: `# PR Review Daily Report — ${targetDate.toISOString().slice(0, 10)}\n\nNo PRs reviewed today.`,
+    };
   }
 
   const totalBlockers = reviews.reduce((s, r) => s + r.blockers, 0);
