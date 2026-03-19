@@ -268,7 +268,7 @@ export default defineEventHandler(async (event) => {
       let minors = 0;
       let suggestions = 0;
       let summaryComment: null | string = null;
-      const resultMatch = /REVIEW_RESULT:(\{[^}]*\})/i.exec(output.text);
+      const resultMatch = /REVIEW_RESULT:(\{.*\})/i.exec(output.text);
       if (resultMatch?.[1]) {
         try {
           const parsed = JSON.parse(resultMatch[1]) as {
@@ -288,25 +288,27 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Save PrReview record
-      try {
-        await prisma.prReview.create({
-          data: {
-            jobId,
-            repoLabel,
-            prNumber,
-            prTitle,
-            prAuthor,
-            commitSha: headSha,
-            blockers,
-            majors,
-            minors,
-            suggestions,
-            summaryComment,
-          },
-        });
-      } catch (dbError) {
-        console.error('[pr-review] Failed to save PrReview:', dbError);
+      // Save PrReview record only when review completed successfully
+      if (resultMatch?.[1]) {
+        try {
+          await prisma.prReview.create({
+            data: {
+              jobId,
+              repoLabel,
+              prNumber,
+              prTitle,
+              prAuthor,
+              commitSha: headSha,
+              blockers,
+              majors,
+              minors,
+              suggestions,
+              summaryComment,
+            },
+          });
+        } catch (dbError) {
+          console.error('[pr-review] Failed to save PrReview:', dbError);
+        }
       }
 
       const results: RunResult[] = [

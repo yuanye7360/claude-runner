@@ -20,6 +20,7 @@ export function usePrReviewer() {
     phases: [{ label: '分析 PR' }, { label: 'Review 中' }, { label: '完成' }],
     onComplete: () => {
       loadHistory();
+      loadPRs();
       reviewHistory.fetch();
     },
   });
