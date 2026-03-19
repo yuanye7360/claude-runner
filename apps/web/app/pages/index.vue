@@ -77,6 +77,7 @@ const reviewTab = ref<{
   loadHistory: () => Promise<void>;
   loadPRs: () => Promise<void>;
   loadRepos: () => Promise<void>;
+  loadReviewHistory: () => Promise<void>;
   reviewer: RunnerJob;
 }>();
 
@@ -95,6 +96,7 @@ onMounted(async () => {
   prTab.value?.prNotifications.startPolling();
   reviewTab.value?.loadRepos();
   reviewTab.value?.loadHistory();
+  reviewTab.value?.loadReviewHistory();
 
   // Restore Claude Runner job
   const cr = jiraTab.value?.cr;

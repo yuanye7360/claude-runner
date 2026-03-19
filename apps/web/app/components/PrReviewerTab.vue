@@ -7,6 +7,7 @@ defineExpose({
   loadPRs: prReviewer.loadPRs,
   loadRepos: prReviewer.loadRepos,
   loadHistory: prReviewer.loadHistory,
+  loadReviewHistory: prReviewer.reviewHistory.fetch,
   reviewer: prReviewer.reviewer,
 });
 
@@ -21,6 +22,20 @@ const statusLabel: Record<string, string> = {
   reviewed: '已 review',
   outdated: '有更新',
 };
+
+// Slack send modal
+const showSlackModal = ref(false);
+const slackChannel = ref('');
+
+async function handleSendToSlack() {
+  if (!slackChannel.value.trim()) return;
+  const ok = await prReviewer.reviewHistory.sendToSlack(
+    slackChannel.value.trim(),
+  );
+  if (ok) {
+    showSlackModal.value = false;
+  }
+}
 </script>
 
 <template>
@@ -271,61 +286,116 @@ const statusLabel: Record<string, string> = {
       </template>
 
       <!-- Today's review summary (always visible at bottom) -->
-      <div
-        v-if="prReviewer.reviewHistory.reviews.value.length > 0"
-        class="shrink-0 border-t border-gray-800 bg-gray-900/50"
-      >
+      <div class="shrink-0 border-t border-gray-800 bg-gray-900/50">
         <div class="flex items-center justify-between px-4 py-2">
           <span class="text-xs font-medium text-gray-400">
-            今日 Review 摘要 ({{
-              prReviewer.reviewHistory.reviews.value.length
-            }})
+            今日 Review 摘要
+            <span v-if="prReviewer.reviewHistory.reviews.value.length > 0">
+              ({{ prReviewer.reviewHistory.reviews.value.length }})
+            </span>
           </span>
           <UButton
+            v-if="prReviewer.reviewHistory.reviews.value.length > 0"
             size="xs"
             variant="ghost"
-            icon="i-lucide-clipboard-copy"
-            @click="prReviewer.reviewHistory.copyDailyReport()"
+            icon="i-lucide-send"
+            @click="showSlackModal = true"
           >
-            匯出報告
+            發送到 Slack
           </UButton>
         </div>
-        <div class="max-h-40 overflow-y-auto px-4 pb-3">
-          <div
-            v-for="review in prReviewer.reviewHistory.reviews.value"
-            :key="review.id"
-            class="flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs"
-          >
-            <span class="font-mono text-blue-400"
-              >{{ review.repoLabel }}#{{ review.prNumber }}</span
+
+        <!-- Empty state -->
+        <div
+          v-if="prReviewer.reviewHistory.reviews.value.length === 0"
+          class="px-4 pb-3 text-center text-xs text-gray-600"
+        >
+          今天還沒有 Review 紀錄
+        </div>
+
+        <!-- Review list -->
+        <template v-else>
+          <div class="max-h-40 overflow-y-auto px-4 pb-3">
+            <div
+              v-for="review in prReviewer.reviewHistory.reviews.value"
+              :key="review.id"
+              class="flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs"
             >
-            <span class="truncate text-gray-500">{{ review.prTitle }}</span>
-            <div class="ml-auto flex shrink-0 items-center gap-2">
-              <span v-if="review.blockers > 0" class="text-red-400"
-                >🔴 {{ review.blockers }}</span
+              <span class="font-mono text-blue-400"
+                >{{ review.repoLabel }}#{{ review.prNumber }}</span
               >
-              <span v-if="review.majors > 0" class="text-yellow-400"
-                >🟡 {{ review.majors }}</span
-              >
-              <span v-if="review.minors > 0" class="text-green-400"
-                >🟢 {{ review.minors }}</span
-              >
-              <span v-if="review.suggestions > 0" class="text-blue-400"
-                >💡 {{ review.suggestions }}</span
-              >
+              <span class="truncate text-gray-500">{{ review.prTitle }}</span>
+              <div class="ml-auto flex shrink-0 items-center gap-2">
+                <span v-if="review.blockers > 0" class="text-red-400"
+                  >🔴 {{ review.blockers }}</span
+                >
+                <span v-if="review.majors > 0" class="text-yellow-400"
+                  >🟡 {{ review.majors }}</span
+                >
+                <span v-if="review.minors > 0" class="text-green-400"
+                  >🟢 {{ review.minors }}</span
+                >
+                <span v-if="review.suggestions > 0" class="text-blue-400"
+                  >💡 {{ review.suggestions }}</span
+                >
+              </div>
             </div>
           </div>
-        </div>
-        <!-- Stats bar -->
-        <div
-          class="flex items-center gap-4 border-t border-gray-800/50 px-4 py-2 text-xs text-gray-500"
-        >
-          <span>🔴 {{ prReviewer.reviewHistory.totalBlockers.value }}</span>
-          <span>🟡 {{ prReviewer.reviewHistory.totalMajors.value }}</span>
-          <span>🟢 {{ prReviewer.reviewHistory.totalMinors.value }}</span>
-          <span>💡 {{ prReviewer.reviewHistory.totalSuggestions.value }}</span>
-        </div>
+          <!-- Stats bar -->
+          <div
+            class="flex items-center gap-4 border-t border-gray-800/50 px-4 py-2 text-xs text-gray-500"
+          >
+            <span>🔴 {{ prReviewer.reviewHistory.totalBlockers.value }}</span>
+            <span>🟡 {{ prReviewer.reviewHistory.totalMajors.value }}</span>
+            <span>🟢 {{ prReviewer.reviewHistory.totalMinors.value }}</span>
+            <span
+              >💡 {{ prReviewer.reviewHistory.totalSuggestions.value }}</span
+            >
+          </div>
+        </template>
       </div>
     </div>
   </div>
+
+  <!-- Slack send modal -->
+  <UModal v-model:open="showSlackModal">
+    <template #content>
+      <div class="p-6">
+        <h3 class="mb-4 text-sm font-semibold text-white">
+          發送今日 Review 報告到 Slack
+        </h3>
+        <div class="mb-4">
+          <label class="mb-1 block text-xs text-gray-400">Channel 名稱</label>
+          <input
+            v-model="slackChannel"
+            class="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-purple-500 focus:outline-none"
+            placeholder="#channel-name"
+            @keydown.enter="handleSendToSlack"
+          />
+          <p class="mt-1 text-xs text-gray-600">
+            輸入 Slack channel 名稱，例如 #code-review
+          </p>
+        </div>
+        <div class="flex justify-end gap-2">
+          <UButton
+            size="sm"
+            variant="ghost"
+            @click="showSlackModal = false"
+          >
+            取消
+          </UButton>
+          <UButton
+            size="sm"
+            color="primary"
+            icon="i-lucide-send"
+            :disabled="!slackChannel.trim() || prReviewer.reviewHistory.sending.value"
+            :loading="prReviewer.reviewHistory.sending.value"
+            @click="handleSendToSlack"
+          >
+            發送
+          </UButton>
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>

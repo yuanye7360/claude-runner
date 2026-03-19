@@ -42,35 +42,48 @@ export function usePrReviewHistory() {
     }
   }
 
-  async function copyDailyReport(date?: string) {
+  const sending = ref(false);
+
+  async function sendToSlack(channel: string, date?: string) {
+    sending.value = true;
     try {
-      const { markdown } = await $fetch<{ markdown: string }>(
-        '/api/pr-review/daily-report',
-        { params: date ? { date } : {} },
+      const result = await $fetch<{ channel: string; ok: boolean; reviewCount: number }>(
+        '/api/pr-review/send-report',
+        {
+          method: 'POST',
+          body: { channel, ...(date ? { date } : {}) },
+        },
       );
-      await navigator.clipboard.writeText(markdown);
       useToast().add({
-        title: '已複製',
-        description: '每日報告已複製到剪貼簿',
+        title: '已發送',
+        description: `報告已發送到 ${result.channel}（${result.reviewCount} 筆 review）`,
         color: 'success',
       });
+      return true;
     } catch (error) {
+      const msg =
+        (error as any)?.data?.message ||
+        (error instanceof Error ? error.message : '發送失敗');
       useToast().add({
-        title: '複製失敗',
-        description: String(error),
+        title: '發送失敗',
+        description: msg,
         color: 'error',
       });
+      return false;
+    } finally {
+      sending.value = false;
     }
   }
 
   return {
     reviews,
     loading,
+    sending,
     totalBlockers,
     totalMajors,
     totalMinors,
     totalSuggestions,
     fetch,
-    copyDailyReport,
+    sendToSlack,
   };
 }

@@ -326,8 +326,8 @@ export default defineEventHandler(async (event) => {
           }
         }
 
-        // Save PrReview record only when review completed successfully
-        if (resultMatch?.[1] && pr.headSha) {
+        // Save PrReview record when review completed (ok exit or has result)
+        if ((output.ok || resultMatch?.[1]) && pr.headSha) {
           try {
             await prisma.prReview.create({
               data: {
