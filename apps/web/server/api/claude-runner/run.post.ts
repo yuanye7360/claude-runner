@@ -348,6 +348,7 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
 
+    try {
     // Execute repos in parallel
     await Promise.all(
       repoCwds.map(async (repoCwd) => {
@@ -466,6 +467,12 @@ export default defineEventHandler(async (event) => {
         }
       }),
     );
+
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[claude-runner] Unhandled error:', msg);
+      pushChunk(job, `\n❌ 未預期錯誤: ${msg}\n`);
+    }
 
     if (job.status !== 'cancelled') finishJob(job, results);
   })();

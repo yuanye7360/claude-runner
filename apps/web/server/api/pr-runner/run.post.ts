@@ -165,140 +165,147 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     const results: RunResult[] = [];
 
-    for (const pr of prs) {
-      if (job.status === 'cancelled') break;
+    try {
+      for (const pr of prs) {
+        if (job.status === 'cancelled') break;
 
-      let currentPhase = 1;
-      pushPhase(
-        job,
-        1,
-        PHASES[0]?.label ?? '拉取分支 & 分析 Review',
-        `#${pr.number}`,
-      );
+        let currentPhase = 1;
+        pushPhase(
+          job,
+          1,
+          PHASES[0]?.label ?? '拉取分支 & 分析 Review',
+          `#${pr.number}`,
+        );
 
-      pr.branch = await resolveBranch(pr);
-      const reviewComments = await fetchReviewComments(pr);
-      const prompt = buildPrompt(pr, reviewComments);
+        pr.branch = await resolveBranch(pr);
+        const reviewComments = await fetchReviewComments(pr);
+        const prompt = buildPrompt(pr, reviewComments);
 
-      const output = await new Promise<{ ok: boolean; text: string }>(
-        (resolve) => {
-          const allText: string[] = [];
-          let child: ReturnType<typeof spawnClaude>;
+        const output = await new Promise<{ ok: boolean; text: string }>(
+          (resolve) => {
+            const allText: string[] = [];
+            let child: ReturnType<typeof spawnClaude>;
 
-          try {
-            child = spawnClaude(resolveClaudeCliPath(), {
-              args: [
-                '--dangerously-skip-permissions',
-                '--output-format',
-                'stream-json',
-                '--verbose',
-                '-p',
-                prompt,
-              ],
-              cwd: repoCwd,
-              env: cleanEnv,
-            });
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            pushChunk(job, `❌ spawn failed: ${msg}\n`);
-            resolve({ ok: false, text: `spawn failed: ${msg}` });
-            return;
-          }
-
-          job.kill = () => child.kill();
-          pushChunk(job, `▶ Claude 已啟動，等待輸出...\n`);
-
-          let lineBuffer = '';
-
-          function processLine(line: string) {
-            const trimmed = line.trim();
-            if (!trimmed) return;
-            let text = '';
             try {
-              const ev = JSON.parse(trimmed) as Record<string, unknown>;
-              switch (ev.type) {
-                case 'assistant': {
-                  const content = (
-                    ev.message as {
-                      content: Array<{ text?: string; type: string }>;
-                    }
-                  )?.content;
-                  text =
-                    content
-                      ?.filter((c) => c.type === 'text')
-                      .map((c) => c.text ?? '')
-                      .join('') ?? '';
-                  if (text && !text.endsWith('\n')) text += '\n';
-                  break;
-                }
-                case 'result': {
-                  // Skip — result text duplicates the last assistant message
-                  break;
-                }
-                case 'tool_result': {
-                  const content = ev.content as
-                    | Array<{ text?: string; type: string }>
-                    | string;
-                  text = Array.isArray(content)
-                    ? `${content
-                        .filter((c) => c.type === 'text')
+              child = spawnClaude(resolveClaudeCliPath(), {
+                args: [
+                  '--dangerously-skip-permissions',
+                  '--output-format',
+                  'stream-json',
+                  '--verbose',
+                  '-p',
+                  prompt,
+                ],
+                cwd: repoCwd,
+                env: cleanEnv,
+              });
+            } catch (error) {
+              const msg =
+                error instanceof Error ? error.message : String(error);
+              pushChunk(job, `❌ spawn failed: ${msg}\n`);
+              resolve({ ok: false, text: `spawn failed: ${msg}` });
+              return;
+            }
+
+            job.kill = () => child.kill();
+            pushChunk(job, `▶ Claude 已啟動，等待輸出...\n`);
+
+            let lineBuffer = '';
+
+            function processLine(line: string) {
+              const trimmed = line.trim();
+              if (!trimmed) return;
+              let text = '';
+              try {
+                const ev = JSON.parse(trimmed) as Record<string, unknown>;
+                switch (ev.type) {
+                  case 'assistant': {
+                    const content = (
+                      ev.message as {
+                        content: Array<{ text?: string; type: string }>;
+                      }
+                    )?.content;
+                    text =
+                      content
+                        ?.filter((c) => c.type === 'text')
                         .map((c) => c.text ?? '')
-                        .join('')}\n`
-                    : `${content as string}\n`;
-                  break;
+                        .join('') ?? '';
+                    if (text && !text.endsWith('\n')) text += '\n';
+                    break;
+                  }
+                  case 'result': {
+                    // Skip — result text duplicates the last assistant message
+                    break;
+                  }
+                  case 'tool_result': {
+                    const content = ev.content as
+                      | Array<{ text?: string; type: string }>
+                      | string;
+                    text = Array.isArray(content)
+                      ? `${content
+                          .filter((c) => c.type === 'text')
+                          .map((c) => c.text ?? '')
+                          .join('')}\n`
+                      : `${content as string}\n`;
+                    break;
+                  }
+                  case 'tool_use': {
+                    const name = ev.name as string;
+                    const input = ev.input as Record<string, unknown>;
+                    const detail =
+                      name === 'Bash'
+                        ? (input.command as string)
+                        : JSON.stringify(input).slice(0, 120);
+                    text = `\n▶ ${name}: ${detail}\n`;
+                    break;
+                  }
+                  // No default
                 }
-                case 'tool_use': {
-                  const name = ev.name as string;
-                  const input = ev.input as Record<string, unknown>;
-                  const detail =
-                    name === 'Bash'
-                      ? (input.command as string)
-                      : JSON.stringify(input).slice(0, 120);
-                  text = `\n▶ ${name}: ${detail}\n`;
-                  break;
-                }
-                // No default
+              } catch {
+                text = `${trimmed}\n`;
               }
-            } catch {
-              text = `${trimmed}\n`;
+              if (!text) return;
+              allText.push(text);
+              pushChunk(job, text);
+              const next = detectPhaseTransition(text, currentPhase);
+              if (next > currentPhase) {
+                currentPhase = next;
+                const phaseInfo = PHASES.find((q) => q.phase === next);
+                if (phaseInfo)
+                  pushPhase(job, next, phaseInfo.label, `#${pr.number}`);
+              }
             }
-            if (!text) return;
-            allText.push(text);
-            pushChunk(job, text);
-            const next = detectPhaseTransition(text, currentPhase);
-            if (next > currentPhase) {
-              currentPhase = next;
-              const phaseInfo = PHASES.find((q) => q.phase === next);
-              if (phaseInfo)
-                pushPhase(job, next, phaseInfo.label, `#${pr.number}`);
-            }
-          }
 
-          child.onData((data: string) => {
-            const clean = data
-              .replaceAll(ANSI_RE, '')
-              .replaceAll('\r\n', '\n')
-              .replaceAll('\r', '\n');
-            lineBuffer += clean;
-            const lines = lineBuffer.split('\n');
-            lineBuffer = lines.pop() ?? '';
-            for (const line of lines) processLine(line);
+            child.onData((data: string) => {
+              const clean = data
+                .replaceAll(ANSI_RE, '')
+                .replaceAll('\r\n', '\n')
+                .replaceAll('\r', '\n');
+              lineBuffer += clean;
+              const lines = lineBuffer.split('\n');
+              lineBuffer = lines.pop() ?? '';
+              for (const line of lines) processLine(line);
+            });
+
+            child.onExit(({ exitCode }) => {
+              if (lineBuffer.trim()) processLine(lineBuffer);
+              resolve({ text: allText.join(''), ok: exitCode === 0 });
+            });
+          },
+        );
+
+        if (job.status !== 'cancelled') {
+          results.push({
+            issueKey: `#${pr.number}`,
+            prUrl: pr.html_url,
+            ...(output.ok ? { output: output.text } : { error: output.text }),
           });
-
-          child.onExit(({ exitCode }) => {
-            if (lineBuffer.trim()) processLine(lineBuffer);
-            resolve({ text: allText.join(''), ok: exitCode === 0 });
-          });
-        },
-      );
-
-      if (job.status !== 'cancelled') {
-        results.push({
-          issueKey: `#${pr.number}`,
-          prUrl: pr.html_url,
-          ...(output.ok ? { output: output.text } : { error: output.text }),
-        });
+        }
       }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[pr-runner] Unhandled error:', msg);
+      pushChunk(job, `\n❌ 未預期錯誤: ${msg}\n`);
     }
 
     if (job.status !== 'cancelled') finishJob(job, results);
