@@ -42,10 +42,11 @@ watch(mode, (v) => {
 });
 
 // ── Top-level tab ───────────────────────────────────────
-const activeFeature = ref<'jira' | 'pr'>(
+const activeFeature = ref<'jira' | 'pr' | 'review'>(
   typeof localStorage === 'undefined'
     ? 'jira'
-    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr') || 'jira',
+    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr' | 'review') ||
+        'jira',
 );
 watch(activeFeature, (v) => localStorage.setItem('cr-active-feature', v));
 
@@ -72,6 +73,12 @@ const prTab = ref<{
   prNotifications: PrNotifs;
   prsWithNotifications: { value: number };
 }>();
+const reviewTab = ref<{
+  loadHistory: () => Promise<void>;
+  loadPRs: () => Promise<void>;
+  loadReviewHistory: () => Promise<void>;
+  reviewer: RunnerJob;
+}>();
 
 function onPrCreated(urls: string[]) {
   crCreatedPrUrls.value = urls;
@@ -86,6 +93,8 @@ onMounted(async () => {
   prTab.value?.loadPRs();
   fetchSkills();
   prTab.value?.prNotifications.startPolling();
+  reviewTab.value?.loadHistory();
+  reviewTab.value?.loadReviewHistory();
 
   // Restore Claude Runner job
   const cr = jiraTab.value?.cr;
@@ -110,12 +119,25 @@ onMounted(async () => {
       }
     }
   }
+
+  // Restore PR Review job
+  const rev = reviewTab.value?.reviewer;
+  if (rev) {
+    const revJobId = localStorage.getItem(rev.storageKey);
+    if (revJobId) {
+      await rev.restoreJob(revJobId);
+      if (rev.activeJob.value) {
+        activeFeature.value = 'review';
+      }
+    }
+  }
 });
 
 onBeforeUnmount(() => {
   jiraTab.value?.cr.cleanup();
   prTab.value?.pr.cleanup();
   prTab.value?.prNotifications.stopPolling();
+  reviewTab.value?.reviewer.cleanup();
 });
 </script>
 
@@ -171,6 +193,22 @@ onBeforeUnmount(() => {
             class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-400"
           ></span>
         </button>
+        <button
+          class="relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-all duration-150"
+          :class="
+            activeFeature === 'review'
+              ? 'bg-purple-500/10 font-semibold text-purple-400'
+              : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-300'
+          "
+          @click="activeFeature = 'review'"
+        >
+          <UIcon name="i-lucide-search-code" style="font-size: 1.1em" />
+          Code Review
+          <span
+            v-if="reviewTab?.reviewer.isRunning.value"
+            class="ml-0.5 inline-block h-2 w-2 animate-pulse rounded-full bg-purple-400"
+          ></span>
+        </button>
         <NuxtLink
           to="/dashboard"
           class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
@@ -198,6 +236,7 @@ onBeforeUnmount(() => {
             設定指引
           </button>
         </UTooltip>
+        <RepoManager />
         <NuxtLink
           to="/skills"
           data-tour="skills"
@@ -212,6 +251,14 @@ onBeforeUnmount(() => {
             {{ enabledSkillNames.length }}
           </span>
         </NuxtLink>
+        <UTooltip text="使用指引">
+          <button
+            class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            @click="requestResetTour = true"
+          >
+            <UIcon name="i-lucide-circle-help" style="font-size: 1em" />
+          </button>
+        </UTooltip>
         <button
           class="flex items-center rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
           :class="{ 'text-primary-400': showSettings }"
@@ -317,6 +364,8 @@ onBeforeUnmount(() => {
         ref="prTab"
         :cr-created-pr-urls="crCreatedPrUrls"
       />
+
+      <PrReviewerTab v-show="activeFeature === 'review'" ref="reviewTab" />
     </div>
   </div>
 </template>

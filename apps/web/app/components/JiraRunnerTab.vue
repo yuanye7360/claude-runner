@@ -2,11 +2,7 @@
 import { useAutoRun } from '~/composables/useAutoRun';
 import { useJiraConfig } from '~/composables/useJiraConfig';
 import { useJiraRunner } from '~/composables/useJiraRunner';
-import {
-  requestOpenSettings,
-  requestResetTour,
-} from '~/composables/useOnboarding';
-import { useRepoConfigs } from '~/composables/useRepoConfigs';
+import { requestOpenSettings } from '~/composables/useOnboarding';
 import { useTransitionDialog } from '~/composables/useTransitionDialog';
 
 const props = defineProps<{
@@ -23,9 +19,6 @@ const {
   jiraHeaders,
   isConfigured: jiraConfigured,
 } = useJiraConfig();
-const { repoConfigs, newConfig, startEditConfig, deleteConfig, validateRepo } =
-  useRepoConfigs();
-
 const jira = useJiraRunner({
   mode: toRef(props, 'mode'),
   enabledSkillNames: toRef(props, 'enabledSkillNames'),
@@ -207,15 +200,10 @@ defineExpose({
         v-if="showConfig"
         :jira-config="jiraConfig"
         :jira-configured="jiraConfigured"
-        :repo-configs="repoConfigs"
         :auto-run-enabled="autoRun.enabled.value"
         :auto-run-interval="autoRun.interval.value"
         :auto-run-loading="autoRun.loading.value"
         @update:jira-config="Object.assign(jiraConfig, $event)"
-        @new-repo="newConfig()"
-        @edit-repo="startEditConfig($event)"
-        @delete-repo="deleteConfig($event)"
-        @validate-repo="validateRepo($event)"
         @toggle-auto-run="autoRun.toggle($event)"
         @done="onDoneConfig"
       />
@@ -297,19 +285,6 @@ defineExpose({
             {{ jira.history.value.length }}
           </span>
         </button>
-        <div class="ml-auto pr-2">
-          <UTooltip text="使用指引">
-            <button
-              class="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-              @click="
-                requestResetTour = true;
-                jira.rightTab.value = 'progress';
-              "
-            >
-              <UIcon name="i-lucide-circle-help" />
-            </button>
-          </UTooltip>
-        </div>
       </div>
 
       <!-- Status row -->
@@ -377,9 +352,6 @@ defineExpose({
         />
       </template>
     </div>
-
-    <!-- Repo Modal -->
-    <JiraRepoModal />
 
     <!-- Transition Dialog -->
     <JiraTransitionDialog

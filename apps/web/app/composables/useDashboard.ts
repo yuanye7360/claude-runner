@@ -33,6 +33,7 @@ export interface ChartData {
 export interface DetailRow {
   jobId: string;
   jobStatus: string;
+  jobType?: string;
   timestamp: number;
   issueKey: string;
   summary: string;
@@ -181,6 +182,7 @@ export function computeDetailRows(jobs: HistoryEntry[]): DetailRow[] {
       rows.push({
         jobId: job.id,
         jobStatus: job.status,
+        jobType: job.type,
         timestamp: job.timestamp,
         issueKey: result.issueKey,
         summary: issue?.summary ?? '',
@@ -197,6 +199,7 @@ export function computeDetailRows(jobs: HistoryEntry[]): DetailRow[] {
         rows.push({
           jobId: job.id,
           jobStatus: job.status,
+          jobType: job.type,
           timestamp: job.timestamp,
           issueKey: issue.key,
           summary: issue.summary,
@@ -236,17 +239,24 @@ function getPresetRange(preset: PresetRange): DateRange | null {
   return null;
 }
 
+export type JobTypeFilter = 'all' | 'claude-runner' | 'pr-review' | 'pr-runner';
+
 export function useDashboard(jobs: Ref<HistoryEntry[]>) {
   const preset = ref<PresetRange>('all');
   const customRange = ref<DateRange | null>(null);
+  const typeFilter = ref<JobTypeFilter>('all');
 
   const dateRange: ComputedRef<DateRange | null> = computed(
     () => customRange.value ?? getPresetRange(preset.value),
   );
 
-  const filtered = computed(() =>
-    filterByDateRange(jobs.value, dateRange.value),
-  );
+  const filtered = computed(() => {
+    let result = filterByDateRange(jobs.value, dateRange.value);
+    if (typeFilter.value !== 'all') {
+      result = result.filter((j) => j.type === typeFilter.value);
+    }
+    return result;
+  });
 
   const kpi = computed(() => computeKpi(filtered.value));
 
@@ -272,10 +282,15 @@ export function useDashboard(jobs: Ref<HistoryEntry[]>) {
     customRange.value = { start, end };
   }
 
+  function setTypeFilter(t: JobTypeFilter) {
+    typeFilter.value = t;
+  }
+
   return {
     preset,
     customRange,
     dateRange,
+    typeFilter,
     filtered,
     kpi,
     granularity,
@@ -283,5 +298,6 @@ export function useDashboard(jobs: Ref<HistoryEntry[]>) {
     detailRows,
     setPreset,
     setCustomRange,
+    setTypeFilter,
   };
 }

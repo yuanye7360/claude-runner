@@ -52,6 +52,17 @@ const presetLabels: {
   { label: '本月', value: 'month' },
   { label: '全部', value: 'all' },
 ];
+
+const typeLabels: {
+  color: string;
+  label: string;
+  value: 'all' | 'claude-runner' | 'pr-review' | 'pr-runner';
+}[] = [
+  { label: '全部', value: 'all', color: 'text-white' },
+  { label: 'JIRA', value: 'claude-runner', color: 'text-blue-400' },
+  { label: 'PR Runner', value: 'pr-runner', color: 'text-green-400' },
+  { label: 'Code Review', value: 'pr-review', color: 'text-purple-400' },
+];
 </script>
 
 <template>
@@ -95,8 +106,28 @@ const presetLabels: {
       </div>
 
       <template v-else>
-        <!-- Time filter bar -->
-        <div class="mb-6 flex items-center gap-2">
+        <!-- Filter bar -->
+        <div class="mb-6 flex flex-wrap items-center gap-3">
+          <!-- Type filter -->
+          <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
+            <button
+              v-for="t in typeLabels"
+              :key="t.value"
+              class="rounded-md px-3 py-1.5 text-xs transition-colors"
+              :class="
+                dashboard.typeFilter.value === t.value
+                  ? `bg-gray-700 font-medium ${t.color}`
+                  : 'text-gray-500 hover:text-gray-300'
+              "
+              @click="dashboard.setTypeFilter(t.value)"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+
+          <div class="h-5 w-px bg-gray-700"></div>
+
+          <!-- Time filter -->
           <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
             <button
               v-for="p in presetLabels"

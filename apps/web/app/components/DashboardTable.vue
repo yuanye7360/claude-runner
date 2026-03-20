@@ -6,6 +6,17 @@ const props = defineProps<{
   rows: DetailRow[];
 }>();
 
+const typeLabel: Record<string, string> = {
+  'claude-runner': 'JIRA',
+  'pr-runner': 'PR Runner',
+  'pr-review': 'Code Review',
+};
+const typeColor: Record<string, string> = {
+  'claude-runner': 'text-blue-400 bg-blue-500/10',
+  'pr-runner': 'text-green-400 bg-green-500/10',
+  'pr-review': 'text-purple-400 bg-purple-500/10',
+};
+
 // ── Search ──
 const search = ref('');
 const filteredRows = computed(() => {
@@ -119,6 +130,7 @@ function goToJob(jobId: string) {
                 <UIcon :name="sortIcon('time')" style="font-size: 0.8em" />
               </span>
             </th>
+            <th class="px-4 py-2">類型</th>
             <th class="px-4 py-2">觸發</th>
             <th class="px-4 py-2">Issue</th>
             <th class="px-4 py-2">Summary</th>
@@ -152,6 +164,16 @@ function goToJob(jobId: string) {
           >
             <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
               {{ fmtTime(row.timestamp) }}
+            </td>
+            <td class="px-4 py-2">
+              <span
+                class="rounded-full px-2 py-0.5 text-xs"
+                :class="
+                  typeColor[row.jobType ?? ''] ?? 'bg-gray-500/10 text-gray-400'
+                "
+              >
+                {{ typeLabel[row.jobType ?? ''] ?? row.jobType ?? '-' }}
+              </span>
             </td>
             <td class="px-4 py-2">
               <span
@@ -236,7 +258,7 @@ function goToJob(jobId: string) {
             </td>
           </tr>
           <tr v-if="pagedRows.length === 0">
-            <td colspan="7" class="px-4 py-8 text-center text-gray-600">
+            <td colspan="8" class="px-4 py-8 text-center text-gray-600">
               {{ search ? '沒有符合的結果' : '尚無執行紀錄' }}
             </td>
           </tr>

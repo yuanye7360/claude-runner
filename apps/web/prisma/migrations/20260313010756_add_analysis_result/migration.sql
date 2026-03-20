@@ -1,0 +1,1 @@
+-- Placeholder: this migration was applied directly to the database

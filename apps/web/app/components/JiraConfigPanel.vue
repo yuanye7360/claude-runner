@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { JiraConfig } from '~/composables/useJiraConfig';
-import type { RepoConfig } from '~/composables/useRepoConfigs';
 
 const props = defineProps<{
   autoRunEnabled: boolean;
@@ -8,15 +7,10 @@ const props = defineProps<{
   autoRunLoading: boolean;
   jiraConfig: JiraConfig;
   jiraConfigured: boolean;
-  repoConfigs: RepoConfig[];
 }>();
 
 const emit = defineEmits<{
   (e: 'update:jiraConfig', val: JiraConfig): void;
-  (e: 'newRepo'): void;
-  (e: 'editRepo', repo: RepoConfig): void;
-  (e: 'deleteRepo', id: string): void;
-  (e: 'validateRepo', id: string): void;
   (e: 'toggleAutoRun', val: boolean): void;
   (e: 'done'): void;
 }>();
@@ -34,8 +28,6 @@ function addLabel() {
   }
   newLabelInput.value = '';
 }
-
-const confirmDelete = ref<null | string>(null);
 </script>
 
 <template>
@@ -76,103 +68,6 @@ const confirmDelete = ref<null | string>(null);
             placeholder="ATATT3x..."
             @input="config.apiToken = ($event.target as HTMLInputElement).value"
           />
-        </div>
-      </div>
-
-      <!-- Repos -->
-      <div data-tour="repos">
-        <div
-          class="mb-2 flex items-center justify-between text-xs font-medium tracking-wide text-gray-500 uppercase"
-        >
-          <span class="flex items-center gap-1.5">
-            Repos
-            <span
-              v-if="repoConfigs.length > 0"
-              class="font-normal text-gray-600 normal-case"
-            >
-              ({{ repoConfigs.length }})
-            </span>
-          </span>
-          <button
-            class="rounded px-1.5 py-0.5 text-xs text-blue-400 normal-case transition-colors hover:bg-blue-500/10"
-            @click="emit('newRepo')"
-          >
-            + 新增
-          </button>
-        </div>
-
-        <div v-if="repoConfigs.length === 0" class="py-4 text-center">
-          <p class="text-xs text-gray-600">尚無 Repo</p>
-        </div>
-
-        <div v-else class="space-y-1.5">
-          <div
-            v-for="repo in repoConfigs"
-            :key="repo.id"
-            class="group rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2 transition-colors hover:border-gray-700"
-          >
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs font-medium text-white">{{
-                    repo.name
-                  }}</span>
-                  <span
-                    v-if="repo.validationStatus === 'valid'"
-                    class="text-xs text-green-500"
-                    >✓</span
-                  >
-                  <span
-                    v-else-if="repo.validationStatus === 'invalid'"
-                    class="text-xs text-red-500"
-                    >✗</span
-                  >
-                </div>
-                <div class="mt-0.5 truncate text-xs text-gray-600">
-                  {{ repo.githubRepo }} · {{ repo.cwd }}
-                </div>
-              </div>
-              <div
-                class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <button
-                  class="rounded p-1 text-gray-600 hover:text-gray-400"
-                  title="驗證"
-                  @click="emit('validateRepo', repo.id)"
-                >
-                  <UIcon
-                    name="i-lucide-shield-check"
-                    style="font-size: 0.8em"
-                  />
-                </button>
-                <button
-                  class="rounded p-1 text-gray-600 hover:text-gray-400"
-                  title="編輯"
-                  @click="emit('editRepo', repo)"
-                >
-                  <UIcon name="i-lucide-pencil" style="font-size: 0.8em" />
-                </button>
-                <button
-                  v-if="confirmDelete !== repo.id"
-                  class="rounded p-1 text-gray-600 hover:text-red-400"
-                  title="刪除"
-                  @click="confirmDelete = repo.id"
-                >
-                  <UIcon name="i-lucide-trash-2" style="font-size: 0.8em" />
-                </button>
-                <button
-                  v-else
-                  class="rounded bg-red-600/10 p-1 text-red-400"
-                  @click="
-                    emit('deleteRepo', repo.id);
-                    confirmDelete = null;
-                  "
-                >
-                  <UIcon name="i-lucide-check" style="font-size: 0.8em" />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
