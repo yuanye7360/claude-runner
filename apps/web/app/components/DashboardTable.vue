@@ -6,6 +6,61 @@ const props = defineProps<{
   rows: DetailRow[];
 }>();
 
+const emit = defineEmits<{
+  (e: 'delete', jobId: string): void;
+  (e: 'bulkDelete', jobIds: string[]): void;
+}>();
+
+const deleteTarget = ref<null | { issueKey: string; jobId: string }>(null);
+
+function confirmAndDelete() {
+  if (!deleteTarget.value) return;
+  emit('delete', deleteTarget.value.jobId);
+  deleteTarget.value = null;
+}
+
+// ── Selection ──
+const selected = ref<Set<string>>(new Set());
+const bulkDeleteOpen = ref(false);
+
+const allPageSelected = computed(
+  () =>
+    pagedRows.value.length > 0 &&
+    pagedRows.value.every((r) => selected.value.has(r.jobId)),
+);
+
+function toggleSelectAll() {
+  if (allPageSelected.value) {
+    pagedRows.value.forEach((r) => selected.value.delete(r.jobId));
+  } else {
+    pagedRows.value.forEach((r) => selected.value.add(r.jobId));
+  }
+  selected.value = new Set(selected.value);
+}
+
+function toggleSelect(jobId: string) {
+  if (selected.value.has(jobId)) {
+    selected.value.delete(jobId);
+  } else {
+    selected.value.add(jobId);
+  }
+  selected.value = new Set(selected.value);
+}
+
+function confirmBulkDelete() {
+  emit('bulkDelete', [...selected.value]);
+  selected.value = new Set();
+  bulkDeleteOpen.value = false;
+}
+
+// Clear selection when rows change
+watch(
+  () => props.rows,
+  () => {
+    selected.value = new Set();
+  },
+);
+
 const typeLabel: Record<string, string> = {
   'claude-runner': 'JIRA',
   'pr-runner': 'PR Runner',
@@ -107,13 +162,30 @@ function goToJob(jobId: string) {
 
 <template>
   <div class="rounded-xl border border-gray-800 bg-gray-900/60">
-    <!-- Search bar -->
-    <div class="border-b border-gray-800 px-4 py-3">
+    <!-- Search bar + bulk actions -->
+    <div class="flex items-center gap-3 border-b border-gray-800 px-4 py-3">
       <input
         v-model="search"
-        class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+        class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
         placeholder="搜尋 Issue Key 或 Summary..."
       />
+      <Transition
+        enter-active-class="transition duration-150"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition duration-100"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <button
+          v-if="selected.size > 0"
+          class="flex shrink-0 items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+          @click="bulkDeleteOpen = true"
+        >
+          <UIcon name="i-lucide-trash-2" style="font-size: 0.85em" />
+          刪除已選 ({{ selected.size }})
+        </button>
+      </Transition>
     </div>
 
     <!-- Table -->
@@ -121,6 +193,14 @@ function goToJob(jobId: string) {
       <table class="w-full text-left text-sm">
         <thead>
           <tr class="border-b border-gray-800 text-xs text-gray-500">
+            <th class="w-10 px-2 py-2" @click.stop>
+              <input
+                type="checkbox"
+                class="accent-primary-500 h-3.5 w-3.5 cursor-pointer rounded"
+                :checked="allPageSelected"
+                @change="toggleSelectAll"
+              />
+            </th>
             <th
               class="cursor-pointer px-4 py-2 hover:text-gray-300"
               @click="toggleSort('time')"
@@ -153,15 +233,25 @@ function goToJob(jobId: string) {
                 <UIcon :name="sortIcon('duration')" style="font-size: 0.8em" />
               </span>
             </th>
+            <th class="w-10 px-2 py-2"></th>
           </tr>
         </thead>
         <tbody>
           <tr
             v-for="row in pagedRows"
             :key="`${row.jobId}-${row.issueKey}`"
-            class="cursor-pointer border-b border-gray-800/50 transition-colors hover:bg-gray-800/30"
+            class="group cursor-pointer border-b border-gray-800/50 transition-colors hover:bg-gray-800/30"
+            :class="selected.has(row.jobId) ? 'bg-gray-800/20' : ''"
             @click="goToJob(row.jobId)"
           >
+            <td class="px-2 py-2" @click.stop>
+              <input
+                type="checkbox"
+                class="accent-primary-500 h-3.5 w-3.5 cursor-pointer rounded"
+                :checked="selected.has(row.jobId)"
+                @change="toggleSelect(row.jobId)"
+              />
+            </td>
             <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
               {{ fmtTime(row.timestamp) }}
             </td>
@@ -256,9 +346,23 @@ function goToJob(jobId: string) {
             <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
               {{ fmtDuration(row.durationSecs) }}
             </td>
+            <td class="px-2 py-2" @click.stop>
+              <button
+                class="rounded p-1 text-gray-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                title="刪除"
+                @click="
+                  deleteTarget = {
+                    jobId: row.jobId,
+                    issueKey: row.issueKey,
+                  }
+                "
+              >
+                <UIcon name="i-lucide-trash-2" style="font-size: 0.85em" />
+              </button>
+            </td>
           </tr>
-          <tr v-if="pagedRows.length === 0">
-            <td colspan="8" class="px-4 py-8 text-center text-gray-600">
+          <tr v-if="pagedRows.length === 0" key="empty">
+            <td colspan="10" class="px-4 py-8 text-center text-gray-600">
               {{ search ? '沒有符合的結果' : '尚無執行紀錄' }}
             </td>
           </tr>
@@ -290,5 +394,81 @@ function goToJob(jobId: string) {
         </button>
       </div>
     </div>
+
+    <!-- Single delete confirmation modal -->
+    <UModal
+      :open="!!deleteTarget"
+      @update:open="(v: boolean) => !v && (deleteTarget = null)"
+    >
+      <template #content>
+        <div class="rounded-xl border border-gray-700 bg-gray-900 p-6">
+          <div class="mb-3 flex items-center gap-2">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
+            >
+              <UIcon
+                name="i-lucide-trash-2"
+                class="text-red-400"
+                style="font-size: 1em"
+              />
+            </div>
+            <h3 class="text-sm font-semibold text-white">確認刪除</h3>
+          </div>
+          <p class="mb-3 text-xs text-gray-400">
+            確定要刪除此筆紀錄？此操作無法復原。
+          </p>
+          <p
+            v-if="deleteTarget"
+            class="mb-4 rounded-md border border-gray-700/50 bg-gray-800/60 px-3 py-2 font-mono text-xs text-gray-300"
+          >
+            {{ deleteTarget.issueKey }}
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton size="sm" variant="ghost" @click="deleteTarget = null">
+              取消
+            </UButton>
+            <UButton size="sm" color="error" @click="confirmAndDelete">
+              刪除
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Bulk delete confirmation modal -->
+    <UModal
+      :open="bulkDeleteOpen"
+      @update:open="(v: boolean) => !v && (bulkDeleteOpen = false)"
+    >
+      <template #content>
+        <div class="rounded-xl border border-gray-700 bg-gray-900 p-6">
+          <div class="mb-3 flex items-center gap-2">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
+            >
+              <UIcon
+                name="i-lucide-trash-2"
+                class="text-red-400"
+                style="font-size: 1em"
+              />
+            </div>
+            <h3 class="text-sm font-semibold text-white">批量刪除</h3>
+          </div>
+          <p class="mb-4 text-xs text-gray-400">
+            確定要刪除已選的
+            <span class="font-semibold text-white">{{ selected.size }}</span>
+            筆紀錄？此操作無法復原。
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton size="sm" variant="ghost" @click="bulkDeleteOpen = false">
+              取消
+            </UButton>
+            <UButton size="sm" color="error" @click="confirmBulkDelete">
+              刪除 {{ selected.size }} 筆
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

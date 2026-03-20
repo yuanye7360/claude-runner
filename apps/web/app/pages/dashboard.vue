@@ -25,6 +25,30 @@ async function loadJobs() {
   }
 }
 
+async function deleteJob(jobId: string) {
+  try {
+    await $fetch(`/api/claude-runner/jobs/${jobId}/purge`, {
+      method: 'DELETE',
+    });
+    jobs.value = jobs.value.filter((j) => j.id !== jobId);
+  } catch {
+    useToast().add({ title: '刪除失敗', color: 'error' });
+  }
+}
+
+async function bulkDeleteJobs(jobIds: string[]) {
+  try {
+    await $fetch('/api/claude-runner/jobs', {
+      method: 'DELETE',
+      body: { ids: jobIds },
+    });
+    const idSet = new Set(jobIds);
+    jobs.value = jobs.value.filter((j) => !idSet.has(j.id));
+  } catch {
+    useToast().add({ title: '批量刪除失敗', color: 'error' });
+  }
+}
+
 onMounted(loadJobs);
 
 const dashboard = useDashboard(jobs);
@@ -186,6 +210,8 @@ const typeLabels: {
         <DashboardTable
           :rows="dashboard.detailRows.value"
           :jira-base-url="jiraConfig.baseUrl || undefined"
+          @delete="deleteJob"
+          @bulk-delete="bulkDeleteJobs"
         />
       </template>
     </div>

@@ -8,7 +8,7 @@ export interface JiraConfig {
 const STORAGE_KEY = 'cr-jira-config';
 
 function load(): JiraConfig {
-  if (typeof localStorage === 'undefined')
+  if (!import.meta.client)
     return { baseUrl: '', email: '', apiToken: '', labels: ['claude'] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -36,7 +36,7 @@ const config = ref<JiraConfig>(load());
 watch(
   config,
   (v) => {
-    if (typeof localStorage !== 'undefined') {
+    if (import.meta.client) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(v));
     }
   },
