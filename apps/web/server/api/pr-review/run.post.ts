@@ -114,7 +114,7 @@ async function reviewOnePr(
     ghRepo: string;
     job: Job;
   },
-): Promise<ReviewResult | null> {
+): Promise<null | ReviewResult> {
   const { job, ghRepo, cwd, cleanEnv, activeChildren } = ctx;
   const issueKey = `#${pr.number}`;
 
