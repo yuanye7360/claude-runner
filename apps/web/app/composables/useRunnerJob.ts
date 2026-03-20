@@ -83,7 +83,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
   let sseSource: EventSource | null = null;
   let elapsedTimer: null | ReturnType<typeof setInterval> = null;
   let _startPhase = 1;
-  let _dynamicPhases: { label: string }[] | undefined;
+  let _dynamicPhases: undefined | { label: string }[];
 
   const isRunning = computed(() => activeJob.value?.status === 'running');
   const successCount = computed(
@@ -243,7 +243,6 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     if (!activeJob.value || activeJob.value.status !== 'running') return;
     try {
       await $fetch(`${apiBase}/jobs/${activeJob.value.id}`, {
-        // @ts-expect-error: DELETE method not in generated nitro types for this route
         method: 'DELETE' as const,
       });
     } finally {
