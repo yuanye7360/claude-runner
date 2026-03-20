@@ -15,11 +15,13 @@ const FONT_SIZES = [
 ] as const;
 
 const fontSize = ref(
-  typeof localStorage === 'undefined'
-    ? 16
-    : Number(localStorage.getItem('cr-font-size') || 16),
+  import.meta.client
+    ? Number(localStorage.getItem('cr-font-size') || 16)
+    : 16,
 );
-watch(fontSize, (v) => localStorage.setItem('cr-font-size', String(v)));
+watch(fontSize, (v) => {
+  if (import.meta.client) localStorage.setItem('cr-font-size', String(v));
+});
 const rootFontSize = computed(() => `${fontSize.value}px`);
 
 const showSettings = ref(false);
@@ -32,23 +34,27 @@ const {
 
 // ── Mode ────────────────────────────────────────────────
 const mode = ref<'normal' | 'smart'>(
-  typeof localStorage === 'undefined'
-    ? 'smart'
-    : (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart',
+  import.meta.client
+    ? (localStorage.getItem('cr-mode') as 'normal' | 'smart') || 'smart'
+    : 'smart',
 );
 watch(mode, (v) => {
-  localStorage.setItem('cr-mode', v);
+  if (import.meta.client) localStorage.setItem('cr-mode', v);
   applySkillPreset(v);
 });
 
 // ── Top-level tab ───────────────────────────────────────
 const activeFeature = ref<'jira' | 'pr' | 'review'>(
-  typeof localStorage === 'undefined'
-    ? 'jira'
-    : (localStorage.getItem('cr-active-feature') as 'jira' | 'pr' | 'review') ||
-        'jira',
+  import.meta.client
+    ? (localStorage.getItem('cr-active-feature') as
+        | 'jira'
+        | 'pr'
+        | 'review') || 'jira'
+    : 'jira',
 );
-watch(activeFeature, (v) => localStorage.setItem('cr-active-feature', v));
+watch(activeFeature, (v) => {
+  if (import.meta.client) localStorage.setItem('cr-active-feature', v);
+});
 
 // ── Cross-feature state ─────────────────────────────────
 const crCreatedPrUrls = ref<string[]>([]);

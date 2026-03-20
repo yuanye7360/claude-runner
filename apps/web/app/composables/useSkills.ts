@@ -30,7 +30,7 @@ const DEFAULT_PRESETS: Record<string, string[]> = {
 };
 
 function loadEnabled(): Set<string> {
-  if (typeof localStorage === 'undefined') return new Set();
+  if (!import.meta.client) return new Set();
   try {
     return new Set(
       JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as string[],
@@ -41,11 +41,12 @@ function loadEnabled(): Set<string> {
 }
 
 function persistEnabled(names: Set<string>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...names]));
+  if (import.meta.client)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...names]));
 }
 
 function loadPresets(): Record<string, string[]> {
-  if (typeof localStorage === 'undefined') return { ...DEFAULT_PRESETS };
+  if (!import.meta.client) return { ...DEFAULT_PRESETS };
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
     if (!raw) return { ...DEFAULT_PRESETS };
@@ -56,7 +57,8 @@ function loadPresets(): Record<string, string[]> {
 }
 
 function persistPresets(presets: Record<string, string[]>) {
-  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+  if (import.meta.client)
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
 
 // Shared reactive state across all composable callers
