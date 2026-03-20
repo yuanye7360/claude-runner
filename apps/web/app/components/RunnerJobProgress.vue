@@ -12,16 +12,28 @@ function stripAnsi(str: string): string {
 
 const expandedKeys = ref<Set<string>>(new Set());
 
-// Auto-expand the first issue, and auto-expand new issues as they start
+// Auto-expand issues when they transition from queued (phase 0) to running (phase >= 1)
 watch(
-  () => props.activeJob?.issues.map((i) => i.key),
-  (keys) => {
-    if (!keys) return;
-    for (const k of keys) {
-      expandedKeys.value.add(k);
+  () => {
+    if (!props.activeJob) return null;
+    return Object.entries(props.activeJob.phasesByIssue).map(
+      ([key, phases]) => ({
+        key,
+        phase: phases.find((p) => p.status === 'running')?.phase ?? -1,
+      }),
+    );
+  },
+  (current, prev) => {
+    if (!current) return;
+    for (const { key, phase } of current) {
+      const prevPhase = prev?.find((p) => p.key === key)?.phase ?? -1;
+      // Expand when transitioning from queued/unknown to running
+      if (phase >= 1 && prevPhase <= 0) {
+        expandedKeys.value.add(key);
+      }
     }
   },
-  { immediate: true },
+  { deep: true },
 );
 
 function toggleExpanded(key: string) {
@@ -39,6 +51,7 @@ const issueEntries = computed(() => {
     const currentPhase = phases.find((p) => p.status === 'running');
     const allDone =
       phases.length > 0 && phases.every((p) => p.status === 'done');
+    const isQueued = currentPhase !== undefined && currentPhase.phase === 0;
     const output =
       props.activeJob!.outputByIssue[issue.key] ||
       (props.activeJob!.issues.length === 1 ? props.activeJob!.output : '');
@@ -48,8 +61,22 @@ const issueEntries = computed(() => {
       phases,
       currentPhase,
       allDone,
+      isQueued,
       output,
     };
+  });
+});
+
+// Sorted: running > queued > done
+const sortedIssueEntries = computed(() => {
+  return [...issueEntries.value].toSorted((a, b) => {
+    const order = (e: (typeof issueEntries.value)[0]) => {
+      if (e.currentPhase && e.currentPhase.phase > 0) return 0; // running
+      if (e.isQueued) return 1; // queued
+      if (e.allDone) return 2; // done
+      return 1; // no phase yet = queued
+    };
+    return order(a) - order(b);
   });
 });
 
@@ -71,6 +98,11 @@ watch(
     });
   },
 );
+
+/** Filter out phase 0 (queued) from display — it's a wait state, not a progress step */
+function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
+  return phases.filter((p) => p.phase > 0);
+}
 </script>
 
 <template>
@@ -86,7 +118,7 @@ watch(
   <!-- Active job: collapsible items per task -->
   <div v-else class="flex flex-1 flex-col overflow-y-auto">
     <div
-      v-for="entry in issueEntries"
+      v-for="entry in sortedIssueEntries"
       :key="entry.key"
       class="border-b border-gray-800 last:border-b-0"
     >
@@ -101,9 +133,14 @@ watch(
       >
         <!-- Status icon -->
         <UIcon
-          v-if="entry.currentPhase"
+          v-if="entry.currentPhase && entry.currentPhase.phase > 0"
           name="i-lucide-loader-circle"
           class="text-primary-400 shrink-0 animate-spin"
+        />
+        <UIcon
+          v-else-if="entry.isQueued"
+          name="i-lucide-clock"
+          class="shrink-0 text-gray-500"
         />
         <UIcon
           v-else-if="entry.allDone"
@@ -122,17 +159,23 @@ watch(
         </span>
 
         <!-- Current phase label -->
-        <span v-if="entry.currentPhase" class="text-sm text-blue-400">
+        <span
+          v-if="entry.currentPhase && entry.currentPhase.phase > 0"
+          class="text-sm text-blue-400"
+        >
           {{ entry.currentPhase.label }}
+        </span>
+        <span v-else-if="entry.isQueued" class="text-sm text-gray-500">
+          排隊中
         </span>
         <span v-else-if="entry.allDone" class="text-sm text-green-400">
           完成
         </span>
 
-        <!-- Phase dots -->
+        <!-- Phase dots (exclude phase 0) -->
         <div class="ml-auto flex items-center gap-1.5">
           <div
-            v-for="p in entry.phases"
+            v-for="p in visiblePhases(entry.phases)"
             :key="p.phase"
             class="h-2 w-2 rounded-full"
             :class="{
@@ -157,10 +200,10 @@ watch(
         v-if="expandedKeys.has(entry.key)"
         class="border-t border-gray-800/60 bg-gray-950"
       >
-        <!-- Phase progress bar -->
+        <!-- Phase progress bar (exclude phase 0) -->
         <div class="flex items-center gap-4 px-4 py-2.5">
           <div
-            v-for="(p, i) in entry.phases"
+            v-for="(p, i) in visiblePhases(entry.phases)"
             :key="p.phase"
             class="flex items-center gap-2"
           >
@@ -191,7 +234,7 @@ watch(
             </span>
             <!-- Connector -->
             <div
-              v-if="i < entry.phases.length - 1"
+              v-if="i < visiblePhases(entry.phases).length - 1"
               class="h-px w-6"
               :class="p.status === 'done' ? 'bg-green-900' : 'bg-gray-800'"
             ></div>
