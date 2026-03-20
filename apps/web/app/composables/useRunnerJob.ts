@@ -82,6 +82,8 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
 
   let sseSource: EventSource | null = null;
   let elapsedTimer: null | ReturnType<typeof setInterval> = null;
+  let _startPhase = 1;
+  let _dynamicPhases: undefined | { label: string }[];
 
   const isRunning = computed(() => activeJob.value?.status === 'running');
   const successCount = computed(
@@ -106,7 +108,10 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     elapsedTimer = null;
   }
 
-  function buildPhaseList(dynamicPhases?: { label: string }[]): PhaseInfo[] {
+  function buildPhaseList(
+    dynamicPhases?: { label: string }[],
+    startPhase = 1,
+  ): PhaseInfo[] {
     const phaseLabels = dynamicPhases ??
       options.phases ?? [
         { label: '分析 & 建立分支' },
@@ -114,7 +119,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         { label: '建立 PR' },
       ];
     return phaseLabels.map(({ label }, i) => ({
-      phase: i + 1,
+      phase: startPhase + i,
       label,
       status: (i === 0 ? 'running' : 'pending') as PhaseInfo['status'],
     }));
@@ -204,13 +209,18 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
         phase: number;
       };
       activeJob.value.currentIssueKey = issueKey;
-      // Update global phases
-      applyPhase(activeJob.value.phases, phase);
-      const p = activeJob.value.phases.find((ph) => ph.phase === phase);
-      if (p) p.label = label;
+      // Phase 0 = queued — only update per-issue, skip global
+      if (phase > 0) {
+        applyPhase(activeJob.value.phases, phase);
+        const p = activeJob.value.phases.find((ph) => ph.phase === phase);
+        if (p) p.label = label;
+      }
       // Update per-issue phases
       if (!activeJob.value.phasesByIssue[issueKey]) {
-        activeJob.value.phasesByIssue[issueKey] = buildPhaseList();
+        activeJob.value.phasesByIssue[issueKey] = buildPhaseList(
+          _dynamicPhases,
+          _startPhase,
+        );
       }
       const issuePhases = activeJob.value.phasesByIssue[issueKey];
       if (!issuePhases) return;
@@ -233,7 +243,6 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     if (!activeJob.value || activeJob.value.status !== 'running') return;
     try {
       await $fetch(`${apiBase}/jobs/${activeJob.value.id}`, {
-        // @ts-expect-error: DELETE method not in generated nitro types for this route
         method: 'DELETE' as const,
       });
     } finally {
@@ -257,10 +266,13 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
     issues: { key: string; summary: string }[],
     dynamicPhases?: { label: string }[],
     trigger?: 'auto' | 'manual',
+    startPhase = 1,
   ) {
+    _dynamicPhases = dynamicPhases;
+    _startPhase = startPhase;
     const phasesByIssue: Record<string, PhaseInfo[]> = {};
     for (const issue of issues) {
-      phasesByIssue[issue.key] = buildPhaseList(dynamicPhases);
+      phasesByIssue[issue.key] = buildPhaseList(dynamicPhases, startPhase);
     }
     activeJob.value = {
       id: jobId,
@@ -271,7 +283,7 @@ export function useRunnerJob(options: UseRunnerJobOptions = {}) {
       output: '',
       outputByIssue: {},
       results: [],
-      phases: buildPhaseList(dynamicPhases),
+      phases: buildPhaseList(dynamicPhases, startPhase),
       phasesByIssue,
       currentIssueKey: issues[0]?.key ?? '',
     };

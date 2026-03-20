@@ -25,7 +25,12 @@ export function usePrReviewer() {
   const reviewer = useRunnerJob({
     storageKey: 'pr-review-active-jobId',
     apiBase: '/api/claude-runner',
-    phases: [{ label: '分析 PR' }, { label: 'Review 中' }, { label: '完成' }],
+    phases: [
+      { label: '排隊中' },
+      { label: '分析 PR' },
+      { label: 'Review 中' },
+      { label: '完成' },
+    ],
     onComplete: () => {
       loadHistory();
       loadPRs();
@@ -311,7 +316,7 @@ export function usePrReviewer() {
       }
 
       if (firstJobId && allIssues.length > 0) {
-        reviewer.startJob(firstJobId, allIssues);
+        reviewer.startJob(firstJobId, allIssues, undefined, undefined, 0);
         selected.value = new Set();
       } else if (allIssues.length === 0) {
         useToast().add({
