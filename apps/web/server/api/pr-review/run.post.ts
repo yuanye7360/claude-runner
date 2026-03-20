@@ -1,7 +1,9 @@
-import type { RunResult } from '../../utils/jobStore';
+import type { Job, RunResult } from '../../utils/jobStore';
 
 import { execSync } from 'node:child_process';
 import process from 'node:process';
+
+import pLimit from 'p-limit';
 
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import { spawnClaude } from '../../utils/claude-spawn';
@@ -26,7 +28,23 @@ interface RunRequest {
   prNumbers: number[];
 }
 
+interface ReviewResult {
+  result: RunResult;
+  review?: {
+    blockers: number;
+    commitSha: string;
+    majors: number;
+    minors: number;
+    prAuthor: string;
+    prNumber: number;
+    prTitle: string;
+    suggestions: number;
+    summaryComment: null | string;
+  };
+}
+
 const PHASES = [
+  { phase: 0, label: '排隊中' },
   { phase: 1, label: '分析 PR' },
   {
     phase: 2,
@@ -82,6 +100,209 @@ function fetchPrMeta(prNumber: number, ghRepo: string): PrMeta {
   return { number: prNumber, title, author, headSha };
 }
 
+/* eslint-disable no-control-regex */
+const ANSI_RE =
+  /\u001B\[[\d;?]*[a-z]|\u001B[a-z]|\u001B\][^\u0007]*(?:\u0007|\u001B\\)/gi;
+/* eslint-enable no-control-regex */
+
+async function reviewOnePr(
+  pr: PrMeta,
+  ctx: {
+    activeChildren: Set<{ kill: () => void }>;
+    cleanEnv: Record<string, string>;
+    cwd: string;
+    ghRepo: string;
+    job: Job;
+  },
+): Promise<ReviewResult | null> {
+  const { job, ghRepo, cwd, cleanEnv, activeChildren } = ctx;
+  const issueKey = `#${pr.number}`;
+
+  if (job.status === 'cancelled') return null;
+
+  // Transition from queued to running
+  pushPhase(job, 1, PHASES[1]?.label ?? '分析 PR', issueKey);
+
+  try {
+    let currentPhase = 1;
+    const prompt = buildPrompt(ghRepo, pr.number);
+
+    const output = await new Promise<{ ok: boolean; text: string }>(
+      (resolve) => {
+        const allText: string[] = [];
+        let child: ReturnType<typeof spawnClaude>;
+
+        try {
+          child = spawnClaude(resolveClaudeCliPath(), {
+            args: [
+              '--dangerously-skip-permissions',
+              '--output-format',
+              'stream-json',
+              '--verbose',
+              '-p',
+              prompt,
+            ],
+            cwd,
+            env: cleanEnv,
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          pushChunk(job, `❌ spawn failed: ${msg}\n`, issueKey);
+          resolve({ ok: false, text: `spawn failed: ${msg}` });
+          return;
+        }
+
+        activeChildren.add(child);
+        pushChunk(
+          job,
+          `▶ Claude 已啟動，開始 Review PR #${pr.number}...\n`,
+          issueKey,
+        );
+
+        let lineBuffer = '';
+
+        function processLine(line: string) {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+          let text = '';
+          try {
+            const ev = JSON.parse(trimmed) as Record<string, unknown>;
+            switch (ev.type) {
+              case 'assistant': {
+                const content = (
+                  ev.message as {
+                    content: Array<{ text?: string; type: string }>;
+                  }
+                )?.content;
+                text =
+                  content
+                    ?.filter((c) => c.type === 'text')
+                    .map((c) => c.text ?? '')
+                    .join('') ?? '';
+                if (text && !text.endsWith('\n')) text += '\n';
+                break;
+              }
+              case 'result': {
+                const resultText = (ev.result as string) ?? '';
+                if (resultText) {
+                  text = resultText.endsWith('\n')
+                    ? resultText
+                    : `${resultText}\n`;
+                }
+                break;
+              }
+              case 'tool_result': {
+                const content = ev.content as
+                  | Array<{ text?: string; type: string }>
+                  | string;
+                text = Array.isArray(content)
+                  ? `${content
+                      .filter((c) => c.type === 'text')
+                      .map((c) => c.text ?? '')
+                      .join('')}\n`
+                  : `${content as string}\n`;
+                break;
+              }
+              case 'tool_use': {
+                const name = ev.name as string;
+                const input = ev.input as Record<string, unknown>;
+                const detail =
+                  name === 'Bash'
+                    ? (input.command as string)
+                    : JSON.stringify(input).slice(0, 120);
+                text = `\n▶ ${name}: ${detail}\n`;
+                break;
+              }
+            }
+          } catch {
+            text = `${trimmed}\n`;
+          }
+          if (!text) return;
+          allText.push(text);
+          pushChunk(job, text, issueKey);
+          const next = detectPhaseTransition(text, currentPhase);
+          if (next > currentPhase) {
+            currentPhase = next;
+            const phaseInfo = PHASES.find((q) => q.phase === next);
+            if (phaseInfo) pushPhase(job, next, phaseInfo.label, issueKey);
+          }
+        }
+
+        child.onData((data: string) => {
+          const clean = data
+            .replaceAll(ANSI_RE, '')
+            .replaceAll('\r\n', '\n')
+            .replaceAll('\r', '\n');
+          lineBuffer += clean;
+          const lines = lineBuffer.split('\n');
+          lineBuffer = lines.pop() ?? '';
+          for (const line of lines) processLine(line);
+        });
+
+        child.onExit(({ exitCode }) => {
+          activeChildren.delete(child);
+          if (lineBuffer.trim()) processLine(lineBuffer);
+          resolve({ text: allText.join(''), ok: exitCode === 0 });
+        });
+      },
+    );
+
+    // Parse REVIEW_RESULT from output
+    let blockers = 0;
+    let majors = 0;
+    let minors = 0;
+    let suggestions = 0;
+    let summaryComment: null | string = null;
+    const resultMatch = /REVIEW_RESULT:(\{.*\})/i.exec(output.text);
+    if (resultMatch?.[1]) {
+      try {
+        const parsed = JSON.parse(resultMatch[1]) as {
+          blockers?: number;
+          majors?: number;
+          minors?: number;
+          suggestions?: number;
+          summaryComment?: string;
+        };
+        blockers = parsed.blockers ?? 0;
+        majors = parsed.majors ?? 0;
+        minors = parsed.minors ?? 0;
+        suggestions = parsed.suggestions ?? 0;
+        summaryComment = parsed.summaryComment ?? null;
+      } catch {
+        /* ignore parse error */
+      }
+    }
+
+    const review =
+      (output.ok || resultMatch?.[1]) && pr.headSha
+        ? {
+            prNumber: pr.number,
+            prTitle: pr.title,
+            prAuthor: pr.author,
+            commitSha: pr.headSha,
+            blockers,
+            majors,
+            minors,
+            suggestions,
+            summaryComment,
+          }
+        : undefined;
+
+    return {
+      result: {
+        issueKey,
+        ...(output.ok ? { output: output.text } : { error: output.text }),
+      },
+      review,
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[pr-review] Error reviewing PR #${pr.number}:`, msg);
+    pushChunk(job, `\n❌ PR #${pr.number} Review 失敗: ${msg}\n`, issueKey);
+    return { result: { issueKey, error: msg } };
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const body = await readBody<RunRequest>(event);
   const { repoLabel } = body;
@@ -111,7 +332,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Fetch metadata for all PRs upfront
+  // Fetch metadata for all PRs upfront (sequential — uses execSync)
   const prMetas = prNumbers.map((n) => fetchPrMeta(n, repo.githubRepo));
 
   // Filter out already-reviewed PRs
@@ -168,207 +389,40 @@ export default defineEventHandler(async (event) => {
     ),
   );
 
-  /* eslint-disable no-control-regex */
-  const ANSI_RE =
-    /\u001B\[[\d;?]*[a-z]|\u001B[a-z]|\u001B\][^\u0007]*(?:\u0007|\u001B\\)/gi;
-  /* eslint-enable no-control-regex */
-
   void (async () => {
-    const results: RunResult[] = [];
-    const pendingReviews: Array<{
-      blockers: number;
-      commitSha: string;
-      majors: number;
-      minors: number;
-      prAuthor: string;
-      prNumber: number;
-      prTitle: string;
-      suggestions: number;
-      summaryComment: null | string;
-    }> = [];
+    const limit = pLimit(5);
+    const activeChildren: Set<{ kill: () => void }> = new Set();
+    job.kill = () => activeChildren.forEach((c) => c.kill());
 
+    // All PRs start in queued state
     for (const pr of toReview) {
-      if (job.status === 'cancelled') break;
+      pushPhase(job, 0, '排隊中', `#${pr.number}`);
+    }
 
-      const issueKey = `#${pr.number}`;
+    const settled = await Promise.allSettled(
+      toReview.map((pr) =>
+        limit(() =>
+          reviewOnePr(pr, {
+            job,
+            ghRepo: repo.githubRepo,
+            cwd: repo.cwd,
+            cleanEnv,
+            activeChildren,
+          }),
+        ),
+      ),
+    );
 
-      try {
-        let currentPhase = 1;
-        pushPhase(job, 1, PHASES[0]?.label ?? '分析 PR', issueKey);
+    // Collect results from settled promises
+    const results: RunResult[] = [];
+    const pendingReviews: Array<NonNullable<ReviewResult['review']>> = [];
 
-        const prompt = buildPrompt(repo.githubRepo, pr.number);
-
-        const output = await new Promise<{ ok: boolean; text: string }>(
-          (resolve) => {
-            const allText: string[] = [];
-            let child: ReturnType<typeof spawnClaude>;
-
-            try {
-              child = spawnClaude(resolveClaudeCliPath(), {
-                args: [
-                  '--dangerously-skip-permissions',
-                  '--output-format',
-                  'stream-json',
-                  '--verbose',
-                  '-p',
-                  prompt,
-                ],
-                cwd: repo.cwd,
-                env: cleanEnv,
-              });
-            } catch (error) {
-              const msg =
-                error instanceof Error ? error.message : String(error);
-              pushChunk(job, `❌ spawn failed: ${msg}\n`);
-              resolve({ ok: false, text: `spawn failed: ${msg}` });
-              return;
-            }
-
-            job.kill = () => child.kill();
-            pushChunk(
-              job,
-              `▶ Claude 已啟動，開始 Review PR #${pr.number}...\n`,
-            );
-
-            let lineBuffer = '';
-
-            function processLine(line: string) {
-              const trimmed = line.trim();
-              if (!trimmed) return;
-              let text = '';
-              try {
-                const ev = JSON.parse(trimmed) as Record<string, unknown>;
-                switch (ev.type) {
-                  case 'assistant': {
-                    const content = (
-                      ev.message as {
-                        content: Array<{ text?: string; type: string }>;
-                      }
-                    )?.content;
-                    text =
-                      content
-                        ?.filter((c) => c.type === 'text')
-                        .map((c) => c.text ?? '')
-                        .join('') ?? '';
-                    if (text && !text.endsWith('\n')) text += '\n';
-                    break;
-                  }
-                  case 'result': {
-                    const resultText = (ev.result as string) ?? '';
-                    if (resultText) {
-                      text = resultText.endsWith('\n')
-                        ? resultText
-                        : `${resultText}\n`;
-                    }
-                    break;
-                  }
-                  case 'tool_result': {
-                    const content = ev.content as
-                      | Array<{ text?: string; type: string }>
-                      | string;
-                    text = Array.isArray(content)
-                      ? `${content
-                          .filter((c) => c.type === 'text')
-                          .map((c) => c.text ?? '')
-                          .join('')}\n`
-                      : `${content as string}\n`;
-                    break;
-                  }
-                  case 'tool_use': {
-                    const name = ev.name as string;
-                    const input = ev.input as Record<string, unknown>;
-                    const detail =
-                      name === 'Bash'
-                        ? (input.command as string)
-                        : JSON.stringify(input).slice(0, 120);
-                    text = `\n▶ ${name}: ${detail}\n`;
-                    break;
-                  }
-                }
-              } catch {
-                text = `${trimmed}\n`;
-              }
-              if (!text) return;
-              allText.push(text);
-              pushChunk(job, text, issueKey);
-              const next = detectPhaseTransition(text, currentPhase);
-              if (next > currentPhase) {
-                currentPhase = next;
-                const phaseInfo = PHASES.find((q) => q.phase === next);
-                if (phaseInfo) pushPhase(job, next, phaseInfo.label, issueKey);
-              }
-            }
-
-            child.onData((data: string) => {
-              const clean = data
-                .replaceAll(ANSI_RE, '')
-                .replaceAll('\r\n', '\n')
-                .replaceAll('\r', '\n');
-              lineBuffer += clean;
-              const lines = lineBuffer.split('\n');
-              lineBuffer = lines.pop() ?? '';
-              for (const line of lines) processLine(line);
-            });
-
-            child.onExit(({ exitCode }) => {
-              if (lineBuffer.trim()) processLine(lineBuffer);
-              resolve({ text: allText.join(''), ok: exitCode === 0 });
-            });
-          },
-        );
-
-        // Parse REVIEW_RESULT from output
-        let blockers = 0;
-        let majors = 0;
-        let minors = 0;
-        let suggestions = 0;
-        let summaryComment: null | string = null;
-        const resultMatch = /REVIEW_RESULT:(\{.*\})/i.exec(output.text);
-        if (resultMatch?.[1]) {
-          try {
-            const parsed = JSON.parse(resultMatch[1]) as {
-              blockers?: number;
-              majors?: number;
-              minors?: number;
-              suggestions?: number;
-              summaryComment?: string;
-            };
-            blockers = parsed.blockers ?? 0;
-            majors = parsed.majors ?? 0;
-            minors = parsed.minors ?? 0;
-            suggestions = parsed.suggestions ?? 0;
-            summaryComment = parsed.summaryComment ?? null;
-          } catch {
-            /* ignore parse error */
-          }
-        }
-
-        // Queue PrReview record for saving after finishJob creates the Job row
-        if ((output.ok || resultMatch?.[1]) && pr.headSha) {
-          pendingReviews.push({
-            prNumber: pr.number,
-            prTitle: pr.title,
-            prAuthor: pr.author,
-            commitSha: pr.headSha,
-            blockers,
-            majors,
-            minors,
-            suggestions,
-            summaryComment,
-          });
-        }
-
-        if (job.status !== 'cancelled') {
-          results.push({
-            issueKey,
-            ...(output.ok ? { output: output.text } : { error: output.text }),
-          });
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error(`[pr-review] Error reviewing PR #${pr.number}:`, msg);
-        pushChunk(job, `\n❌ PR #${pr.number} Review 失敗: ${msg}\n`);
-        results.push({ issueKey, error: msg });
+    for (const r of settled) {
+      if (r.status === 'fulfilled' && r.value) {
+        results.push(r.value.result);
+        if (r.value.review) pendingReviews.push(r.value.review);
+      } else if (r.status === 'rejected') {
+        console.error('[pr-review] Unexpected rejection:', r.reason);
       }
     }
 
