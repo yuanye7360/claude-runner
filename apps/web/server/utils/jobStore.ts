@@ -72,9 +72,9 @@ export function getJob(id: string): Job | undefined {
 }
 
 const TERMINAL_STATUSES: Set<Job['status']> = new Set([
+  'cancelled',
   'done',
   'error',
-  'cancelled',
 ]);
 
 /** List active (in-memory, non-terminal) jobs, optionally filtered. */
