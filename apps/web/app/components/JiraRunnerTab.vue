@@ -205,6 +205,7 @@ defineExpose({
         :auto-run-loading="autoRun.loading.value"
         @update:jira-config="Object.assign(jiraConfig, $event)"
         @toggle-auto-run="autoRun.toggle($event)"
+        @update-interval="autoRun.updateInterval($event)"
         @done="onDoneConfig"
       />
 

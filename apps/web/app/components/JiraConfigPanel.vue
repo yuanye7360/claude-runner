@@ -12,8 +12,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:jiraConfig', val: JiraConfig): void;
   (e: 'toggleAutoRun', val: boolean): void;
+  (e: 'updateInterval', val: number): void;
   (e: 'done'): void;
 }>();
+
+const intervalOptions = [1, 2, 5, 10, 15, 30];
 
 const config = computed({
   get: () => props.jiraConfig,
@@ -117,9 +120,6 @@ function addLabel() {
               <span class="text-xs text-gray-300">
                 狀態切 In Development 時自動觸發
               </span>
-              <span class="text-[10px] text-gray-500">
-                每 {{ autoRunInterval }} 分鐘輪詢 JIRA
-              </span>
             </div>
             <USwitch
               :model-value="autoRunEnabled"
@@ -127,6 +127,28 @@ function addLabel() {
               @update:model-value="emit('toggleAutoRun', $event)"
             />
           </label>
+          <div
+            class="flex items-center justify-between rounded-md border border-gray-700 bg-gray-800/40 px-3 py-2"
+            :class="{ 'opacity-50': !autoRunEnabled }"
+          >
+            <span class="text-xs text-gray-400">輪詢間隔</span>
+            <div class="flex items-center gap-1">
+              <button
+                v-for="opt in intervalOptions"
+                :key="opt"
+                class="rounded px-1.5 py-0.5 text-[11px] transition-colors"
+                :class="
+                  autoRunInterval === opt
+                    ? 'bg-primary-600 text-white'
+                    : 'text-gray-500 hover:bg-gray-700 hover:text-gray-300'
+                "
+                :disabled="!autoRunEnabled"
+                @click="emit('updateInterval', opt)"
+              >
+                {{ opt }}m
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

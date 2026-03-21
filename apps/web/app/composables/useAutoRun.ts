@@ -105,6 +105,19 @@ export function useAutoRun(options: {
     pollTimer = setInterval(pollAndConnect, 15_000);
   }
 
+  async function updateInterval(mins: number) {
+    if (mins <= 0) return;
+    interval.value = mins;
+    try {
+      await $fetch('/api/settings/jira-auto-run', {
+        method: 'PUT',
+        body: { interval: mins },
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   function stopPoll() {
     if (pollTimer) {
       clearInterval(pollTimer);
@@ -120,6 +133,7 @@ export function useAutoRun(options: {
     isPolling,
     loadSettings,
     toggle,
+    updateInterval,
     checkJobs,
     startPoll,
     stopPoll,

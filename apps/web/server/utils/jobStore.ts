@@ -71,14 +71,20 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
-/** List active (in-memory, running) jobs, optionally filtered. */
+const TERMINAL_STATUSES: Set<Job['status']> = new Set([
+  'done',
+  'error',
+  'cancelled',
+]);
+
+/** List active (in-memory, non-terminal) jobs, optionally filtered. */
 export function listActiveJobs(filter?: {
   trigger?: JobTrigger;
   type?: JobType;
 }): Job[] {
   const result: Job[] = [];
   for (const job of jobs.values()) {
-    if (job.status !== 'running') continue;
+    if (TERMINAL_STATUSES.has(job.status)) continue;
     if (filter?.type && job.type !== filter.type) continue;
     if (filter?.trigger && job.trigger !== filter.trigger) continue;
     result.push(job);

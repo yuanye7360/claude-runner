@@ -12,7 +12,7 @@ function stripAnsi(str: string): string {
 
 const expandedKeys = ref<Set<string>>(new Set());
 
-// Auto-expand issues when they transition from queued (phase 0) to running (phase >= 1)
+// Auto-expand issues when they first appear with progress, or transition to running
 watch(
   () => {
     if (!props.activeJob) return null;
@@ -20,20 +20,26 @@ watch(
       ([key, phases]) => ({
         key,
         phase: phases.find((p) => p.status === 'running')?.phase ?? -1,
+        allDone: phases.length > 0 && phases.every((p) => p.status === 'done'),
       }),
     );
   },
   (current, prev) => {
     if (!current) return;
-    for (const { key, phase } of current) {
-      const prevPhase = prev?.find((p) => p.key === key)?.phase ?? -1;
-      // Expand when transitioning from queued/unknown to running
-      if (phase >= 1 && prevPhase <= 0) {
+    for (const { key, phase, allDone } of current) {
+      const prevEntry = prev?.find((p) => p.key === key);
+      if (!prevEntry) {
+        // New issue appearing: expand if running or already done
+        if (phase >= 1 || allDone) {
+          expandedKeys.value.add(key);
+        }
+      } else if (phase >= 1 && (prevEntry.phase ?? -1) <= 0) {
+        // Transitioning from queued/unknown to running
         expandedKeys.value.add(key);
       }
     }
   },
-  { deep: true },
+  { deep: true, immediate: true },
 );
 
 function toggleExpanded(key: string) {
