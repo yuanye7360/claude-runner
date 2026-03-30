@@ -16,25 +16,25 @@ watch(open, (v) => {
   <UPopover v-model:open="open">
     <button
       data-tour="repos"
-      class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
-      :class="{ 'text-primary-400': open }"
+      class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
+      :class="{ 'text-[#8b5cf6]': open }"
     >
       <UIcon name="i-lucide-folder-git-2" style="font-size: 1em" />
       <span class="text-xs">Repos</span>
       <span
         v-if="repoConfigs.length > 0"
-        class="bg-primary-500/20 text-primary-400 rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
+        class="bg-primary-500/20 text-[#8b5cf6] rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
       >
         {{ repoConfigs.length }}
       </span>
     </button>
 
     <template #content>
-      <div class="w-80 rounded-xl border border-gray-700 bg-gray-900 p-3">
+      <div class="w-80 rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-3">
         <div class="mb-2 flex items-center justify-between">
-          <span class="text-xs font-medium text-gray-300">Repos</span>
+          <span class="text-xs font-medium text-[#ccc]">Repos</span>
           <button
-            class="rounded px-1.5 py-0.5 text-xs text-blue-400 transition-colors hover:bg-blue-500/10"
+            class="rounded px-1.5 py-0.5 text-xs text-[#8b5cf6] transition-colors hover:bg-[#8b5cf6]/10"
             @click="newConfig()"
           >
             + 新增
@@ -42,19 +42,19 @@ watch(open, (v) => {
         </div>
 
         <div v-if="repoConfigs.length === 0" class="py-4 text-center">
-          <p class="text-xs text-gray-600">尚無 Repo</p>
+          <p class="text-xs text-[#444]">尚無 Repo</p>
         </div>
 
         <div v-else class="max-h-64 space-y-1.5 overflow-y-auto">
           <div
             v-for="repo in repoConfigs"
             :key="repo.id"
-            class="group rounded-lg border border-gray-700/50 bg-gray-800/60 px-3 py-2 transition-colors hover:border-gray-600"
+            class="group rounded-lg border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 transition-colors hover:border-[rgb(255_255_255/8%)]"
           >
             <div class="flex items-center justify-between">
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5">
-                  <span class="text-xs font-medium text-white">{{
+                  <span class="text-xs font-medium text-[#fafafa]">{{
                     repo.name
                   }}</span>
                   <span
@@ -68,7 +68,7 @@ watch(open, (v) => {
                     >✗</span
                   >
                 </div>
-                <div class="mt-0.5 truncate text-xs text-gray-600">
+                <div class="mt-0.5 truncate text-xs text-[#444]">
                   {{ repo.githubRepo }}
                 </div>
               </div>
@@ -76,7 +76,7 @@ watch(open, (v) => {
                 class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
               >
                 <button
-                  class="rounded p-1 text-gray-600 hover:text-gray-400"
+                  class="rounded p-1 text-[#444] hover:text-[#888]"
                   title="驗證"
                   @click="validateRepo(repo.id)"
                 >
@@ -86,7 +86,7 @@ watch(open, (v) => {
                   />
                 </button>
                 <button
-                  class="rounded p-1 text-gray-600 hover:text-gray-400"
+                  class="rounded p-1 text-[#444] hover:text-[#888]"
                   title="編輯"
                   @click="startEditConfig(repo)"
                 >
@@ -94,7 +94,7 @@ watch(open, (v) => {
                 </button>
                 <button
                   v-if="confirmDelete !== repo.id"
-                  class="rounded p-1 text-gray-600 hover:text-red-400"
+                  class="rounded p-1 text-[#444] hover:text-red-400"
                   title="刪除"
                   @click="confirmDelete = repo.id"
                 >

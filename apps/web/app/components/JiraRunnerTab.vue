@@ -128,27 +128,27 @@ defineExpose({
   <div class="flex flex-1 overflow-hidden">
     <!-- Left: Issue list / Config panel -->
     <div
-      class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+      class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-[rgb(255_255_255/6%)]"
     >
       <!-- Header -->
       <div
-        class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-800 px-4"
+        class="flex h-11 shrink-0 items-center gap-2 border-b border-[rgb(255_255_255/6%)] px-4"
       >
-        <span class="text-sm font-medium text-gray-300">
+        <span class="text-sm font-medium text-[#ccc]">
           {{ showConfig ? 'JIRA 設定' : 'JIRA Issues' }}
         </span>
         <span
           v-if="
             !showConfig && !jira.loading.value && jira.issues.value.length > 0
           "
-          class="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400"
+          class="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-[#8b5cf6]"
         >
           {{ jira.issues.value.length }}
         </span>
         <div class="ml-auto flex items-center gap-1">
           <button
             v-if="!showConfig"
-            class="flex items-center rounded px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            class="flex items-center rounded px-1.5 py-1 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
             :class="{ 'pointer-events-none opacity-50': jira.loading.value }"
             @click="jira.loadIssues()"
           >
@@ -163,8 +163,8 @@ defineExpose({
               class="relative flex items-center rounded px-1.5 py-1 transition-colors"
               :class="
                 showConfig
-                  ? 'text-primary-400 bg-primary-500/10'
-                  : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'
+                  ? 'text-[#8b5cf6] bg-primary-500/10'
+                  : 'text-[#888] hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]'
               "
               title="JIRA 設定"
               @click="showConfig = !showConfig"
@@ -184,10 +184,10 @@ defineExpose({
             </button>
             <div
               v-if="!jiraConfigured && !showConfig"
-              class="absolute top-full right-0 z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-gray-900 px-3 py-2 text-xs text-orange-300 shadow-lg"
+              class="absolute top-full right-0 z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-[rgb(255_255_255/2%)] px-3 py-2 text-xs text-orange-300 shadow-lg"
             >
               <div
-                class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-t border-l border-orange-500/30 bg-gray-900"
+                class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-t border-l border-orange-500/30 bg-[rgb(255_255_255/2%)]"
               ></div>
               點此設定 JIRA 連線和 Repos
             </div>
@@ -251,20 +251,20 @@ defineExpose({
     <!-- Right: JIRA detail panel -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Tab bar -->
-      <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
+      <div class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1">
         <button
           class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
             jira.rightTab.value === 'progress'
-              ? 'border-primary-500 font-medium text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-300'
+              ? 'border-primary-500 font-medium text-[#fafafa]'
+              : 'border-transparent text-[#888] hover:text-[#ccc]'
           "
           @click="jira.rightTab.value = 'progress'"
         >
           <UIcon
             v-if="jira.cr.isRunning.value"
             name="i-lucide-loader-circle"
-            class="text-primary-400 animate-spin"
+            class="text-[#8b5cf6] animate-spin"
             style="font-size: 0.8em"
           />
           執行過程
@@ -273,15 +273,15 @@ defineExpose({
           class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
             jira.rightTab.value === 'history'
-              ? 'border-primary-500 font-medium text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-300'
+              ? 'border-primary-500 font-medium text-[#fafafa]'
+              : 'border-transparent text-[#888] hover:text-[#ccc]'
           "
           @click="jira.rightTab.value = 'history'"
         >
           執行紀錄
           <span
             v-if="jira.history.value.length > 0"
-            class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-400"
+            class="rounded-full bg-[#444] px-1.5 py-0.5 text-xs leading-none text-[#888]"
           >
             {{ jira.history.value.length }}
           </span>
@@ -315,29 +315,29 @@ defineExpose({
         >
           <UIcon
             name="i-lucide-loader-circle"
-            class="text-primary-400 h-10 w-10 animate-spin"
+            class="text-[#8b5cf6] h-10 w-10 animate-spin"
           />
           <div class="text-center">
-            <p class="font-medium text-gray-300">
+            <p class="font-medium text-[#ccc]">
               {{
                 jira.analyzer.analysing.value
                   ? '分析 Issue 中...'
                   : '準備執行...'
               }}
             </p>
-            <p class="mt-1 text-xs text-gray-500">正在規劃修復策略，請稍候</p>
+            <p class="mt-1 text-xs text-[#888]">正在規劃修復策略，請稍候</p>
           </div>
         </div>
         <div
           v-else
-          class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
+          class="flex flex-1 flex-col items-center justify-center gap-3 text-[#444] select-none"
         >
           <UIcon name="i-lucide-bug" class="text-5xl" />
           <div class="text-center">
-            <p class="font-medium text-gray-600">
+            <p class="font-medium text-[#444]">
               從左側選擇 JIRA Issue，開始自動修復
             </p>
-            <p class="mt-1 text-xs text-gray-600">
+            <p class="mt-1 text-xs text-[#444]">
               Claude 會自動分析 Issue、修復程式碼並建立 PR
             </p>
           </div>

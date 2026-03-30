@@ -67,9 +67,9 @@ const typeLabel: Record<string, string> = {
   'pr-review': 'Code Review',
 };
 const typeColor: Record<string, string> = {
-  'claude-runner': 'text-blue-400 bg-blue-500/10',
-  'pr-runner': 'text-green-400 bg-green-500/10',
-  'pr-review': 'text-purple-400 bg-purple-500/10',
+  'claude-runner': 'text-[#8b5cf6] bg-blue-500/10',
+  'pr-runner': 'text-[#22c55e] bg-green-500/10',
+  'pr-review': 'text-[#a78bfa] bg-purple-500/10',
 };
 
 // ── Search ──
@@ -161,12 +161,12 @@ function goToJob(jobId: string) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-gray-800 bg-gray-900/60">
+  <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]">
     <!-- Search bar + bulk actions -->
-    <div class="flex items-center gap-3 border-b border-gray-800 px-4 py-3">
+    <div class="flex items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4 py-3">
       <input
         v-model="search"
-        class="flex-1 rounded-md border border-gray-700 bg-gray-800/60 px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+        class="flex-1 rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-1.5 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
         placeholder="搜尋 Issue Key 或 Summary..."
       />
       <Transition
@@ -192,7 +192,7 @@ function goToJob(jobId: string) {
     <div class="overflow-x-auto">
       <table class="w-full text-left text-sm">
         <thead>
-          <tr class="border-b border-gray-800 text-xs text-gray-500">
+          <tr class="border-b border-[rgb(255_255_255/6%)] text-xs text-[#888]">
             <th class="w-10 px-2 py-2" @click.stop>
               <input
                 type="checkbox"
@@ -202,7 +202,7 @@ function goToJob(jobId: string) {
               />
             </th>
             <th
-              class="cursor-pointer px-4 py-2 hover:text-gray-300"
+              class="cursor-pointer px-4 py-2 hover:text-[#ccc]"
               @click="toggleSort('time')"
             >
               <span class="flex items-center gap-1">
@@ -215,7 +215,7 @@ function goToJob(jobId: string) {
             <th class="px-4 py-2">Issue</th>
             <th class="px-4 py-2">Summary</th>
             <th
-              class="cursor-pointer px-4 py-2 hover:text-gray-300"
+              class="cursor-pointer px-4 py-2 hover:text-[#ccc]"
               @click="toggleSort('status')"
             >
               <span class="flex items-center gap-1">
@@ -225,7 +225,7 @@ function goToJob(jobId: string) {
             </th>
             <th class="px-4 py-2">PR / 錯誤</th>
             <th
-              class="cursor-pointer px-4 py-2 hover:text-gray-300"
+              class="cursor-pointer px-4 py-2 hover:text-[#ccc]"
               @click="toggleSort('duration')"
             >
               <span class="flex items-center gap-1">
@@ -240,8 +240,8 @@ function goToJob(jobId: string) {
           <tr
             v-for="row in pagedRows"
             :key="`${row.jobId}-${row.issueKey}`"
-            class="group cursor-pointer border-b border-gray-800/50 transition-colors hover:bg-gray-800/30"
-            :class="selected.has(row.jobId) ? 'bg-gray-800/20' : ''"
+            class="group cursor-pointer border-b border-[rgb(255_255_255/6%)] transition-colors hover:bg-[rgb(255_255_255/4%)]"
+            :class="selected.has(row.jobId) ? 'bg-[rgb(255_255_255/4%)]' : ''"
             @click="goToJob(row.jobId)"
           >
             <td class="px-2 py-2" @click.stop>
@@ -252,14 +252,14 @@ function goToJob(jobId: string) {
                 @change="toggleSelect(row.jobId)"
               />
             </td>
-            <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
+            <td class="px-4 py-2 text-xs whitespace-nowrap text-[#888]">
               {{ fmtTime(row.timestamp) }}
             </td>
             <td class="px-4 py-2">
               <span
                 class="rounded-full px-2 py-0.5 text-xs"
                 :class="
-                  typeColor[row.jobType ?? ''] ?? 'bg-gray-500/10 text-gray-400'
+                  typeColor[row.jobType ?? ''] ?? 'bg-gray-500/10 text-[#888]'
                 "
               >
                 {{ typeLabel[row.jobType ?? ''] ?? row.jobType ?? '-' }}
@@ -268,13 +268,13 @@ function goToJob(jobId: string) {
             <td class="px-4 py-2">
               <span
                 v-if="row.trigger === 'auto'"
-                class="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs text-orange-400"
+                class="rounded-full bg-orange-500/10 px-2 py-0.5 text-xs text-[#f59e0b]"
               >
                 自動
               </span>
               <span
                 v-else
-                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-gray-400"
+                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-[#888]"
               >
                 手動
               </span>
@@ -285,20 +285,20 @@ function goToJob(jobId: string) {
                 :href="`${jiraBaseUrl}/browse/${row.issueKey}`"
                 target="_blank"
                 rel="noopener"
-                class="font-mono text-xs font-semibold text-blue-400 hover:underline"
+                class="font-mono text-xs font-semibold text-[#8b5cf6] hover:underline"
                 @click.stop
               >
                 {{ row.issueKey }}
               </a>
               <span
                 v-else
-                class="font-mono text-xs font-semibold text-blue-400"
+                class="font-mono text-xs font-semibold text-[#8b5cf6]"
               >
                 {{ row.issueKey }}
               </span>
             </td>
             <td
-              class="max-w-xs truncate px-4 py-2 text-xs text-gray-400"
+              class="max-w-xs truncate px-4 py-2 text-xs text-[#888]"
               :title="row.summary"
             >
               {{ row.summary }}
@@ -306,13 +306,13 @@ function goToJob(jobId: string) {
             <td class="px-4 py-2">
               <span
                 v-if="row.jobStatus === 'cancelled'"
-                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-gray-400"
+                class="rounded-full bg-gray-500/10 px-2 py-0.5 text-xs text-[#888]"
               >
                 已中斷
               </span>
               <span
                 v-else-if="row.success"
-                class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-400"
+                class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-[#22c55e]"
               >
                 成功
               </span>
@@ -329,7 +329,7 @@ function goToJob(jobId: string) {
                 :href="row.prUrl"
                 target="_blank"
                 rel="noopener"
-                class="text-blue-400 hover:underline"
+                class="text-[#8b5cf6] hover:underline"
                 @click.stop
               >
                 {{ row.prUrl.split('/').slice(-2).join('/') }}
@@ -341,14 +341,14 @@ function goToJob(jobId: string) {
               >
                 {{ row.error.slice(0, 50) }}
               </span>
-              <span v-else class="text-gray-600">-</span>
+              <span v-else class="text-[#444]">-</span>
             </td>
-            <td class="px-4 py-2 text-xs whitespace-nowrap text-gray-500">
+            <td class="px-4 py-2 text-xs whitespace-nowrap text-[#888]">
               {{ fmtDuration(row.durationSecs) }}
             </td>
             <td class="px-2 py-2" @click.stop>
               <button
-                class="rounded p-1 text-gray-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                class="rounded p-1 text-[#444] transition-colors hover:bg-red-500/10 hover:text-red-400"
                 title="刪除"
                 @click="
                   deleteTarget = {
@@ -362,7 +362,7 @@ function goToJob(jobId: string) {
             </td>
           </tr>
           <tr v-if="pagedRows.length === 0" key="empty">
-            <td colspan="10" class="px-4 py-8 text-center text-gray-600">
+            <td colspan="10" class="px-4 py-8 text-center text-[#444]">
               {{ search ? '沒有符合的結果' : '尚無執行紀錄' }}
             </td>
           </tr>
@@ -373,13 +373,13 @@ function goToJob(jobId: string) {
     <!-- Pagination -->
     <div
       v-if="totalPages > 1"
-      class="flex items-center justify-between border-t border-gray-800 px-4 py-2 text-xs text-gray-500"
+      class="flex items-center justify-between border-t border-[rgb(255_255_255/6%)] px-4 py-2 text-xs text-[#888]"
     >
       <span>共 {{ sortedRows.length }} 筆</span>
       <div class="flex items-center gap-2">
         <button
           :disabled="currentPage <= 1"
-          class="rounded px-2 py-1 hover:bg-gray-800 disabled:opacity-30"
+          class="rounded px-2 py-1 hover:bg-[rgb(255_255_255/4%)] disabled:opacity-30"
           @click="currentPage--"
         >
           上一頁
@@ -387,7 +387,7 @@ function goToJob(jobId: string) {
         <span>{{ currentPage }} / {{ totalPages }}</span>
         <button
           :disabled="currentPage >= totalPages"
-          class="rounded px-2 py-1 hover:bg-gray-800 disabled:opacity-30"
+          class="rounded px-2 py-1 hover:bg-[rgb(255_255_255/4%)] disabled:opacity-30"
           @click="currentPage++"
         >
           下一頁
@@ -401,7 +401,7 @@ function goToJob(jobId: string) {
       @update:open="(v: boolean) => !v && (deleteTarget = null)"
     >
       <template #content>
-        <div class="rounded-xl border border-gray-700 bg-gray-900 p-6">
+        <div class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6">
           <div class="mb-3 flex items-center gap-2">
             <div
               class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
@@ -412,14 +412,14 @@ function goToJob(jobId: string) {
                 style="font-size: 1em"
               />
             </div>
-            <h3 class="text-sm font-semibold text-white">確認刪除</h3>
+            <h3 class="text-sm font-semibold text-[#fafafa]">確認刪除</h3>
           </div>
-          <p class="mb-3 text-xs text-gray-400">
+          <p class="mb-3 text-xs text-[#888]">
             確定要刪除此筆紀錄？此操作無法復原。
           </p>
           <p
             v-if="deleteTarget"
-            class="mb-4 rounded-md border border-gray-700/50 bg-gray-800/60 px-3 py-2 font-mono text-xs text-gray-300"
+            class="mb-4 rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 font-mono text-xs text-[#ccc]"
           >
             {{ deleteTarget.issueKey }}
           </p>
@@ -441,7 +441,7 @@ function goToJob(jobId: string) {
       @update:open="(v: boolean) => !v && (bulkDeleteOpen = false)"
     >
       <template #content>
-        <div class="rounded-xl border border-gray-700 bg-gray-900 p-6">
+        <div class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6">
           <div class="mb-3 flex items-center gap-2">
             <div
               class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
@@ -452,11 +452,11 @@ function goToJob(jobId: string) {
                 style="font-size: 1em"
               />
             </div>
-            <h3 class="text-sm font-semibold text-white">批量刪除</h3>
+            <h3 class="text-sm font-semibold text-[#fafafa]">批量刪除</h3>
           </div>
-          <p class="mb-4 text-xs text-gray-400">
+          <p class="mb-4 text-xs text-[#888]">
             確定要刪除已選的
-            <span class="font-semibold text-white">{{ selected.size }}</span>
+            <span class="font-semibold text-[#fafafa]">{{ selected.size }}</span>
             筆紀錄？此操作無法復原。
           </p>
           <div class="flex justify-end gap-2">

@@ -115,10 +115,10 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
   <!-- Empty state -->
   <div
     v-if="!activeJob"
-    class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
+    class="flex flex-1 flex-col items-center justify-center gap-3 text-[#444] select-none"
   >
     <UIcon name="i-lucide-terminal" class="text-5xl" />
-    <p class="text-gray-600">尚無執行中的工作</p>
+    <p class="text-[#444]">尚無執行中的工作</p>
   </div>
 
   <!-- Active job: collapsible items per task -->
@@ -126,11 +126,11 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
     <div
       v-for="entry in sortedIssueEntries"
       :key="entry.key"
-      class="border-b border-gray-800 last:border-b-0"
+      class="border-b border-[rgb(255_255_255/6%)] last:border-b-0"
     >
       <!-- Collapsible header -->
       <div
-        class="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-gray-800/40"
+        class="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[rgb(255_255_255/4%)]"
         role="button"
         tabindex="0"
         :aria-expanded="expandedKeys.has(entry.key)"
@@ -141,40 +141,40 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         <UIcon
           v-if="entry.currentPhase && entry.currentPhase.phase > 0"
           name="i-lucide-loader-circle"
-          class="text-primary-400 shrink-0 animate-spin"
+          class="text-[#8b5cf6] shrink-0 animate-spin"
         />
         <UIcon
           v-else-if="entry.isQueued"
           name="i-lucide-clock"
-          class="shrink-0 text-gray-500"
+          class="shrink-0 text-[#888]"
         />
         <UIcon
           v-else-if="entry.allDone"
           name="i-lucide-circle-check"
-          class="shrink-0 text-green-400"
+          class="shrink-0 text-[#22c55e]"
         />
         <UIcon
           v-else
           name="i-lucide-circle-dot"
-          class="shrink-0 text-gray-600"
+          class="shrink-0 text-[#444]"
         />
 
         <!-- Issue key -->
-        <span class="shrink-0 font-mono text-sm font-semibold text-gray-300">
+        <span class="shrink-0 font-mono text-sm font-semibold text-[#ccc]">
           {{ entry.key }}
         </span>
 
         <!-- Current phase label -->
         <span
           v-if="entry.currentPhase && entry.currentPhase.phase > 0"
-          class="text-sm text-blue-400"
+          class="text-sm text-[#8b5cf6]"
         >
           {{ entry.currentPhase.label }}
         </span>
-        <span v-else-if="entry.isQueued" class="text-sm text-gray-500">
+        <span v-else-if="entry.isQueued" class="text-sm text-[#888]">
           排隊中
         </span>
-        <span v-else-if="entry.allDone" class="text-sm text-green-400">
+        <span v-else-if="entry.allDone" class="text-sm text-[#22c55e]">
           完成
         </span>
 
@@ -185,9 +185,9 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             :key="p.phase"
             class="h-2 w-2 rounded-full"
             :class="{
-              'bg-green-500': p.status === 'done',
-              'animate-pulse bg-blue-500': p.status === 'running',
-              'bg-gray-700': p.status === 'pending',
+              'bg-[#22c55e]': p.status === 'done',
+              'animate-pulse bg-[#8b5cf6]': p.status === 'running',
+              'bg-[#444]': p.status === 'pending',
             }"
             :title="p.label"
           ></div>
@@ -196,7 +196,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         <!-- Chevron -->
         <UIcon
           name="i-lucide-chevron-down"
-          class="shrink-0 text-gray-600 transition-transform duration-200"
+          class="shrink-0 text-[#444] transition-transform duration-200"
           :class="{ 'rotate-180': expandedKeys.has(entry.key) }"
         />
       </div>
@@ -204,7 +204,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
       <!-- Expanded content -->
       <div
         v-if="expandedKeys.has(entry.key)"
-        class="border-t border-gray-800/60 bg-gray-950"
+        class="border-t border-[rgb(255_255_255/4%)] bg-[#0a0a0f]"
       >
         <!-- Phase progress bar (exclude phase 0) -->
         <div class="flex items-center gap-4 px-4 py-2.5">
@@ -217,9 +217,9 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             <div
               class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold"
               :class="{
-                'bg-green-600 text-white': p.status === 'done',
-                'animate-pulse bg-blue-600 text-white': p.status === 'running',
-                'border border-gray-700 text-transparent':
+                'bg-[#22c55e] text-[#fafafa]': p.status === 'done',
+                'animate-pulse bg-[#8b5cf6] text-[#fafafa]': p.status === 'running',
+                'border border-[rgb(255_255_255/8%)] text-transparent':
                   p.status === 'pending',
               }"
             >
@@ -231,9 +231,9 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             <span
               class="text-xs"
               :class="{
-                'text-green-400': p.status === 'done',
-                'font-semibold text-blue-400': p.status === 'running',
-                'text-gray-600': p.status === 'pending',
+                'text-[#22c55e]': p.status === 'done',
+                'font-semibold text-[#8b5cf6]': p.status === 'running',
+                'text-[#444]': p.status === 'pending',
               }"
             >
               {{ p.label }}
@@ -242,7 +242,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             <div
               v-if="i < visiblePhases(entry.phases).length - 1"
               class="h-px w-6"
-              :class="p.status === 'done' ? 'bg-green-900' : 'bg-gray-800'"
+              :class="p.status === 'done' ? 'bg-[rgb(34_197_94/15%)]' : 'bg-[rgb(255_255_255/4%)]'"
             ></div>
           </div>
         </div>
@@ -250,7 +250,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         <!-- Log output -->
         <pre
           :ref="(el) => setLogRef(entry.key, el as HTMLElement)"
-          class="text-log max-h-80 overflow-y-auto border-t border-gray-800/40 px-4 py-3 font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
+          class="text-log max-h-80 overflow-y-auto border-t border-[rgb(255_255_255/4%)] px-4 py-3 font-mono leading-relaxed break-all whitespace-pre-wrap text-[#888]"
           >{{ entry.output ? stripAnsi(entry.output) : '等待輸出...' }}</pre
         >
       </div>

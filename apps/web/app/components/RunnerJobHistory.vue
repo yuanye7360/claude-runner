@@ -60,16 +60,16 @@ function formatTime(ts: number) {
     <!-- Empty state -->
     <div
       v-if="history.length === 0"
-      class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
+      class="flex flex-1 flex-col items-center justify-center gap-3 text-[#444] select-none"
     >
       <UIcon name="i-lucide-clock" class="text-5xl" />
-      <p class="text-gray-600">尚無執行紀錄</p>
+      <p class="text-[#444]">尚無執行紀錄</p>
     </div>
 
     <template v-else>
       <!-- Header bar -->
       <div
-        class="flex h-11 shrink-0 items-center border-b border-gray-800 px-5"
+        class="flex h-11 shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-5"
       >
         <span class="text-muted">共 {{ history.length }} 筆紀錄</span>
         <button
@@ -86,17 +86,17 @@ function formatTime(ts: number) {
         <div
           v-for="entry in history"
           :key="entry.id"
-          class="overflow-hidden rounded-xl border border-gray-800"
+          class="overflow-hidden rounded-xl border border-[rgb(255_255_255/6%)]"
         >
           <!-- Entry header (toggle) -->
           <button
-            class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-800/40"
+            class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgb(255_255_255/4%)]"
             @click="toggleEntry(entry.id)"
           >
-            <UIcon name="i-lucide-clock" class="shrink-0 text-gray-600" />
+            <UIcon name="i-lucide-clock" class="shrink-0 text-[#444]" />
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="font-medium text-gray-300">{{
+                <span class="font-medium text-[#ccc]">{{
                   formatTime(entry.timestamp)
                 }}</span>
                 <span
@@ -123,7 +123,7 @@ function formatTime(ts: number) {
                   已中斷
                 </span>
                 <template v-else>
-                  <span class="flex items-center gap-1 text-green-400">
+                  <span class="flex items-center gap-1 text-[#22c55e]">
                     <UIcon name="i-lucide-check" />
                     {{ entry.results.filter((r) => !r.error).length }}
                   </span>
@@ -142,22 +142,22 @@ function formatTime(ts: number) {
             </div>
             <UIcon
               name="i-lucide-chevron-down"
-              class="shrink-0 text-gray-600 transition-transform duration-200"
+              class="shrink-0 text-[#444] transition-transform duration-200"
               :class="{ 'rotate-180': expandedId === entry.id }"
             />
           </button>
 
           <!-- Expanded content -->
-          <div v-if="expandedId === entry.id" class="border-t border-gray-800">
+          <div v-if="expandedId === entry.id" class="border-t border-[rgb(255_255_255/6%)]">
             <!-- Per-result collapsible rows -->
             <div
               v-for="r in entry.results"
               :key="r.issueKey"
-              class="border-b border-gray-800/60 last:border-b-0"
+              class="border-b border-[rgb(255_255_255/4%)] last:border-b-0"
             >
               <!-- Result header -->
               <div
-                class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-800/30"
+                class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-[rgb(255_255_255/4%)]"
                 :class="r.error ? 'bg-red-950/20' : 'bg-green-950/10'"
                 role="button"
                 tabindex="0"
@@ -169,14 +169,14 @@ function formatTime(ts: number) {
                     r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'
                   "
                   class="shrink-0"
-                  :class="r.error ? 'text-red-400' : 'text-green-400'"
+                  :class="r.error ? 'text-red-400' : 'text-[#22c55e]'"
                 />
                 <component
                   :is="getItemUrl?.(r.issueKey) ? 'a' : 'span'"
                   :href="getItemUrl?.(r.issueKey) ?? undefined"
                   target="_blank"
                   rel="noopener"
-                  class="shrink-0 font-mono font-semibold text-gray-300"
+                  class="shrink-0 font-mono font-semibold text-[#ccc]"
                   :class="{
                     'underline-offset-2 hover:underline': getItemUrl?.(
                       r.issueKey,
@@ -193,7 +193,7 @@ function formatTime(ts: number) {
                   :href="r.prUrl"
                   target="_blank"
                   rel="noopener"
-                  class="shrink-0 font-medium text-blue-400 underline-offset-2 hover:underline"
+                  class="shrink-0 font-medium text-[#8b5cf6] underline-offset-2 hover:underline"
                   @click.stop
                 >
                   PR ↗
@@ -201,13 +201,13 @@ function formatTime(ts: number) {
                 <span
                   v-else
                   class="shrink-0 text-xs"
-                  :class="r.error ? 'text-red-400' : 'text-green-400'"
+                  :class="r.error ? 'text-red-400' : 'text-[#22c55e]'"
                 >
                   {{ r.error ? '失敗' : '完成' }}
                 </span>
                 <UIcon
                   name="i-lucide-chevron-down"
-                  class="shrink-0 text-gray-600 transition-transform duration-200"
+                  class="shrink-0 text-[#444] transition-transform duration-200"
                   :class="{ 'rotate-180': expandedResults.has(r.issueKey) }"
                 />
               </div>
@@ -215,10 +215,10 @@ function formatTime(ts: number) {
               <!-- Collapsible log per result -->
               <div
                 v-if="expandedResults.has(r.issueKey)"
-                class="bg-gray-950 px-4 py-3"
+                class="bg-[#0a0a0f] px-4 py-3"
               >
                 <pre
-                  class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-500"
+                  class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-[#888]"
                   >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre
                 >
               </div>
@@ -233,7 +233,7 @@ function formatTime(ts: number) {
 <style scoped>
 .text-muted {
   font-size: 0.875em;
-  color: rgb(107 114 128);
+  color: #888;
 }
 
 .text-log {

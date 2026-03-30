@@ -162,28 +162,28 @@ onMounted(() => {
   <div class="flex flex-1 flex-col overflow-auto">
     <!-- ══════ Top nav ══════ -->
     <div
-      class="flex h-12 shrink-0 items-center gap-3 border-b border-gray-800 px-4"
+      class="flex h-12 shrink-0 items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4"
     >
       <NuxtLink to="/" class="flex items-center gap-2 hover:opacity-80">
-        <span class="text-primary-400 text-lg">&#9889;</span>
-        <span class="font-semibold text-white">Claude Runner</span>
+        <span class="text-[#8b5cf6] text-lg">&#9889;</span>
+        <span class="font-semibold text-[#fafafa]">Claude Runner</span>
       </NuxtLink>
-      <span class="text-gray-600">/</span>
-      <span class="text-sm font-medium text-gray-300">Skills 管理</span>
+      <span class="text-[#444]">/</span>
+      <span class="text-sm font-medium text-[#ccc]">Skills 管理</span>
 
       <div class="ml-auto flex items-center gap-2">
-        <span class="text-xs text-gray-600">
+        <span class="text-xs text-[#444]">
           已啟用 {{ enabledSkillNames.length }} / {{ skillList.length }}
         </span>
         <button
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
+          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#fafafa]"
           @click="startEditPresets"
         >
           <UIcon name="i-lucide-sliders-horizontal" />
           模式預設
         </button>
         <button
-          class="bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+          class="bg-primary-500/10 text-[#8b5cf6] hover:bg-primary-500/20 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
           @click="showCreate = true"
         >
           <UIcon name="i-lucide-plus" />
@@ -196,16 +196,16 @@ onMounted(() => {
     <div class="flex min-h-0 flex-1">
       <!-- ── Skill list (left) ── -->
       <div
-        class="w-80 shrink-0 overflow-y-auto border-r border-gray-800 lg:w-96"
+        class="w-80 shrink-0 overflow-y-auto border-r border-[rgb(255_255_255/6%)] lg:w-96"
       >
-        <div v-if="!loaded" class="p-4 text-sm text-gray-600">載入中...</div>
+        <div v-if="!loaded" class="p-4 text-sm text-[#444]">載入中...</div>
         <div
           v-else-if="skillList.length === 0"
-          class="p-4 text-sm text-gray-600"
+          class="p-4 text-sm text-[#444]"
         >
           尚無 Skill
         </div>
-        <div v-else class="divide-y divide-gray-800/60">
+        <div v-else class="divide-y divide-[rgb(255_255_255/4%)]">
           <div
             v-for="skill in skillList"
             :key="skill.name"
@@ -213,7 +213,7 @@ onMounted(() => {
             :class="[
               selectedName === skill.name
                 ? 'bg-primary-500/10 border-l-primary-400 border-l-2'
-                : 'border-l-2 border-l-transparent hover:bg-gray-900/60',
+                : 'border-l-2 border-l-transparent hover:bg-[rgb(255_255_255/2%)]',
             ]"
             @click="selectSkill(skill)"
           >
@@ -224,7 +224,7 @@ onMounted(() => {
             />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <span class="truncate text-sm font-medium text-gray-200">{{
+                <span class="truncate text-sm font-medium text-[#fafafa]">{{
                   skill.name
                 }}</span>
                 <UBadge
@@ -243,7 +243,7 @@ onMounted(() => {
                   {{ skill.inject }}
                 </UBadge>
               </div>
-              <p class="mt-0.5 line-clamp-2 text-xs text-gray-500">
+              <p class="mt-0.5 line-clamp-2 text-xs text-[#888]">
                 {{ skill.description }}
               </p>
             </div>
@@ -256,12 +256,12 @@ onMounted(() => {
         <!-- Empty state -->
         <div
           v-if="!selectedSkill && !loadingDetail"
-          class="flex flex-1 items-center justify-center text-gray-600"
+          class="flex flex-1 items-center justify-center text-[#444]"
         >
           <div class="text-center">
             <UIcon
               name="i-heroicons-cube"
-              class="mx-auto mb-2 text-3xl text-gray-700"
+              class="mx-auto mb-2 text-3xl text-[#444]"
             />
             <p class="text-sm">選擇一個 Skill 查看詳情</p>
           </div>
@@ -270,7 +270,7 @@ onMounted(() => {
         <!-- Loading -->
         <div
           v-else-if="loadingDetail"
-          class="flex flex-1 items-center justify-center text-gray-600"
+          class="flex flex-1 items-center justify-center text-[#444]"
         >
           <p class="text-sm">載入中...</p>
         </div>
@@ -279,13 +279,13 @@ onMounted(() => {
         <div v-else-if="selectedSkill" class="flex flex-1 flex-col">
           <!-- Header -->
           <div
-            class="flex shrink-0 items-center justify-between border-b border-gray-800 px-6 py-4"
+            class="flex shrink-0 items-center justify-between border-b border-[rgb(255_255_255/6%)] px-6 py-4"
           >
             <div>
-              <h2 class="text-lg font-semibold text-white">
+              <h2 class="text-lg font-semibold text-[#fafafa]">
                 {{ selectedSkill.name }}
               </h2>
-              <p class="mt-0.5 text-sm text-gray-500">
+              <p class="mt-0.5 text-sm text-[#888]">
                 {{ selectedSkill.description }}
               </p>
             </div>
@@ -309,7 +309,7 @@ onMounted(() => {
             <!-- View mode -->
             <template v-if="!editing">
               <pre
-                class="rounded-lg bg-gray-900 p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-gray-300"
+                class="rounded-lg bg-[rgb(255_255_255/2%)] p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-[#ccc]"
                 >{{ selectedSkill.content }}</pre
               >
             </template>
@@ -318,21 +318,21 @@ onMounted(() => {
             <template v-else>
               <div class="space-y-4">
                 <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-500"
+                  <label class="mb-1 block text-xs font-medium text-[#888]"
                     >說明</label
                   >
                   <input
                     v-model="editForm.description"
-                    class="focus:ring-primary-500 w-full rounded bg-gray-900 px-3 py-2 text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                    class="focus:ring-primary-500 w-full rounded bg-[rgb(255_255_255/2%)] px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
                   />
                 </div>
                 <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-500"
+                  <label class="mb-1 block text-xs font-medium text-[#888]"
                     >注入位置</label
                   >
                   <select
                     v-model="editForm.inject"
-                    class="focus:ring-primary-500 rounded bg-gray-900 px-3 py-2 text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                    class="focus:ring-primary-500 rounded bg-[rgb(255_255_255/2%)] px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
                   >
                     <option
                       v-for="opt in INJECT_OPTIONS"
@@ -344,13 +344,13 @@ onMounted(() => {
                   </select>
                 </div>
                 <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-500"
+                  <label class="mb-1 block text-xs font-medium text-[#888]"
                     >內容 (Markdown)</label
                   >
                   <textarea
                     v-model="editForm.content"
                     rows="20"
-                    class="focus:ring-primary-500 w-full rounded bg-gray-900 px-3 py-2 font-mono text-sm leading-relaxed text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                    class="focus:ring-primary-500 w-full rounded bg-[rgb(255_255_255/2%)] px-3 py-2 font-mono text-sm leading-relaxed text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
                   ></textarea>
                 </div>
               </div>
@@ -359,7 +359,7 @@ onMounted(() => {
 
           <!-- Footer actions -->
           <div
-            class="flex shrink-0 items-center gap-2 border-t border-gray-800 px-6 py-3"
+            class="flex shrink-0 items-center gap-2 border-t border-[rgb(255_255_255/6%)] px-6 py-3"
           >
             <template v-if="!editing">
               <UButton
@@ -412,30 +412,30 @@ onMounted(() => {
     <!-- ══════ Create modal ══════ -->
     <UModal v-model:open="showCreate">
       <template #content>
-        <div class="bg-gray-900 p-6">
-          <h3 class="mb-4 text-lg font-semibold text-white">新增 Skill</h3>
+        <div class="bg-[rgb(255_255_255/2%)] p-6">
+          <h3 class="mb-4 text-lg font-semibold text-[#fafafa]">新增 Skill</h3>
           <div class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-gray-500">名稱</label>
+              <label class="mb-1 block text-xs text-[#888]">名稱</label>
               <input
                 v-model="newSkill.name"
                 placeholder="my-custom-skill"
-                class="focus:ring-primary-500 w-full rounded bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                class="focus:ring-primary-500 w-full rounded bg-[rgb(255_255_255/4%)] px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-gray-500">說明</label>
+              <label class="mb-1 block text-xs text-[#888]">說明</label>
               <input
                 v-model="newSkill.description"
                 placeholder="這個 skill 做什麼..."
-                class="focus:ring-primary-500 w-full rounded bg-gray-800 px-3 py-2 text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                class="focus:ring-primary-500 w-full rounded bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-gray-500">注入位置</label>
+              <label class="mb-1 block text-xs text-[#888]">注入位置</label>
               <select
                 v-model="newSkill.inject"
-                class="focus:ring-primary-500 rounded bg-gray-800 px-3 py-2 text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                class="focus:ring-primary-500 rounded bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
               >
                 <option
                   v-for="opt in INJECT_OPTIONS"
@@ -447,14 +447,14 @@ onMounted(() => {
               </select>
             </div>
             <div>
-              <label class="mb-1 block text-xs text-gray-500"
+              <label class="mb-1 block text-xs text-[#888]"
                 >內容 (Markdown)</label
               >
               <textarea
                 v-model="newSkill.content"
                 rows="12"
                 placeholder="Skill 的 Markdown 指令內容..."
-                class="focus:ring-primary-500 w-full rounded bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100 ring-1 ring-gray-700 outline-none focus:ring-1"
+                class="focus:ring-primary-500 w-full rounded bg-[rgb(255_255_255/4%)] px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none focus:ring-1"
               ></textarea>
             </div>
           </div>
@@ -484,9 +484,9 @@ onMounted(() => {
     <!-- ══════ Delete confirmation modal ══════ -->
     <UModal v-model:open="confirmDelete">
       <template #content>
-        <div class="bg-gray-900 p-6">
-          <h3 class="mb-2 text-lg font-semibold text-white">確認刪除</h3>
-          <p class="mb-4 text-sm text-gray-400">
+        <div class="bg-[rgb(255_255_255/2%)] p-6">
+          <h3 class="mb-2 text-lg font-semibold text-[#fafafa]">確認刪除</h3>
+          <p class="mb-4 text-sm text-[#888]">
             確定要刪除 skill
             <span class="font-mono text-red-400">{{ selectedName }}</span>
             ？此操作無法復原。
@@ -510,18 +510,18 @@ onMounted(() => {
     <!-- ══════ Presets modal ══════ -->
     <UModal v-model:open="editingPresets">
       <template #content>
-        <div class="bg-gray-900 p-6">
-          <h3 class="mb-4 text-lg font-semibold text-white">模式預設</h3>
-          <p class="mb-4 text-xs text-gray-500">
+        <div class="bg-[rgb(255_255_255/2%)] p-6">
+          <h3 class="mb-4 text-lg font-semibold text-[#fafafa]">模式預設</h3>
+          <p class="mb-4 text-xs text-[#888]">
             設定每個模式切換時自動啟用的 skills
           </p>
           <div class="space-y-6">
             <div
               v-for="mode in Object.keys(presetDraft)"
               :key="mode"
-              class="rounded-lg border border-gray-700 p-4"
+              class="rounded-lg border border-[rgb(255_255_255/8%)] p-4"
             >
-              <div class="mb-2 text-sm font-medium text-gray-300 capitalize">
+              <div class="mb-2 text-sm font-medium text-[#ccc] capitalize">
                 {{ mode }} 模式
               </div>
               <div class="flex flex-wrap gap-2">
@@ -531,8 +531,8 @@ onMounted(() => {
                   class="rounded-lg border px-2.5 py-1 text-xs transition-all"
                   :class="
                     (presetDraft[mode] || []).includes(skill.name)
-                      ? 'border-primary-500/40 bg-primary-500/10 text-primary-400'
-                      : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-400'
+                      ? 'border-primary-500/40 bg-primary-500/10 text-[#8b5cf6]'
+                      : 'border-[rgb(255_255_255/8%)] text-[#888] hover:border-[rgb(255_255_255/8%)] hover:text-[#888]'
                   "
                   @click="togglePresetSkill(mode, skill.name)"
                 >

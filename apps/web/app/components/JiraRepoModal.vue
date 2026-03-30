@@ -54,42 +54,42 @@ defineExpose({ resetState: onCancel });
       @click.self="onCancel()"
     >
       <div
-        class="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl"
+        class="w-full max-w-lg rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6 shadow-2xl"
       >
-        <h2 class="mb-4 text-base font-semibold text-white">
+        <h2 class="mb-4 text-base font-semibold text-[#fafafa]">
           {{ editingConfig?.id ? '編輯 Repo' : '新增 Repo' }}
         </h2>
 
         <div class="space-y-3">
           <div>
-            <label class="mb-1 block text-xs text-gray-500">名稱</label>
+            <label class="mb-1 block text-xs text-[#888]">名稱</label>
             <input
               v-model="editingConfig!.name"
-              class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+              class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
               placeholder="b2c-web"
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-gray-500">GitHub Repo</label>
+            <label class="mb-1 block text-xs text-[#888]">GitHub Repo</label>
             <input
               v-model="editingConfig!.githubRepo"
-              class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+              class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
               placeholder="kkday-it/kkday-b2c-web"
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-gray-500">Label</label>
+            <label class="mb-1 block text-xs text-[#888]">Label</label>
             <input
               v-model="editingConfig!.label"
-              class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+              class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
               placeholder="b2c-web"
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs text-gray-500">本機路徑</label>
+            <label class="mb-1 block text-xs text-[#888]">本機路徑</label>
             <input
               v-model="editingConfig!.cwd"
-              class="w-full rounded-md border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 outline-none focus:border-gray-600"
+              class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
               placeholder="/Users/you/KKday/kkday-b2c-web"
             />
           </div>
@@ -97,14 +97,14 @@ defineExpose({ resetState: onCancel });
 
         <div class="mt-4 flex flex-wrap gap-2">
           <button
-            class="rounded-md border border-blue-600 px-3 py-1.5 text-xs text-blue-400 transition-colors hover:bg-blue-600/10"
+            class="rounded-md border border-[#8b5cf6] px-3 py-1.5 text-xs text-[#8b5cf6] transition-colors hover:bg-[#8b5cf6]/10"
             :disabled="!editingConfig?.cwd || validating"
             @click="onValidatePath()"
           >
             {{ validating ? '驗證中...' : '驗證路徑' }}
           </button>
           <button
-            class="rounded-md border border-blue-600 px-3 py-1.5 text-xs text-blue-400 transition-colors hover:bg-blue-600/10 disabled:cursor-not-allowed disabled:text-gray-600"
+            class="rounded-md border border-[#8b5cf6] px-3 py-1.5 text-xs text-[#8b5cf6] transition-colors hover:bg-[#8b5cf6]/10 disabled:cursor-not-allowed disabled:text-[#444]"
             :disabled="!editingConfig?.githubRepo || testing"
             @click="onTestConnection()"
           >
@@ -113,13 +113,13 @@ defineExpose({ resetState: onCancel });
         </div>
 
         <div v-if="modalPathResult" class="mt-2 text-xs">
-          <span v-if="modalPathResult.valid" class="text-green-400"
+          <span v-if="modalPathResult.valid" class="text-[#22c55e]"
             >✓ 路徑有效</span
           >
           <span v-else class="text-red-400">✗ {{ modalPathResult.error }}</span>
         </div>
         <div v-if="modalConnResult" class="mt-1 text-xs">
-          <span v-if="modalConnResult.valid" class="text-green-400"
+          <span v-if="modalConnResult.valid" class="text-[#22c55e]"
             >✓ GitHub 連線成功</span
           >
           <span v-else class="text-red-400">✗ {{ modalConnResult.error }}</span>
@@ -127,13 +127,13 @@ defineExpose({ resetState: onCancel });
 
         <div class="mt-6 flex justify-end gap-3">
           <button
-            class="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors hover:text-gray-300"
+            class="rounded-md px-4 py-2 text-sm text-[#888] transition-colors hover:text-[#ccc]"
             @click="onCancel()"
           >
             取消
           </button>
           <button
-            class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+            class="rounded-md bg-[#8b5cf6] px-4 py-2 text-sm font-medium text-[#fafafa] transition-colors hover:bg-[#8b5cf6]"
             :disabled="
               !editingConfig?.name ||
               !editingConfig?.githubRepo ||
