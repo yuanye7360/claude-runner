@@ -15,6 +15,28 @@ const onboarding = useOnboarding({
   skillCount: computed(() => enabledSkillNames.value.length),
 });
 
+// ── Command Palette ──
+const showCommandPalette = ref(false);
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    showCommandPalette.value = !showCommandPalette.value;
+  }
+}
+
+onMounted(() => {
+  if (import.meta.client) {
+    window.addEventListener('keydown', onGlobalKeydown);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (import.meta.client) {
+    window.removeEventListener('keydown', onGlobalKeydown);
+  }
+});
+
 // ── Font size ──
 const FONT_SIZES = [
   { label: '小', value: 14 },
@@ -66,6 +88,22 @@ const pageTitle = computed(() => {
           </span>
 
           <div class="ml-auto flex items-center gap-3">
+            <!-- Command palette trigger -->
+            <button
+              class="flex h-7.5 w-50 items-center gap-2 rounded-lg border px-3 text-[11px] text-[#444] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#888]"
+              style="border-color: rgb(255 255 255 / 8%)"
+              @click="showCommandPalette = true"
+            >
+              <UIcon name="i-lucide-search" class="shrink-0" />
+              <span>搜尋或跳轉...</span>
+              <kbd class="ml-auto rounded border px-1 py-0.5 text-[9px]" style="border-color: rgb(255 255 255 / 8%)">⌘K</kbd>
+            </button>
+
+            <div
+              class="h-4 w-px"
+              style="background: rgb(255 255 255 / 6%)"
+            ></div>
+
             <!-- Font size -->
             <div class="flex items-center gap-1.5">
               <UIcon name="i-lucide-type" class="text-xs text-[#444]" />
@@ -86,7 +124,10 @@ const pageTitle = computed(() => {
               </div>
             </div>
 
-            <div class="h-4 w-px" style="background: rgb(255 255 255 / 6%)"></div>
+            <div
+              class="h-4 w-px"
+              style="background: rgb(255 255 255 / 6%)"
+            ></div>
 
             <!-- Guide -->
             <UTooltip v-if="onboardingIncomplete" text="點擊開始設定指引">
@@ -95,8 +136,12 @@ const pageTitle = computed(() => {
                 @click="requestResetTour = true"
               >
                 <span class="relative flex h-2 w-2 shrink-0">
-                  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-75"></span>
-                  <span class="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]"></span>
+                  <span
+                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-75"
+                  ></span>
+                  <span
+                    class="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]"
+                  ></span>
                 </span>
                 設定指引
               </button>
@@ -127,5 +172,10 @@ const pageTitle = computed(() => {
         @highlight="onboarding.startTour($event)"
       />
     </ClientOnly>
+
+    <CommandPalette
+      :visible="showCommandPalette"
+      @close="showCommandPalette = false"
+    />
   </UApp>
 </template>
