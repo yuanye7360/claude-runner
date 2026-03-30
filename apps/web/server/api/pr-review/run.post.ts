@@ -375,6 +375,7 @@ export default defineEventHandler(async (event) => {
     })),
     'pr-review',
   );
+  job.enabledSkills = ['review-pr'];
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,

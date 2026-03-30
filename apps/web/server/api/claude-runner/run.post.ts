@@ -325,6 +325,7 @@ export default defineEventHandler(async (event) => {
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const job = createJob(jobId, jobIssues, 'claude-runner', trigger);
+  job.enabledSkills = enabledSkills ?? DEFAULT_SKILLS;
 
   if (analysisResult) {
     job.analysisResult = analysisResult;

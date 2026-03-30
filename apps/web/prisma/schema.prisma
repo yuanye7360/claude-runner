@@ -89,3 +89,10 @@ model AppSetting {
   key   String @id
   value String
 }
+
+model SkillUsage {
+  name         String    @id
+  triggerCount Int       @default(0)
+  successCount Int       @default(0)
+  lastUsedAt   DateTime?
+}

@@ -160,7 +160,9 @@ interface SkillGroup {
   skills: SkillItem[];
 }
 
-const expandedGroups = ref<Set<string>>(new Set(['project', 'custom', 'external']));
+const expandedGroups = ref<Set<string>>(
+  new Set(['custom', 'external', 'project']),
+);
 
 function toggleGroup(key: string) {
   if (expandedGroups.value.has(key)) expandedGroups.value.delete(key);
@@ -168,13 +170,17 @@ function toggleGroup(key: string) {
 }
 
 const groupedSkills = computed<SkillGroup[]>(() => {
-  const groups: Record<string, SkillItem[]> = { project: [], custom: [], external: [] };
+  const groups: Record<string, SkillItem[]> = {
+    project: [],
+    custom: [],
+    external: [],
+  };
   for (const s of skillList.value) {
     const key = s.source || 'external';
     if (!groups[key]) groups[key] = [];
     groups[key].push(s);
   }
-  const defs: { key: string; label: string; color: string }[] = [
+  const defs: { color: string; key: string; label: string }[] = [
     { key: 'project', label: 'Project', color: '#8b5cf6' },
     { key: 'custom', label: 'Server', color: '#06b6d4' },
     { key: 'external', label: 'Global', color: '#888' },
@@ -184,9 +190,43 @@ const groupedSkills = computed<SkillGroup[]>(() => {
     .map((d) => ({ ...d, skills: groups[d.key] ?? [] }));
 });
 
+// ── Skill usage stats ────────────────────────────────────
+interface SkillStat {
+  name: string;
+  triggerCount: number;
+  successCount: number;
+  lastUsedAt: string | null;
+}
+const skillStats = ref<Map<string, SkillStat>>(new Map());
+
+async function fetchStats() {
+  try {
+    const data = await $fetch<SkillStat[]>('/api/skills/stats');
+    const map = new Map<string, SkillStat>();
+    for (const s of data) map.set(s.name, s);
+    skillStats.value = map;
+  } catch {
+    // stats not critical
+  }
+}
+
+function getStats(name: string) {
+  return skillStats.value.get(name);
+}
+
+function fmtTimeAgo(iso: string | null): string {
+  if (!iso) return '—';
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86_400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86_400)}d ago`;
+}
+
 // ── Init ─────────────────────────────────────────────────
 onMounted(() => {
   if (!loaded.value) fetchSkills();
+  fetchStats();
 });
 </script>
 
@@ -257,7 +297,10 @@ onMounted(() => {
               >
                 {{ group.label }}
               </span>
-              <span class="rounded-full px-1.5 py-0.5 text-[9px] tabular-nums text-[#666]" style="background: rgb(255 255 255 / 4%)">
+              <span
+                class="rounded-full px-1.5 py-0.5 text-[9px] text-[#666] tabular-nums"
+                style="background: rgb(255 255 255 / 4%)"
+              >
                 {{ group.skills.length }}
               </span>
             </button>
@@ -273,7 +316,11 @@ onMounted(() => {
                     ? 'border-l-2 bg-[rgba(139,92,246,0.08)]'
                     : 'border-l-2 border-l-transparent hover:bg-[rgb(255_255_255/2%)]',
                 ]"
-                :style="selectedName === skill.name ? `border-left-color: ${group.color}` : ''"
+                :style="
+                  selectedName === skill.name
+                    ? `border-left-color: ${group.color}`
+                    : ''
+                "
                 @click="selectSkill(skill)"
               >
                 <UCheckbox
@@ -295,9 +342,35 @@ onMounted(() => {
                       {{ skill.inject }}
                     </UBadge>
                   </div>
-                  <p class="mt-0.5 line-clamp-2 text-xs text-[#888]">
+                  <p class="mt-0.5 line-clamp-1 text-xs text-[#888]">
                     {{ skill.description }}
                   </p>
+                  <!-- Stats -->
+                  <div
+                    v-if="getStats(skill.name)"
+                    class="mt-1.5 flex items-center gap-3 text-[10px] text-[#555]"
+                  >
+                    <span class="flex items-center gap-1">
+                      <UIcon name="i-lucide-zap" class="text-[9px]" />
+                      {{ getStats(skill.name)!.triggerCount }}次
+                    </span>
+                    <span class="flex items-center gap-1">
+                      <UIcon name="i-lucide-check" class="text-[9px] text-[#22c55e]" />
+                      {{
+                        getStats(skill.name)!.triggerCount > 0
+                          ? Math.round(
+                              (getStats(skill.name)!.successCount /
+                                getStats(skill.name)!.triggerCount) *
+                                100,
+                            )
+                          : 0
+                      }}%
+                    </span>
+                    <span class="flex items-center gap-1">
+                      <UIcon name="i-lucide-clock" class="text-[9px]" />
+                      {{ fmtTimeAgo(getStats(skill.name)!.lastUsedAt) }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

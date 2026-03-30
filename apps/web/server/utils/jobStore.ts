@@ -1,5 +1,6 @@
 // apps/web/server/utils/jobStore.ts
 import prisma from './prisma';
+import { recordSkillUsage } from './skillStats';
 
 export interface RunResult {
   issueKey: string;
@@ -38,6 +39,7 @@ export interface Job {
   events: JobEvent[];
   results: RunResult[];
   analysisResult?: unknown;
+  enabledSkills?: string[];
   kill?: () => void;
   subscribers: Set<(event: JobEvent) => void>;
 }
@@ -131,6 +133,12 @@ export function finishJob(
     persistJob(job).catch((error_) =>
       console.error('[jobStore] Failed to persist job to DB:', error_),
     );
+    // Record skill usage stats
+    if (job.enabledSkills && job.enabledSkills.length > 0) {
+      recordSkillUsage(job.enabledSkills, status === 'done').catch((error_) =>
+        console.error('[jobStore] Failed to record skill usage:', error_),
+      );
+    }
   }
 }
 

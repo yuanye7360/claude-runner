@@ -30,7 +30,9 @@ defineExpose({ mode });
       >
         <span class="text-sm text-white">⚡</span>
       </div>
-      <span class="gradient-text text-sm font-bold tracking-wide">ClaudeRunner</span>
+      <span class="gradient-text text-sm font-bold tracking-wide"
+        >ClaudeRunner</span
+      >
     </div>
 
     <!-- Navigation -->
@@ -65,7 +67,11 @@ defineExpose({ mode });
       <!-- Mode toggle -->
       <button
         class="interactive flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
-        :class="mode === 'smart' ? 'bg-[rgba(139,92,246,0.06)]' : 'hover:bg-[rgba(255,255,255,0.04)]'"
+        :class="
+          mode === 'smart'
+            ? 'bg-[rgba(139,92,246,0.06)]'
+            : 'hover:bg-[rgba(255,255,255,0.04)]'
+        "
         @click="mode = mode === 'smart' ? 'normal' : 'smart'"
       >
         <UIcon
@@ -75,7 +81,9 @@ defineExpose({ mode });
         />
         <span
           class="text-[12px] transition-colors"
-          :class="mode === 'smart' ? 'font-medium text-[#a78bfa]' : 'text-[#666]'"
+          :class="
+            mode === 'smart' ? 'font-medium text-[#a78bfa]' : 'text-[#666]'
+          "
         >
           {{ mode === 'smart' ? 'Smart' : 'Normal' }}
         </span>
