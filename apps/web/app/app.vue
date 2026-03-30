@@ -159,6 +159,21 @@ const pageTitle = computed(() => {
               <span>使用指引</span>
             </button>
 
+            <NuxtLink
+              to="/skills"
+              class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[#444] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#888]"
+            >
+              <UIcon name="i-heroicons-cube" />
+              <span>Skills</span>
+              <span
+                v-if="enabledSkillNames.length > 0"
+                class="rounded-full px-1.5 py-0.5 text-[9px] tabular-nums"
+                style="color: #888; background: rgb(255 255 255 / 6%)"
+              >
+                {{ enabledSkillNames.length }}
+              </span>
+            </NuxtLink>
+
             <RepoManager />
           </div>
         </header>
