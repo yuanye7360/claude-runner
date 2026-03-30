@@ -15,9 +15,6 @@ const onboarding = useOnboarding({
   skillCount: computed(() => enabledSkillNames.value.length),
 });
 
-// ── Sidebar ──
-const sidebar = useSidebar();
-
 // ── Font size ──
 const FONT_SIZES = [
   { label: '小', value: 14 },
@@ -36,70 +33,42 @@ const rootFontSize = computed(() => `${fontSize.value}px`);
 const route = useRoute();
 const pageTitle = computed(() => {
   const map: Record<string, string> = {
+    '/': 'Overview',
     '/jira-runner': 'JIRA Runner',
     '/pr-runner': 'PR Runner',
-    '/pr-review': 'PR Review',
+    '/pr-review': 'Code Review',
+    '/repos': 'Settings',
+    '/skills': 'Settings',
     '/dashboard': 'Dashboard',
-    '/repos': 'Repos',
-    '/skills': 'Skills',
   };
   return map[route.path] || 'ClaudeRunner';
-});
-const pageIcon = computed(() => {
-  const map: Record<string, string> = {
-    '/jira-runner': 'i-lucide-bug',
-    '/pr-runner': 'i-lucide-git-pull-request',
-    '/pr-review': 'i-lucide-search-code',
-    '/dashboard': 'i-lucide-chart-bar',
-    '/repos': 'i-lucide-folder-git-2',
-    '/skills': 'i-heroicons-cube',
-  };
-  return map[route.path] || 'i-lucide-zap';
-});
-
-onMounted(() => {
-  sidebar.init();
 });
 </script>
 
 <template>
   <UApp>
     <div
-      class="app-shell bg-cyberpunk flex h-screen text-[#e0e7ff]"
-      :style="{ fontSize: rootFontSize }"
+      class="flex h-screen text-[#fafafa]"
+      :style="{ fontSize: rootFontSize, background: '#0a0a0f' }"
     >
       <!-- Sidebar -->
-      <AppSidebar
-        :collapsed="sidebar.isCollapsed.value"
-        @toggle="sidebar.toggle()"
-      />
+      <AppSidebar />
 
       <!-- Main content -->
       <main class="flex flex-1 flex-col overflow-hidden">
-        <!-- ══════ Top Header Bar ══════ -->
+        <!-- Header -->
         <header
           class="flex h-12 shrink-0 items-center gap-3 border-b px-5"
-          style="
-            background: rgb(12 12 29 / 80%);
-            border-color: rgb(139 92 246 / 12%);
-            backdrop-filter: blur(12px);
-          "
+          style="border-color: rgb(255 255 255 / 6%)"
         >
-          <!-- Page title -->
-          <UIcon
-            :name="pageIcon"
-            class="text-[#8b5cf6]"
-            style="font-size: 1.1em"
-          />
-          <span class="text-sm font-semibold text-[#e0e7ff]">
+          <span class="text-sm font-medium text-[#fafafa]">
             {{ pageTitle }}
           </span>
 
-          <!-- Right side -->
           <div class="ml-auto flex items-center gap-3">
             <!-- Font size -->
             <div class="flex items-center gap-1.5">
-              <UIcon name="i-lucide-type" class="text-xs text-[#6b6b8a]" />
+              <UIcon name="i-lucide-type" class="text-xs text-[#444]" />
               <div class="flex gap-0.5">
                 <button
                   v-for="s in FONT_SIZES"
@@ -107,8 +76,8 @@ onMounted(() => {
                   class="rounded-md px-2 py-0.5 text-[11px] transition-colors"
                   :class="
                     fontSize === s.value
-                      ? 'bg-[rgba(139,92,246,0.2)] font-medium text-[#c4b5fd]'
-                      : 'text-[#6b6b8a] hover:bg-[rgba(139,92,246,0.08)] hover:text-[#c4b5fd]'
+                      ? 'bg-[rgba(255,255,255,0.06)] font-medium text-[#fafafa]'
+                      : 'text-[#444] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#888]'
                   "
                   @click="fontSize = s.value"
                 >
@@ -117,33 +86,24 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Divider -->
-            <div
-              class="h-4 w-px"
-              style="background: rgb(139 92 246 / 15%)"
-            ></div>
+            <div class="h-4 w-px" style="background: rgb(255 255 255 / 6%)"></div>
 
-            <!-- Onboarding guide -->
+            <!-- Guide -->
             <UTooltip v-if="onboardingIncomplete" text="點擊開始設定指引">
               <button
-                class="relative flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-[#f59e0b] transition-colors hover:bg-[rgba(245,158,11,0.1)]"
+                class="relative flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-[#f59e0b] transition-colors hover:bg-[rgba(255,255,255,0.04)]"
                 @click="requestResetTour = true"
               >
-                <span class="relative flex h-2.5 w-2.5 shrink-0">
-                  <span
-                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-75"
-                  ></span>
-                  <span
-                    class="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]"
-                  ></span>
+                <span class="relative flex h-2 w-2 shrink-0">
+                  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f59e0b] opacity-75"></span>
+                  <span class="relative inline-flex h-2 w-2 rounded-full bg-[#f59e0b]"></span>
                 </span>
                 設定指引
               </button>
             </UTooltip>
 
-            <!-- Guide button (always visible) -->
             <button
-              class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[#6b6b8a] transition-colors hover:bg-[rgba(139,92,246,0.08)] hover:text-[#c4b5fd]"
+              class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[#444] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#888]"
               @click="requestResetTour = true"
             >
               <UIcon name="i-lucide-circle-help" />
@@ -154,12 +114,10 @@ onMounted(() => {
           </div>
         </header>
 
-        <!-- Page content -->
         <NuxtPage />
       </main>
     </div>
 
-    <!-- Floating onboarding checklist -->
     <ClientOnly>
       <OnboardingChecklist
         v-if="onboarding.showChecklist.value"
