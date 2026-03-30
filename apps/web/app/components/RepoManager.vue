@@ -23,14 +23,16 @@ watch(open, (v) => {
       <span class="text-xs">Repos</span>
       <span
         v-if="repoConfigs.length > 0"
-        class="bg-primary-500/20 text-[#8b5cf6] rounded-full px-1.5 py-0.5 text-xs leading-none tabular-nums"
+        class="bg-primary-500/20 rounded-full px-1.5 py-0.5 text-xs leading-none text-[#8b5cf6] tabular-nums"
       >
         {{ repoConfigs.length }}
       </span>
     </button>
 
     <template #content>
-      <div class="w-80 rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-3">
+      <div
+        class="w-80 rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-3"
+      >
         <div class="mb-2 flex items-center justify-between">
           <span class="text-xs font-medium text-[#ccc]">Repos</span>
           <button

@@ -13,11 +13,36 @@ const inputRef = ref<HTMLInputElement>();
 
 // Navigation items (static)
 const navItems = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard', group: '導航' },
-  { label: 'JIRA Runner', icon: 'i-lucide-bug', to: '/jira-runner', group: '導航' },
-  { label: 'PR Runner', icon: 'i-lucide-git-pull-request', to: '/pr-runner', group: '導航' },
-  { label: 'Code Review', icon: 'i-lucide-search-code', to: '/pr-review', group: '導航' },
-  { label: 'Repos', icon: 'i-lucide-folder-git-2', to: '/repos', group: '導航' },
+  {
+    label: 'Dashboard',
+    icon: 'i-lucide-layout-dashboard',
+    to: '/dashboard',
+    group: '導航',
+  },
+  {
+    label: 'JIRA Runner',
+    icon: 'i-lucide-bug',
+    to: '/jira-runner',
+    group: '導航',
+  },
+  {
+    label: 'PR Runner',
+    icon: 'i-lucide-git-pull-request',
+    to: '/pr-runner',
+    group: '導航',
+  },
+  {
+    label: 'Code Review',
+    icon: 'i-lucide-search-code',
+    to: '/pr-review',
+    group: '導航',
+  },
+  {
+    label: 'Repos',
+    icon: 'i-lucide-folder-git-2',
+    to: '/repos',
+    group: '導航',
+  },
   { label: 'Skills', icon: 'i-heroicons-cube', to: '/skills', group: '導航' },
 ];
 
@@ -56,16 +81,30 @@ function select(item: (typeof navItems)[0]) {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    selectedIndex.value = Math.min(selectedIndex.value + 1, filtered.value.length - 1);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    const item = filtered.value[selectedIndex.value];
-    if (item) select(item);
+  switch (e.key) {
+    case 'ArrowDown': {
+      e.preventDefault();
+      selectedIndex.value = Math.min(
+        selectedIndex.value + 1,
+        filtered.value.length - 1,
+      );
+
+      break;
+    }
+    case 'ArrowUp': {
+      e.preventDefault();
+      selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
+
+      break;
+    }
+    case 'Enter': {
+      e.preventDefault();
+      const item = filtered.value[selectedIndex.value];
+      if (item) select(item);
+
+      break;
+    }
+    // No default
   }
 }
 </script>
@@ -86,7 +125,10 @@ function onKeydown(e: KeyboardEvent) {
           @keydown="onKeydown"
         >
           <!-- Search input -->
-          <div class="flex items-center gap-3 border-b px-4" style="border-color: rgb(255 255 255 / 6%)">
+          <div
+            class="flex items-center gap-3 border-b px-4"
+            style="border-color: rgb(255 255 255 / 6%)"
+          >
             <UIcon name="i-lucide-search" class="shrink-0 text-[#444]" />
             <input
               ref="inputRef"
@@ -95,12 +137,19 @@ function onKeydown(e: KeyboardEvent) {
               placeholder="搜尋頁面..."
               class="h-12 flex-1 bg-transparent text-sm text-[#fafafa] outline-none placeholder:text-[#444]"
             />
-            <kbd class="rounded border px-1.5 py-0.5 text-[10px] text-[#444]" style="border-color: rgb(255 255 255 / 8%)">ESC</kbd>
+            <kbd
+              class="rounded border px-1.5 py-0.5 text-[10px] text-[#444]"
+              style="border-color: rgb(255 255 255 / 8%)"
+              >ESC</kbd
+            >
           </div>
 
           <!-- Results -->
           <div class="max-h-[300px] overflow-y-auto p-1">
-            <div v-if="filtered.length === 0" class="px-4 py-8 text-center text-xs text-[#444]">
+            <div
+              v-if="filtered.length === 0"
+              class="px-4 py-8 text-center text-xs text-[#444]"
+            >
               找不到結果
             </div>
             <template v-else>
@@ -108,22 +157,32 @@ function onKeydown(e: KeyboardEvent) {
                 v-for="(item, i) in filtered"
                 :key="item.to"
                 class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                :class="i === selectedIndex ? 'bg-[rgba(255,255,255,0.06)]' : 'hover:bg-[rgba(255,255,255,0.03)]'"
+                :class="
+                  i === selectedIndex
+                    ? 'bg-[rgba(255,255,255,0.06)]'
+                    : 'hover:bg-[rgba(255,255,255,0.03)]'
+                "
                 @click="select(item)"
                 @mouseenter="selectedIndex = i"
               >
                 <UIcon
                   :name="item.icon"
                   class="shrink-0 text-[15px]"
-                  :class="i === selectedIndex ? 'text-[#fafafa]' : 'text-[#555]'"
+                  :class="
+                    i === selectedIndex ? 'text-[#fafafa]' : 'text-[#555]'
+                  "
                 />
                 <span
                   class="text-sm"
-                  :class="i === selectedIndex ? 'text-[#fafafa]' : 'text-[#888]'"
+                  :class="
+                    i === selectedIndex ? 'text-[#fafafa]' : 'text-[#888]'
+                  "
                 >
                   {{ item.label }}
                 </span>
-                <span class="ml-auto text-[10px] text-[#444]">{{ item.to }}</span>
+                <span class="ml-auto text-[10px] text-[#444]">{{
+                  item.to
+                }}</span>
               </button>
             </template>
           </div>
@@ -141,7 +200,9 @@ function onKeydown(e: KeyboardEvent) {
 
 .palette-enter-active > div,
 .palette-leave-active > div {
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease;
 }
 
 .palette-enter-from,

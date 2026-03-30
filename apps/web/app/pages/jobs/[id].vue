@@ -6,7 +6,7 @@ interface JobDetailResult {
   output?: string;
   error?: string;
   prUrl?: string;
-  phases?: { phase: number; label: string }[] | null;
+  phases?: null | { label: string; phase: number }[];
 }
 
 interface JobDetail {

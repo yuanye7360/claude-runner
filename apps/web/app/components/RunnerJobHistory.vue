@@ -148,7 +148,10 @@ function formatTime(ts: number) {
           </button>
 
           <!-- Expanded content -->
-          <div v-if="expandedId === entry.id" class="border-t border-[rgb(255_255_255/6%)]">
+          <div
+            v-if="expandedId === entry.id"
+            class="border-t border-[rgb(255_255_255/6%)]"
+          >
             <!-- Per-result collapsible rows -->
             <div
               v-for="r in entry.results"

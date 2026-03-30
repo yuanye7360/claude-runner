@@ -39,7 +39,9 @@ const emit = defineEmits<{
 
 <template>
   <!-- Select all -->
-  <div class="flex items-center gap-3 border-b border-[rgb(255_255_255/4%)] px-4 py-1.5">
+  <div
+    class="flex items-center gap-3 border-b border-[rgb(255_255_255/4%)] px-4 py-1.5"
+  >
     <label
       class="flex cursor-pointer items-center gap-2 select-none"
       :class="{
@@ -161,7 +163,10 @@ const emit = defineEmits<{
   </div>
 
   <!-- Analysis Result -->
-  <div v-if="analysing" class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2">
+  <div
+    v-if="analysing"
+    class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2"
+  >
     <div class="flex items-center gap-2 text-[#888]">
       <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
       <span>分析中...</span>
@@ -210,7 +215,10 @@ const emit = defineEmits<{
     </div>
 
     <!-- Missing Info Q&A -->
-    <div v-if="needsInput" class="space-y-2 border-t border-[rgb(255_255_255/8%)] pt-3">
+    <div
+      v-if="needsInput"
+      class="space-y-2 border-t border-[rgb(255_255_255/8%)] pt-3"
+    >
       <p class="text-sm font-medium text-yellow-400">需要确认：</p>
       <div
         v-for="(q, idx) in analysisResult.missingInfo"
@@ -229,7 +237,10 @@ const emit = defineEmits<{
     </div>
 
     <!-- Proceed button -->
-    <div v-if="!needsInput" class="flex gap-2 border-t border-[rgb(255_255_255/8%)] pt-3">
+    <div
+      v-if="!needsInput"
+      class="flex gap-2 border-t border-[rgb(255_255_255/8%)] pt-3"
+    >
       <UButton size="sm" @click="emit('runWithAnalysis')"> 继续执行 </UButton>
       <UButton size="sm" variant="ghost" @click="emit('resetAnalysis')">
         取消

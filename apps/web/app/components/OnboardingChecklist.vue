@@ -73,7 +73,11 @@ watch(
           v-for="(step, idx) in steps"
           :key="step.id"
           class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all"
-          :class="step.completed.value ? 'opacity-60' : 'hover:bg-[rgb(255_255_255/4%)]'"
+          :class="
+            step.completed.value
+              ? 'opacity-60'
+              : 'hover:bg-[rgb(255_255_255/4%)]'
+          "
           @click="handleClick(step)"
         >
           <!-- Icon -->
@@ -94,9 +98,7 @@ watch(
           <span
             class="flex-1 text-sm"
             :class="
-              step.completed.value
-                ? 'text-[#888] line-through'
-                : 'text-[#ccc]'
+              step.completed.value ? 'text-[#888] line-through' : 'text-[#ccc]'
             "
           >
             {{ step.label }}
@@ -116,8 +118,12 @@ watch(
       </div>
 
       <!-- Progress bar -->
-      <div class="flex items-center gap-2 border-t border-[rgb(255_255_255/6%)] px-4 py-2.5">
-        <div class="h-1 flex-1 overflow-hidden rounded-full bg-[rgb(255_255_255/4%)]">
+      <div
+        class="flex items-center gap-2 border-t border-[rgb(255_255_255/6%)] px-4 py-2.5"
+      >
+        <div
+          class="h-1 flex-1 overflow-hidden rounded-full bg-[rgb(255_255_255/4%)]"
+        >
           <div
             class="h-full rounded-full bg-[#8b5cf6] transition-all duration-500"
             :style="{ width: `${(completedCount / steps.length) * 100}%` }"

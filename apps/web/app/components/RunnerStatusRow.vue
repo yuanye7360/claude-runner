@@ -68,7 +68,7 @@ function toggleResult(key: string) {
       <UIcon
         v-if="isRunning"
         name="i-lucide-loader-circle"
-        class="text-[#8b5cf6] shrink-0 animate-spin"
+        class="shrink-0 animate-spin text-[#8b5cf6]"
       />
       <UIcon
         v-else-if="activeJob.status === 'cancelled'"
@@ -151,7 +151,10 @@ function toggleResult(key: string) {
     </div>
 
     <!-- Expandable output -->
-    <div v-if="expanded" class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]">
+    <div
+      v-if="expanded"
+      class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]"
+    >
       <!-- Completed results: collapsible per task -->
       <template v-if="!isRunning && activeJob.results.length > 0">
         <div

@@ -163,7 +163,7 @@ defineExpose({
               class="relative flex items-center rounded px-1.5 py-1 transition-colors"
               :class="
                 showConfig
-                  ? 'text-[#8b5cf6] bg-primary-500/10'
+                  ? 'bg-primary-500/10 text-[#8b5cf6]'
                   : 'text-[#888] hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]'
               "
               title="JIRA 設定"
@@ -251,7 +251,9 @@ defineExpose({
     <!-- Right: JIRA detail panel -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Tab bar -->
-      <div class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1">
+      <div
+        class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1"
+      >
         <button
           class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
@@ -264,7 +266,7 @@ defineExpose({
           <UIcon
             v-if="jira.cr.isRunning.value"
             name="i-lucide-loader-circle"
-            class="text-[#8b5cf6] animate-spin"
+            class="animate-spin text-[#8b5cf6]"
             style="font-size: 0.8em"
           />
           執行過程
@@ -315,7 +317,7 @@ defineExpose({
         >
           <UIcon
             name="i-lucide-loader-circle"
-            class="text-[#8b5cf6] h-10 w-10 animate-spin"
+            class="h-10 w-10 animate-spin text-[#8b5cf6]"
           />
           <div class="text-center">
             <p class="font-medium text-[#ccc]">

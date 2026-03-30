@@ -165,7 +165,7 @@ onMounted(() => {
       class="flex h-12 shrink-0 items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4"
     >
       <NuxtLink to="/" class="flex items-center gap-2 hover:opacity-80">
-        <span class="text-[#8b5cf6] text-lg">&#9889;</span>
+        <span class="text-lg text-[#8b5cf6]">&#9889;</span>
         <span class="font-semibold text-[#fafafa]">Claude Runner</span>
       </NuxtLink>
       <span class="text-[#444]">/</span>
@@ -183,7 +183,7 @@ onMounted(() => {
           模式預設
         </button>
         <button
-          class="bg-primary-500/10 text-[#8b5cf6] hover:bg-primary-500/20 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+          class="bg-primary-500/10 hover:bg-primary-500/20 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-[#8b5cf6] transition-colors"
           @click="showCreate = true"
         >
           <UIcon name="i-lucide-plus" />
@@ -199,10 +199,7 @@ onMounted(() => {
         class="w-80 shrink-0 overflow-y-auto border-r border-[rgb(255_255_255/6%)] lg:w-96"
       >
         <div v-if="!loaded" class="p-4 text-sm text-[#444]">載入中...</div>
-        <div
-          v-else-if="skillList.length === 0"
-          class="p-4 text-sm text-[#444]"
-        >
+        <div v-else-if="skillList.length === 0" class="p-4 text-sm text-[#444]">
           尚無 Skill
         </div>
         <div v-else class="divide-y divide-[rgb(255_255_255/4%)]">

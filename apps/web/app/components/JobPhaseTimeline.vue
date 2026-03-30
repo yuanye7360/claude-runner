@@ -11,8 +11,6 @@ const props = defineProps<{
 const parsedPhases = computed(() =>
   parsePhases(props.phases, props.output, !!props.error, props.prUrl),
 );
-
-
 </script>
 
 <template>

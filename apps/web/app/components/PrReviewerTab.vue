@@ -104,7 +104,9 @@ async function handleSendToSlack() {
       </div>
 
       <!-- Search + Filters -->
-      <div class="shrink-0 space-y-1.5 border-b border-[rgb(255_255_255/6%)]/60 px-4 py-2">
+      <div
+        class="shrink-0 space-y-1.5 border-b border-[rgb(255_255_255/6%)]/60 px-4 py-2"
+      >
         <input
           v-model="prReviewer.searchQuery.value"
           class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-2.5 py-1.5 text-xs text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
@@ -314,7 +316,9 @@ async function handleSendToSlack() {
     <!-- Right: Detail panel -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Tab bar -->
-      <div class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1">
+      <div
+        class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1"
+      >
         <button
           class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
@@ -327,7 +331,7 @@ async function handleSendToSlack() {
           <UIcon
             v-if="prReviewer.reviewer.isRunning.value"
             name="i-lucide-loader-circle"
-            class="text-[#8b5cf6] animate-spin"
+            class="animate-spin text-[#8b5cf6]"
             style="font-size: 0.8em"
           />
           執行過程
@@ -392,7 +396,9 @@ async function handleSendToSlack() {
       </template>
 
       <!-- Today's review summary (always visible at bottom) -->
-      <div class="shrink-0 border-t border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]">
+      <div
+        class="shrink-0 border-t border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]"
+      >
         <div class="flex items-center justify-between px-4 py-2">
           <span class="text-xs font-medium text-[#888]">
             今日 Review 摘要

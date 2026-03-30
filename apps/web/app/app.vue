@@ -96,7 +96,11 @@ const pageTitle = computed(() => {
             >
               <UIcon name="i-lucide-search" class="shrink-0" />
               <span>搜尋或跳轉...</span>
-              <kbd class="ml-auto rounded border px-1 py-0.5 text-[9px]" style="border-color: rgb(255 255 255 / 8%)">⌘K</kbd>
+              <kbd
+                class="ml-auto rounded border px-1 py-0.5 text-[9px]"
+                style="border-color: rgb(255 255 255 / 8%)"
+                >⌘K</kbd
+              >
             </button>
 
             <div

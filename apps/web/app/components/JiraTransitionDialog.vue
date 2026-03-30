@@ -32,7 +32,9 @@ const emit = defineEmits<{
           </div>
         </div>
 
-        <div class="mb-5 rounded-lg border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] p-3">
+        <div
+          class="mb-5 rounded-lg border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] p-3"
+        >
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="key in issueKeys"

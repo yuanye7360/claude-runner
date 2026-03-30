@@ -141,7 +141,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         <UIcon
           v-if="entry.currentPhase && entry.currentPhase.phase > 0"
           name="i-lucide-loader-circle"
-          class="text-[#8b5cf6] shrink-0 animate-spin"
+          class="shrink-0 animate-spin text-[#8b5cf6]"
         />
         <UIcon
           v-else-if="entry.isQueued"
@@ -153,11 +153,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
           name="i-lucide-circle-check"
           class="shrink-0 text-[#22c55e]"
         />
-        <UIcon
-          v-else
-          name="i-lucide-circle-dot"
-          class="shrink-0 text-[#444]"
-        />
+        <UIcon v-else name="i-lucide-circle-dot" class="shrink-0 text-[#444]" />
 
         <!-- Issue key -->
         <span class="shrink-0 font-mono text-sm font-semibold text-[#ccc]">
@@ -218,7 +214,8 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
               class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold"
               :class="{
                 'bg-[#22c55e] text-[#fafafa]': p.status === 'done',
-                'animate-pulse bg-[#8b5cf6] text-[#fafafa]': p.status === 'running',
+                'animate-pulse bg-[#8b5cf6] text-[#fafafa]':
+                  p.status === 'running',
                 'border border-[rgb(255_255_255/8%)] text-transparent':
                   p.status === 'pending',
               }"
@@ -242,7 +239,11 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             <div
               v-if="i < visiblePhases(entry.phases).length - 1"
               class="h-px w-6"
-              :class="p.status === 'done' ? 'bg-[rgb(34_197_94/15%)]' : 'bg-[rgb(255_255_255/4%)]'"
+              :class="
+                p.status === 'done'
+                  ? 'bg-[rgb(34_197_94/15%)]'
+                  : 'bg-[rgb(255_255_255/4%)]'
+              "
             ></div>
           </div>
         </div>

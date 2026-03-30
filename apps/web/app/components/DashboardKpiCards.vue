@@ -18,7 +18,9 @@ function fmtRate(rate: number): string {
 <template>
   <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
     <!-- Total Runs -->
-    <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3">
+    <div
+      class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3"
+    >
       <div class="text-xs text-[#888]">執行次數</div>
       <div class="mt-1 text-2xl font-bold text-[#fafafa]">
         {{ kpi.totalRuns }}
@@ -33,7 +35,9 @@ function fmtRate(rate: number): string {
     </div>
 
     <!-- Issues Processed -->
-    <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3">
+    <div
+      class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3"
+    >
       <div class="text-xs text-[#888]">處理 Issue 數</div>
       <div class="mt-1 text-2xl font-bold text-[#fafafa]">
         {{ kpi.issuesProcessed }}
@@ -44,7 +48,9 @@ function fmtRate(rate: number): string {
     </div>
 
     <!-- Success Rate -->
-    <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3">
+    <div
+      class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3"
+    >
       <div class="text-xs text-[#888]">成功率</div>
       <div class="mt-1 text-2xl font-bold text-[#fafafa]">
         {{ fmtRate(kpi.successRate) }}
@@ -53,7 +59,9 @@ function fmtRate(rate: number): string {
     </div>
 
     <!-- Avg Duration -->
-    <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3">
+    <div
+      class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] px-4 py-3"
+    >
       <div class="text-xs text-[#888]">平均耗時</div>
       <div class="mt-1 text-2xl font-bold text-[#fafafa]">
         {{ fmtDuration(kpi.avgDuration) }}

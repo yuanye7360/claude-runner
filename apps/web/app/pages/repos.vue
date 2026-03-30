@@ -78,7 +78,7 @@ async function onDelete(id: string) {
       class="flex h-12 shrink-0 items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4"
     >
       <NuxtLink to="/" class="flex items-center gap-2">
-        <span class="text-[#8b5cf6] text-lg">⚡</span>
+        <span class="text-lg text-[#8b5cf6]">⚡</span>
         <span class="font-semibold text-[#fafafa]">Claude Runner</span>
       </NuxtLink>
       <span class="text-sm text-[#888]">/ Repos</span>
@@ -196,9 +196,7 @@ async function onDelete(id: string) {
               />
             </div>
             <div>
-              <label class="mb-1 block text-xs text-[#888]"
-                >GitHub Repo</label
-              >
+              <label class="mb-1 block text-xs text-[#888]">GitHub Repo</label>
               <input
                 v-model="editingConfig!.githubRepo"
                 class="w-full rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-2 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"

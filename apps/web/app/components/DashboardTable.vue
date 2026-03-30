@@ -161,9 +161,13 @@ function goToJob(jobId: string) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]">
+  <div
+    class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]"
+  >
     <!-- Search bar + bulk actions -->
-    <div class="flex items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4 py-3">
+    <div
+      class="flex items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-4 py-3"
+    >
       <input
         v-model="search"
         class="flex-1 rounded-md border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] px-3 py-1.5 text-sm text-[#ccc] placeholder-[#444] outline-none focus:border-[rgb(255_255_255/8%)]"
@@ -401,7 +405,9 @@ function goToJob(jobId: string) {
       @update:open="(v: boolean) => !v && (deleteTarget = null)"
     >
       <template #content>
-        <div class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6">
+        <div
+          class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6"
+        >
           <div class="mb-3 flex items-center gap-2">
             <div
               class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
@@ -441,7 +447,9 @@ function goToJob(jobId: string) {
       @update:open="(v: boolean) => !v && (bulkDeleteOpen = false)"
     >
       <template #content>
-        <div class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6">
+        <div
+          class="rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] p-6"
+        >
           <div class="mb-3 flex items-center gap-2">
             <div
               class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10"
@@ -456,7 +464,9 @@ function goToJob(jobId: string) {
           </div>
           <p class="mb-4 text-xs text-[#888]">
             確定要刪除已選的
-            <span class="font-semibold text-[#fafafa]">{{ selected.size }}</span>
+            <span class="font-semibold text-[#fafafa]">{{
+              selected.size
+            }}</span>
             筆紀錄？此操作無法復原。
           </p>
           <div class="flex justify-end gap-2">
