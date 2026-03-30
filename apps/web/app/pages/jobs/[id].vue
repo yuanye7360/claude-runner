@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { RunResult } from '~/composables/useRunnerJob';
 
+import { stripAnsi } from '~/composables/useOutputParser';
+
 interface JobDetail {
   id: string;
   trigger?: 'auto' | 'manual';
@@ -35,13 +37,6 @@ async function loadJob() {
 
 onMounted(loadJob);
 
-// ── ANSI stripping ──
-// eslint-disable-next-line no-control-regex
-const ANSI_RE = /\u001B\[[0-9;]*[A-Z]/gi;
-function stripAnsi(str: string): string {
-  return str.replaceAll(ANSI_RE, '');
-}
-
 function fmtTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleString('zh-TW', {
@@ -62,16 +57,6 @@ function fmtDuration(secs?: number): string {
 
 function issueSummary(key: string): string {
   return job.value?.issues.find((i) => i.key === key)?.summary ?? '';
-}
-
-// Per-result log expand state
-const expandedResults = ref<Set<string>>(new Set());
-function toggleResult(key: string) {
-  if (expandedResults.value.has(key)) {
-    expandedResults.value.delete(key);
-  } else {
-    expandedResults.value.add(key);
-  }
 }
 
 // Full job log expand state
@@ -103,7 +88,7 @@ const statusColor: Record<string, string> = {
       <div v-if="loading" class="flex items-center justify-center py-20">
         <UIcon
           name="i-lucide-loader-circle"
-          class="text-[#8b5cf6] h-8 w-8 animate-spin"
+          class="h-8 w-8 animate-spin text-[#8b5cf6]"
         />
       </div>
 
@@ -117,7 +102,10 @@ const statusColor: Record<string, string> = {
           class="mb-3 text-2xl text-red-500"
         />
         <p class="mb-3 text-sm">{{ error }}</p>
-        <NuxtLink to="/dashboard" class="text-sm text-[#8b5cf6] hover:underline">
+        <NuxtLink
+          to="/dashboard"
+          class="text-sm text-[#8b5cf6] hover:underline"
+        >
           返回 Dashboard
         </NuxtLink>
       </div>
@@ -134,7 +122,9 @@ const statusColor: Record<string, string> = {
         </NuxtLink>
 
         <!-- Header -->
-        <div class="mb-6 rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] p-5">
+        <div
+          class="mb-6 rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] p-5"
+        >
           <div class="flex flex-wrap items-center gap-3">
             <h1 class="font-mono text-lg font-semibold text-[#fafafa]">
               {{ job.id.slice(0, 8) }}
@@ -183,17 +173,14 @@ const statusColor: Record<string, string> = {
 
         <!-- Issue results -->
         <h2 class="mb-3 text-sm font-medium text-[#888]">Issue 結果</h2>
-        <div class="mb-6 space-y-2">
+        <div class="mb-6 space-y-4">
           <div
             v-for="result in job.results"
             :key="result.issueKey"
-            class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]"
+            class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] p-4"
           >
-            <!-- Result header -->
-            <button
-              class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgb(255_255_255/4%)]"
-              @click="toggleResult(result.issueKey)"
-            >
+            <!-- Issue header -->
+            <div class="mb-3 flex items-center gap-3">
               <UIcon
                 :name="
                   result.error ? 'i-lucide-x-circle' : 'i-lucide-check-circle'
@@ -206,41 +193,22 @@ const statusColor: Record<string, string> = {
               <span class="truncate text-sm text-[#888]">
                 {{ issueSummary(result.issueKey) }}
               </span>
-              <a
-                v-if="result.prUrl"
-                :href="result.prUrl"
-                target="_blank"
-                rel="noopener"
-                class="ml-auto shrink-0 text-xs text-[#8b5cf6] hover:underline"
-                @click.stop
-              >
-                {{ result.prUrl.split('/').slice(-2).join('/') }}
-              </a>
-              <UIcon
-                name="i-lucide-chevron-down"
-                class="ml-auto shrink-0 text-[#444] transition-transform duration-200"
-                :class="{ 'rotate-180': expandedResults.has(result.issueKey) }"
-              />
-            </button>
-
-            <!-- Expanded output -->
-            <div
-              v-if="expandedResults.has(result.issueKey)"
-              class="border-t border-[rgb(255_255_255/6%)] px-4 py-3"
-            >
-              <div
-                v-if="result.error"
-                class="mb-2 rounded-md bg-[rgb(245_158_11/5%)] px-3 py-2 text-xs text-red-400"
-              >
-                {{ result.error }}
-              </div>
-              <pre
-                v-if="result.output"
-                class="max-h-80 overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-[#888]"
-                >{{ stripAnsi(result.output) }}</pre
-              >
-              <p v-else class="text-xs text-[#444]">（無輸出）</p>
             </div>
+
+            <!-- Error message -->
+            <div
+              v-if="result.error"
+              class="mb-3 rounded-md bg-[rgb(239_68_68/5%)] px-3 py-2 text-xs text-red-400"
+            >
+              {{ result.error }}
+            </div>
+
+            <!-- Phase timeline -->
+            <JobPhaseTimeline
+              :output="result.output"
+              :error="result.error"
+              :pr-url="result.prUrl"
+            />
           </div>
 
           <div
@@ -268,7 +236,10 @@ const statusColor: Record<string, string> = {
               :class="{ 'rotate-180': showFullLog }"
             />
           </button>
-          <div v-if="showFullLog" class="border-t border-[rgb(255_255_255/6%)] px-4 py-3">
+          <div
+            v-if="showFullLog"
+            class="border-t border-[rgb(255_255_255/6%)] px-4 py-3"
+          >
             <pre
               class="max-h-[600px] overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-[#888]"
               >{{ stripAnsi(job.output) }}</pre
