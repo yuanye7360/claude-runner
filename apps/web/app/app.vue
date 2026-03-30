@@ -80,12 +80,13 @@ const pageTitle = computed(() => {
       <main class="flex flex-1 flex-col overflow-hidden">
         <!-- Header -->
         <header
-          class="flex h-12 shrink-0 items-center gap-3 border-b px-5"
+          class="glass flex h-12 shrink-0 items-center gap-3 border-b px-5"
           style="border-color: rgb(255 255 255 / 6%)"
         >
-          <span class="text-sm font-medium text-[#fafafa]">
+          <span class="text-sm font-semibold tracking-tight text-[#fafafa]">
             {{ pageTitle }}
           </span>
+          <div class="h-4 w-px" style="background: rgb(255 255 255 / 6%)"></div>
 
           <div class="ml-auto flex items-center gap-3">
             <!-- Command palette trigger -->

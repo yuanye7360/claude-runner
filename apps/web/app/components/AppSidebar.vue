@@ -23,14 +23,14 @@ defineExpose({ mode });
     style="background: var(--bg-sidebar); border-color: rgb(255 255 255 / 6%)"
   >
     <!-- Logo -->
-    <div class="mb-4 flex items-center gap-2 px-2.5">
+    <div class="mb-5 flex items-center gap-2.5 px-2.5">
       <div
-        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+        class="glow-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style="background: linear-gradient(135deg, #8b5cf6, #06b6d4)"
       >
-        <span class="text-xs text-white">⚡</span>
+        <span class="text-sm text-white">⚡</span>
       </div>
-      <span class="text-xs font-semibold text-[#fafafa]">ClaudeRunner</span>
+      <span class="gradient-text text-sm font-bold tracking-wide">ClaudeRunner</span>
     </div>
 
     <!-- Navigation -->
@@ -64,15 +64,19 @@ defineExpose({ mode });
     >
       <!-- Mode toggle -->
       <button
-        class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[rgba(255,255,255,0.04)]"
+        class="interactive flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
+        :class="mode === 'smart' ? 'bg-[rgba(139,92,246,0.06)]' : 'hover:bg-[rgba(255,255,255,0.04)]'"
         @click="mode = mode === 'smart' ? 'normal' : 'smart'"
       >
         <UIcon
           :name="mode === 'smart' ? 'i-lucide-sparkles' : 'i-lucide-zap'"
-          class="shrink-0 text-[15px]"
+          class="shrink-0 text-[15px] transition-colors"
           :class="mode === 'smart' ? 'text-[#8b5cf6]' : 'text-[#555]'"
         />
-        <span class="text-[12px] text-[#666]">
+        <span
+          class="text-[12px] transition-colors"
+          :class="mode === 'smart' ? 'font-medium text-[#a78bfa]' : 'text-[#666]'"
+        >
           {{ mode === 'smart' ? 'Smart' : 'Normal' }}
         </span>
       </button>
