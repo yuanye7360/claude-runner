@@ -58,7 +58,7 @@ apps/web/
 ### Composables
 
 | Composable | Purpose |
-|-----------|---------|
+| --- | --- |
 | `useRunnerJob` | Core job execution state, SSE streaming, phase tracking |
 | `useJiraRunner` | JIRA issue automation orchestration |
 | `usePrReviewRunner` | PR creation automation |
@@ -70,16 +70,16 @@ apps/web/
 
 ### Pages & Routing
 
-| Route | Page |
-|-------|------|
-| `/` | Redirects to `/dashboard` |
-| `/dashboard` | KPI cards, charts, job history table |
-| `/jira-runner` | JIRA issue selection + execution |
-| `/pr-runner` | PR creation from branches |
-| `/pr-review` | Code review for open PRs |
-| `/repos` | Repository configuration |
-| `/skills` | Skill management + mode presets |
-| `/jobs/[id]` | Job detail with phase timeline |
+| Route          | Page                                 |
+| -------------- | ------------------------------------ |
+| `/`            | Redirects to `/dashboard`            |
+| `/dashboard`   | KPI cards, charts, job history table |
+| `/jira-runner` | JIRA issue selection + execution     |
+| `/pr-runner`   | PR creation from branches            |
+| `/pr-review`   | Code review for open PRs             |
+| `/repos`       | Repository configuration             |
+| `/skills`      | Skill management + mode presets      |
+| `/jobs/[id]`   | Job detail with phase timeline       |
 
 ## Development
 
@@ -103,6 +103,7 @@ npx prisma studio     # Browse data
 ### Commit Messages
 
 Use conventional commits with `web` scope for frontend changes:
+
 ```
 feat(web): description
 fix(web): description
