@@ -94,31 +94,6 @@ const typeLabels: {
     class="flex flex-1 flex-col overflow-auto"
     style="font-family: 'JetBrains Mono', ui-monospace, monospace"
   >
-    <!-- Nav bar -->
-    <div
-      class="flex h-14 shrink-0 items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-5"
-    >
-      <NuxtLink to="/" class="flex shrink-0 items-center gap-2">
-        <span class="text-primary-400">⚡</span>
-        <span class="font-semibold text-white">Claude Runner</span>
-      </NuxtLink>
-      <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
-        <NuxtLink
-          to="/"
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
-        >
-          <UIcon name="i-lucide-bug" style="font-size: 0.85em" />
-          Pipeline
-        </NuxtLink>
-        <span
-          class="flex items-center gap-1.5 rounded-md bg-gray-700 px-3 py-1.5 text-sm font-medium text-white"
-        >
-          <UIcon name="i-lucide-chart-bar" style="font-size: 0.85em" />
-          Dashboard
-        </span>
-      </div>
-    </div>
-
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6">
       <!-- Loading -->
