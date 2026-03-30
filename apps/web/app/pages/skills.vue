@@ -214,7 +214,6 @@ async function doCreate() {
   }
 }
 
-
 const INJECT_OPTIONS = [
   { label: '通用 (context)', value: 'context' },
   { label: '分支 (branch)', value: 'branch' },
@@ -472,12 +471,12 @@ onMounted(() => {
     </div>
 
     <!-- ══════ Detail Modal ══════ -->
-    <UModal v-model:open="showDetail">
+    <UModal v-model:open="showDetail" :ui="{ width: 'sm:max-w-3xl' }">
       <template #content>
         <div
           v-if="selectedSkill"
           style="background: rgb(15 15 25 / 95%)"
-          class="flex max-h-[80vh] flex-col"
+          class="flex max-h-[85vh] flex-col"
         >
           <!-- Header -->
           <div
