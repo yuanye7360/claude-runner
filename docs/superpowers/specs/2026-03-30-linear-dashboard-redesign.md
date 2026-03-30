@@ -134,6 +134,54 @@ Dashboard 取代原來的 JIRA Runner 作為預設首頁（`/` → Dashboard）�
 - 所有 composables
 - 功能頁面內部邏輯
 
+### 結構化 Job 執行詳情
+
+現有的 `jobs/[id].vue` 頁面把 AI 的 output 當純文字顯示，難以閱讀。改為結構化的階段式展示。
+
+**數據基礎**
+- 系統已有 `PhaseInfo`（`phase` + `label` + `status`）和 `outputByIssue`
+- 每個 issue 的執行分為動態 phases（如「分析 & 建立分支」→「實作修復」→「建立 PR」）
+- `output` 純文字需要解析為結構化區塊
+
+**階段式展示**
+
+每個 Issue 的執行結果改為時間線卡片，每張卡片對應一個 phase：
+
+```
+┌─ Phase 1: 分析 & 建立分支 ✅ ──────────────────┐
+│  • 理解 issue：repay 取付款頻道參數格式錯誤      │
+│  • 建立分支：task/KB2CW-3394-fix-repay-params   │
+│  • 影響範圍：1 個檔案                            │
+└─────────────────────────────────────────────────┘
+┌─ Phase 2: 實作修復 ✅ ─────────────────────────┐
+│  • 修改 app/Controllers/Repay.php               │
+│  • 變更：修正頻道參數序列化格式                    │
+│  [展開查看完整 diff]                             │
+└─────────────────────────────────────────────────┘
+┌─ Phase 3: 建立 PR ✅ ──────────────────────────┐
+│  • PR #142: Fix repay channel params format     │
+│  • [查看 PR →]                                  │
+└─────────────────────────────────────────────────┘
+```
+
+**UI 規格**
+- 時間線佈局：左側有一條垂直線連接各 phase
+- Phase 狀態圖標：✅ done（綠）、⏳ running（紫，pulse 動畫）、○ pending（灰）
+- Phase 標題：`label` + 狀態 badge
+- Phase 內容：從 `output` / `outputByIssue` 解析出的關鍵資訊
+- 每個 phase 可展開/收合，預設只顯示摘要
+- 錯誤的 phase 用紅色邊框 + 錯誤訊息
+
+**Output 解析策略**
+- output 是 AI agent 的純文字日誌，需要前端解析
+- 按 phase 分割：用 `phases` 數據對應 `output` 中的段落
+- 關鍵資訊提取：檔案路徑、分支名稱、PR URL 用正則匹配並高亮
+- 未能解析的部分放在「完整 Log」可展開區域
+
+**新增組件**
+- `JobPhaseTimeline.vue` — 單個 issue 的 phase 時間線
+- `JobPhaseCard.vue` — 單個 phase 卡片（狀態圖標、標題、內容、展開/收合）
+
 ### 動畫
 
 - 頁面切換：Nuxt page transition `opacity 150ms ease`
@@ -150,6 +198,7 @@ Dashboard 取代原來的 JIRA Runner 作為預設首頁（`/` → Dashboard）�
 - Command Palette（⌘K）
 - Linear 色彩系統替換
 - 路由調整（Dashboard 為首頁、Settings 子路由）
+- 結構化 Job 執行詳情（phase 時間線卡片）
 
 **不包含：**
 - 功能頁面內部邏輯變更
