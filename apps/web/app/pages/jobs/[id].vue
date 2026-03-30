@@ -87,8 +87,8 @@ const statusLabel: Record<string, string> = {
 const statusColor: Record<string, string> = {
   done: 'bg-green-500/10 text-green-400',
   error: 'bg-red-500/10 text-red-400',
-  cancelled: 'bg-gray-500/10 text-gray-400',
-  running: 'bg-blue-500/10 text-blue-400',
+  cancelled: 'bg-gray-500/10 text-[#888]',
+  running: 'bg-blue-500/10 text-[#8b5cf6]',
 };
 </script>
 
@@ -97,53 +97,27 @@ const statusColor: Record<string, string> = {
     class="flex flex-1 flex-col overflow-auto"
     style="font-family: 'JetBrains Mono', ui-monospace, monospace"
   >
-    <!-- Nav bar -->
-    <div
-      class="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 px-5"
-    >
-      <NuxtLink to="/" class="flex shrink-0 items-center gap-2">
-        <span class="text-primary-400">⚡</span>
-        <span class="font-semibold text-white">Claude Runner</span>
-      </NuxtLink>
-      <div class="flex items-center gap-1 rounded-lg bg-gray-800/60 p-1">
-        <NuxtLink
-          to="/"
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
-        >
-          <UIcon name="i-lucide-bug" style="font-size: 0.85em" />
-          Pipeline
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard"
-          class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
-        >
-          <UIcon name="i-lucide-chart-bar" style="font-size: 0.85em" />
-          Dashboard
-        </NuxtLink>
-      </div>
-    </div>
-
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6">
       <!-- Loading -->
       <div v-if="loading" class="flex items-center justify-center py-20">
         <UIcon
           name="i-lucide-loader-circle"
-          class="text-primary-400 h-8 w-8 animate-spin"
+          class="text-[#8b5cf6] h-8 w-8 animate-spin"
         />
       </div>
 
       <!-- Error -->
       <div
         v-else-if="error"
-        class="flex flex-col items-center justify-center py-20 text-gray-500"
+        class="flex flex-col items-center justify-center py-20 text-[#888]"
       >
         <UIcon
           name="i-lucide-alert-circle"
           class="mb-3 text-2xl text-red-500"
         />
         <p class="mb-3 text-sm">{{ error }}</p>
-        <NuxtLink to="/dashboard" class="text-sm text-blue-400 hover:underline">
+        <NuxtLink to="/dashboard" class="text-sm text-[#8b5cf6] hover:underline">
           返回 Dashboard
         </NuxtLink>
       </div>
@@ -153,21 +127,21 @@ const statusColor: Record<string, string> = {
         <!-- Back link -->
         <NuxtLink
           to="/dashboard"
-          class="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300"
+          class="mb-4 inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-gray-300"
         >
           <UIcon name="i-lucide-arrow-left" style="font-size: 0.85em" />
           返回 Dashboard
         </NuxtLink>
 
         <!-- Header -->
-        <div class="mb-6 rounded-xl border border-gray-800 bg-gray-900/60 p-5">
+        <div class="mb-6 rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)] p-5">
           <div class="flex flex-wrap items-center gap-3">
-            <h1 class="font-mono text-lg font-semibold text-white">
+            <h1 class="font-mono text-lg font-semibold text-[#fafafa]">
               {{ job.id.slice(0, 8) }}
             </h1>
             <span
               class="rounded-full px-2.5 py-0.5 text-xs font-medium"
-              :class="statusColor[job.status] ?? 'bg-gray-500/10 text-gray-400'"
+              :class="statusColor[job.status] ?? 'bg-gray-500/10 text-[#888]'"
             >
               {{ statusLabel[job.status] ?? job.status }}
             </span>
@@ -179,12 +153,12 @@ const statusColor: Record<string, string> = {
             </span>
             <span
               v-else
-              class="rounded-full bg-gray-500/10 px-2.5 py-0.5 text-xs text-gray-400"
+              class="rounded-full bg-gray-500/10 px-2.5 py-0.5 text-xs text-[#888]"
             >
               手動觸發
             </span>
           </div>
-          <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+          <div class="mt-3 flex flex-wrap gap-4 text-xs text-[#888]">
             <span class="flex items-center gap-1.5">
               <UIcon name="i-lucide-clock" />
               {{ fmtTime(job.startedAt) }}
@@ -208,16 +182,16 @@ const statusColor: Record<string, string> = {
         </div>
 
         <!-- Issue results -->
-        <h2 class="mb-3 text-sm font-medium text-gray-400">Issue 結果</h2>
+        <h2 class="mb-3 text-sm font-medium text-[#888]">Issue 結果</h2>
         <div class="mb-6 space-y-2">
           <div
             v-for="result in job.results"
             :key="result.issueKey"
-            class="rounded-xl border border-gray-800 bg-gray-900/60"
+            class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]"
           >
             <!-- Result header -->
             <button
-              class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-800/40"
+              class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgb(255_255_255/4%)]"
               @click="toggleResult(result.issueKey)"
             >
               <UIcon
@@ -226,10 +200,10 @@ const statusColor: Record<string, string> = {
                 "
                 :class="result.error ? 'text-red-400' : 'text-green-400'"
               />
-              <span class="font-mono text-sm font-semibold text-blue-400">
+              <span class="font-mono text-sm font-semibold text-[#8b5cf6]">
                 {{ result.issueKey }}
               </span>
-              <span class="truncate text-sm text-gray-400">
+              <span class="truncate text-sm text-[#888]">
                 {{ issueSummary(result.issueKey) }}
               </span>
               <a
@@ -237,14 +211,14 @@ const statusColor: Record<string, string> = {
                 :href="result.prUrl"
                 target="_blank"
                 rel="noopener"
-                class="ml-auto shrink-0 text-xs text-blue-400 hover:underline"
+                class="ml-auto shrink-0 text-xs text-[#8b5cf6] hover:underline"
                 @click.stop
               >
                 {{ result.prUrl.split('/').slice(-2).join('/') }}
               </a>
               <UIcon
                 name="i-lucide-chevron-down"
-                class="ml-auto shrink-0 text-gray-600 transition-transform duration-200"
+                class="ml-auto shrink-0 text-[#444] transition-transform duration-200"
                 :class="{ 'rotate-180': expandedResults.has(result.issueKey) }"
               />
             </button>
@@ -252,26 +226,26 @@ const statusColor: Record<string, string> = {
             <!-- Expanded output -->
             <div
               v-if="expandedResults.has(result.issueKey)"
-              class="border-t border-gray-800 px-4 py-3"
+              class="border-t border-[rgb(255_255_255/6%)] px-4 py-3"
             >
               <div
                 v-if="result.error"
-                class="mb-2 rounded-md bg-red-500/5 px-3 py-2 text-xs text-red-400"
+                class="mb-2 rounded-md bg-[rgb(245_158_11/5%)] px-3 py-2 text-xs text-red-400"
               >
                 {{ result.error }}
               </div>
               <pre
                 v-if="result.output"
-                class="max-h-80 overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-gray-400"
+                class="max-h-80 overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-[#888]"
                 >{{ stripAnsi(result.output) }}</pre
               >
-              <p v-else class="text-xs text-gray-600">（無輸出）</p>
+              <p v-else class="text-xs text-[#444]">（無輸出）</p>
             </div>
           </div>
 
           <div
             v-if="job.results.length === 0"
-            class="py-8 text-center text-sm text-gray-600"
+            class="py-8 text-center text-sm text-[#444]"
           >
             沒有結果紀錄
           </div>
@@ -280,23 +254,23 @@ const statusColor: Record<string, string> = {
         <!-- Full job log -->
         <div
           v-if="job.output"
-          class="rounded-xl border border-gray-800 bg-gray-900/60"
+          class="rounded-xl border border-[rgb(255_255_255/6%)] bg-[rgb(255_255_255/2%)]"
         >
           <button
-            class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-gray-400 transition-colors hover:bg-gray-800/40"
+            class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)]"
             @click="showFullLog = !showFullLog"
           >
             <UIcon name="i-lucide-terminal" />
             完整 Job Log
             <UIcon
               name="i-lucide-chevron-down"
-              class="ml-auto text-gray-600 transition-transform duration-200"
+              class="ml-auto text-[#444] transition-transform duration-200"
               :class="{ 'rotate-180': showFullLog }"
             />
           </button>
-          <div v-if="showFullLog" class="border-t border-gray-800 px-4 py-3">
+          <div v-if="showFullLog" class="border-t border-[rgb(255_255_255/6%)] px-4 py-3">
             <pre
-              class="max-h-[600px] overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-gray-400"
+              class="max-h-[600px] overflow-auto text-xs leading-relaxed whitespace-pre-wrap text-[#888]"
               >{{ stripAnsi(job.output) }}</pre
             >
           </div>

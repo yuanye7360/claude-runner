@@ -96,7 +96,7 @@ const typeLabels: {
   >
     <!-- Nav bar -->
     <div
-      class="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 px-5"
+      class="flex h-14 shrink-0 items-center gap-3 border-b border-[rgb(255_255_255/6%)] px-5"
     >
       <NuxtLink to="/" class="flex shrink-0 items-center gap-2">
         <span class="text-primary-400">⚡</span>
