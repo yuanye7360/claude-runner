@@ -12,6 +12,15 @@ const props = defineProps<{
   successCount: number;
 }>();
 
+// If all phases are done but status is still 'running', treat as finishing
+const allPhasesDone = computed(() => {
+  const phases = Object.values(props.activeJob.phasesByIssue).flat();
+  return phases.length > 0 && phases.every((p) => p.status === 'done');
+});
+const effectivelyRunning = computed(
+  () => props.isRunning && !allPhasesDone.value,
+);
+
 const emit = defineEmits<{
   cancel: [];
   'update:expanded': [value: boolean];
@@ -66,7 +75,7 @@ function toggleResult(key: string) {
       @keydown.enter.space="toggleExpanded"
     >
       <UIcon
-        v-if="isRunning"
+        v-if="effectivelyRunning"
         name="i-lucide-loader-circle"
         class="shrink-0 animate-spin text-[#8b5cf6]"
       />
@@ -88,11 +97,13 @@ function toggleResult(key: string) {
 
       <span class="font-medium text-[#ccc]">
         {{
-          isRunning
+          effectivelyRunning
             ? '執行中'
-            : activeJob.status === 'cancelled'
-              ? '已中斷'
-              : '完成'
+            : allPhasesDone && isRunning
+              ? '完成中...'
+              : activeJob.status === 'cancelled'
+                ? '已中斷'
+                : '完成'
         }}
       </span>
       <span class="text-muted">·</span>
@@ -105,7 +116,7 @@ function toggleResult(key: string) {
         }}
       </span>
 
-      <template v-if="isRunning">
+      <template v-if="effectivelyRunning">
         <span class="text-muted">·</span>
         <span class="text-muted shrink-0">已耗時 {{ elapsed }}</span>
 
@@ -156,7 +167,7 @@ function toggleResult(key: string) {
       class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]"
     >
       <!-- Completed results: collapsible per task -->
-      <template v-if="!isRunning && activeJob.results.length > 0">
+      <template v-if="!effectivelyRunning && activeJob.results.length > 0">
         <div
           v-for="r in activeJob.results"
           :key="r.issueKey"
