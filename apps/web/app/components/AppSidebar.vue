@@ -19,7 +19,7 @@ defineExpose({ mode });
 
 <template>
   <aside
-    class="flex w-45 shrink-0 flex-col border-r py-3 px-2"
+    class="flex w-45 shrink-0 flex-col border-r px-2 py-3"
     style="background: var(--bg-sidebar); border-color: rgb(255 255 255 / 6%)"
   >
     <!-- Logo -->
@@ -36,7 +36,7 @@ defineExpose({ mode });
     <!-- Navigation -->
     <nav class="flex flex-1 flex-col gap-0.5">
       <SidebarNavItem
-        to="/"
+        to="/dashboard"
         icon="i-lucide-layout-dashboard"
         label="Dashboard"
       />
@@ -58,7 +58,10 @@ defineExpose({ mode });
     </nav>
 
     <!-- Bottom -->
-    <div class="flex flex-col gap-0.5 border-t pt-2" style="border-color: rgb(255 255 255 / 6%)">
+    <div
+      class="flex flex-col gap-0.5 border-t pt-2"
+      style="border-color: rgb(255 255 255 / 6%)"
+    >
       <!-- Mode toggle -->
       <button
         class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[rgba(255,255,255,0.04)]"
