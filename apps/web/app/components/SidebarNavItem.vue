@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
   badge?: number;
-  collapsed: boolean;
   icon: string;
   isRunning?: boolean;
   label: string;
@@ -13,68 +12,36 @@ const isActive = computed(() => route.path === props.to);
 </script>
 
 <template>
-  <NuxtLink
-    :to="to"
-    class="group relative flex items-center gap-2 transition-all duration-150"
-    :class="[
-      collapsed
-        ? 'mx-auto w-[38px] justify-center rounded-[8px] px-0 py-2'
-        : 'rounded-[10px] px-3 py-2',
-      isActive
-        ? 'border-l-2 border-[#8b5cf6]'
-        : 'border-l-2 border-transparent hover:bg-[rgba(139,92,246,0.06)]',
-    ]"
-    :style="
-      isActive
-        ? 'background: linear-gradient(90deg, rgba(139,92,246,0.18), transparent); box-shadow: inset 0 0 20px rgba(139,92,246,0.05)'
-        : ''
-    "
-  >
-    <!-- Icon -->
-    <UIcon
-      :name="icon"
-      class="shrink-0 text-base"
+  <UTooltip :text="label" :popper="{ placement: 'right' }">
+    <NuxtLink
+      :to="to"
+      class="relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-150"
       :class="
         isActive
-          ? 'neon-text-purple text-[#a78bfa]'
-          : 'text-[#6b6b8a] group-hover:text-[#c4b5fd]'
-      "
-    />
-
-    <!-- Label (hidden when collapsed) -->
-    <span
-      v-if="!collapsed"
-      class="truncate text-[12px] font-medium transition-colors"
-      :class="
-        isActive
-          ? 'text-[#e0e7ff]'
-          : 'text-[#6b6b8a] group-hover:text-[#c4b5fd]'
+          ? 'bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)]'
+          : 'border border-transparent hover:bg-[rgba(255,255,255,0.04)]'
       "
     >
-      {{ label }}
-    </span>
+      <UIcon
+        :name="icon"
+        class="text-[16px]"
+        :class="isActive ? 'text-[#fafafa]' : 'text-[#555] group-hover:text-[#888]'"
+      />
 
-    <!-- Running indicator -->
-    <span
-      v-if="isRunning"
-      class="ml-auto h-2 w-2 shrink-0 animate-pulse rounded-full"
-      :class="isActive ? 'neon-glow-purple bg-[#8b5cf6]' : 'bg-[#4c4c6d]'"
-    ></span>
+      <!-- Running pulse -->
+      <span
+        v-if="isRunning"
+        class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#8b5cf6] animate-pulse"
+      />
 
-    <!-- Badge -->
-    <span
-      v-else-if="badge && badge > 0 && !collapsed"
-      class="ml-auto rounded-full bg-[rgba(139,92,246,0.2)] px-1.5 py-0.5 text-[9px] text-[#a78bfa] tabular-nums"
-    >
-      {{ badge }}
-    </span>
-
-    <!-- Badge dot (collapsed mode) -->
-    <span
-      v-if="badge && badge > 0 && collapsed"
-      class="neon-glow-purple absolute -top-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-[#8b5cf6] text-[7px] text-white"
-    >
-      {{ badge }}
-    </span>
-  </NuxtLink>
+      <!-- Badge -->
+      <span
+        v-else-if="badge && badge > 0"
+        class="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[8px] font-medium text-white tabular-nums"
+        :style="{ background: isActive ? '#fafafa' : '#555', color: isActive ? '#0a0a0f' : '#fafafa' }"
+      >
+        {{ badge > 99 ? '99+' : badge }}
+      </span>
+    </NuxtLink>
+  </UTooltip>
 </template>
