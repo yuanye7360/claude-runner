@@ -19,19 +19,22 @@ defineExpose({ mode });
 
 <template>
   <aside
-    class="flex w-13 shrink-0 flex-col items-center border-r py-3"
+    class="flex w-45 shrink-0 flex-col border-r py-3 px-2"
     style="background: var(--bg-sidebar); border-color: rgb(255 255 255 / 6%)"
   >
     <!-- Logo -->
-    <div
-      class="mb-4 flex h-8 w-8 items-center justify-center rounded-lg"
-      style="background: linear-gradient(135deg, #8b5cf6, #06b6d4)"
-    >
-      <span class="text-sm text-white">⚡</span>
+    <div class="mb-4 flex items-center gap-2 px-2.5">
+      <div
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+        style="background: linear-gradient(135deg, #8b5cf6, #06b6d4)"
+      >
+        <span class="text-xs text-white">⚡</span>
+      </div>
+      <span class="text-xs font-semibold text-[#fafafa]">ClaudeRunner</span>
     </div>
 
     <!-- Navigation -->
-    <nav class="flex flex-1 flex-col items-center gap-1">
+    <nav class="flex flex-1 flex-col gap-0.5">
       <SidebarNavItem
         to="/"
         icon="i-lucide-layout-dashboard"
@@ -54,24 +57,22 @@ defineExpose({ mode });
       />
     </nav>
 
-    <!-- Bottom: Settings -->
-    <div class="flex flex-col items-center gap-1">
+    <!-- Bottom -->
+    <div class="flex flex-col gap-0.5 border-t pt-2" style="border-color: rgb(255 255 255 / 6%)">
       <!-- Mode toggle -->
-      <UTooltip
-        :text="mode === 'smart' ? 'Smart Mode' : 'Normal Mode'"
-        :popper="{ placement: 'right' }"
+      <button
+        class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-[rgba(255,255,255,0.04)]"
+        @click="mode = mode === 'smart' ? 'normal' : 'smart'"
       >
-        <button
-          class="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent transition-colors hover:bg-[rgba(255,255,255,0.04)]"
-          @click="mode = mode === 'smart' ? 'normal' : 'smart'"
-        >
-          <UIcon
-            :name="mode === 'smart' ? 'i-lucide-sparkles' : 'i-lucide-zap'"
-            class="text-[16px]"
-            :class="mode === 'smart' ? 'text-[#8b5cf6]' : 'text-[#555]'"
-          />
-        </button>
-      </UTooltip>
+        <UIcon
+          :name="mode === 'smart' ? 'i-lucide-sparkles' : 'i-lucide-zap'"
+          class="shrink-0 text-[15px]"
+          :class="mode === 'smart' ? 'text-[#8b5cf6]' : 'text-[#555]'"
+        />
+        <span class="text-[12px] text-[#666]">
+          {{ mode === 'smart' ? 'Smart' : 'Normal' }}
+        </span>
+      </button>
 
       <SidebarNavItem to="/repos" icon="i-lucide-settings" label="Settings" />
     </div>
