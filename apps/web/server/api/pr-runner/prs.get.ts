@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process';
 
+import prisma from '../../utils/prisma';
+
 export interface GithubPR {
   number: number;
   title: string;
@@ -16,6 +18,17 @@ export interface PrsByRepo {
 }
 
 export default defineEventHandler(async (): Promise<PrsByRepo[]> => {
+  // Only show PRs from configured repos
+  const configuredRepos = await prisma.repo.findMany({
+    select: { githubRepo: true },
+  });
+  const allowedRepos = new Set(
+    configuredRepos.map((r) => r.githubRepo.toLowerCase()),
+  );
+
+  // If no repos configured, return empty
+  if (allowedRepos.size === 0) return [];
+
   let raw: string;
   try {
     raw = execSync(
@@ -43,6 +56,10 @@ export default defineEventHandler(async (): Promise<PrsByRepo[]> => {
 
   for (const pr of items) {
     const full_name = pr.repository.nameWithOwner;
+
+    // Filter: only include PRs from configured repos
+    if (!allowedRepos.has(full_name.toLowerCase())) continue;
+
     if (!grouped.has(full_name)) grouped.set(full_name, []);
     const bucket = grouped.get(full_name) ?? [];
     grouped.set(full_name, bucket);
