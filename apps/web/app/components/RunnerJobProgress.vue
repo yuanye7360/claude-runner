@@ -12,7 +12,7 @@ function stripAnsi(str: string): string {
 
 const expandedKeys = ref<Set<string>>(new Set());
 
-// Auto-expand issues when they first appear with progress, or transition to running
+// Auto-expand issues when they first appear with progress
 watch(
   () => {
     if (!props.activeJob) return null;
@@ -29,12 +29,8 @@ watch(
     for (const { key, phase, allDone } of current) {
       const prevEntry = prev?.find((p) => p.key === key);
       if (!prevEntry) {
-        // New issue appearing: expand if running or already done
-        if (phase >= 1 || allDone) {
-          expandedKeys.value.add(key);
-        }
+        if (phase >= 1 || allDone) expandedKeys.value.add(key);
       } else if (phase >= 1 && (prevEntry.phase ?? -1) <= 0) {
-        // Transitioning from queued/unknown to running
         expandedKeys.value.add(key);
       }
     }
@@ -43,11 +39,8 @@ watch(
 );
 
 function toggleExpanded(key: string) {
-  if (expandedKeys.value.has(key)) {
-    expandedKeys.value.delete(key);
-  } else {
-    expandedKeys.value.add(key);
-  }
+  if (expandedKeys.value.has(key)) expandedKeys.value.delete(key);
+  else expandedKeys.value.add(key);
 }
 
 const issueEntries = computed(() => {
@@ -77,16 +70,16 @@ const issueEntries = computed(() => {
 const sortedIssueEntries = computed(() => {
   return [...issueEntries.value].toSorted((a, b) => {
     const order = (e: (typeof issueEntries.value)[0]) => {
-      if (e.currentPhase && e.currentPhase.phase > 0) return 0; // running
-      if (e.isQueued) return 1; // queued
-      if (e.allDone) return 2; // done
-      return 1; // no phase yet = queued
+      if (e.currentPhase && e.currentPhase.phase > 0) return 0;
+      if (e.isQueued) return 1;
+      if (e.allDone) return 2;
+      return 1;
     };
     return order(a) - order(b);
   });
 });
 
-// Auto-scroll each log element
+// Auto-scroll the active log
 const logEls = ref<Record<string, HTMLElement>>({});
 
 function setLogRef(key: string, el: HTMLElement | null) {
@@ -105,9 +98,16 @@ watch(
   },
 );
 
-/** Filter out phase 0 (queued) from display — it's a wait state, not a progress step */
+/** Filter out phase 0 (queued) */
 function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
   return phases.filter((p) => p.phase > 0);
+}
+
+// Show/hide raw log per issue
+const showRawLog = ref<Set<string>>(new Set());
+function toggleRawLog(key: string) {
+  if (showRawLog.value.has(key)) showRawLog.value.delete(key);
+  else showRawLog.value.add(key);
 }
 </script>
 
@@ -121,16 +121,16 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
     <p class="text-[#444]">尚無執行中的工作</p>
   </div>
 
-  <!-- Active job: collapsible items per task -->
+  <!-- Active job -->
   <div v-else class="flex flex-1 flex-col overflow-y-auto">
     <div
       v-for="entry in sortedIssueEntries"
       :key="entry.key"
       class="border-b border-[rgb(255_255_255/6%)] last:border-b-0"
     >
-      <!-- Collapsible header -->
+      <!-- Header -->
       <div
-        class="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[rgb(255_255_255/4%)]"
+        class="interactive flex cursor-pointer items-center gap-3 px-4 py-3"
         role="button"
         tabindex="0"
         :aria-expanded="expandedKeys.has(entry.key)"
@@ -146,7 +146,7 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         <UIcon
           v-else-if="entry.isQueued"
           name="i-lucide-clock"
-          class="shrink-0 text-[#888]"
+          class="shrink-0 text-[#555]"
         />
         <UIcon
           v-else-if="entry.allDone"
@@ -155,27 +155,28 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         />
         <UIcon v-else name="i-lucide-circle-dot" class="shrink-0 text-[#444]" />
 
-        <!-- Issue key -->
-        <span class="shrink-0 font-mono text-sm font-semibold text-[#ccc]">
-          {{ entry.key }}
-        </span>
+        <!-- Issue key + summary -->
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 font-mono text-sm font-semibold text-[#fafafa]">
+              {{ entry.key }}
+            </span>
+            <span
+              v-if="entry.currentPhase && entry.currentPhase.phase > 0"
+              class="text-xs text-[#8b5cf6]"
+            >
+              {{ entry.currentPhase.label }}
+            </span>
+            <span v-else-if="entry.isQueued" class="text-xs text-[#555]">排隊中</span>
+            <span v-else-if="entry.allDone" class="text-xs text-[#22c55e]">完成</span>
+          </div>
+          <p v-if="entry.summary" class="mt-0.5 truncate text-[11px] text-[#555]">
+            {{ entry.summary }}
+          </p>
+        </div>
 
-        <!-- Current phase label -->
-        <span
-          v-if="entry.currentPhase && entry.currentPhase.phase > 0"
-          class="text-sm text-[#8b5cf6]"
-        >
-          {{ entry.currentPhase.label }}
-        </span>
-        <span v-else-if="entry.isQueued" class="text-sm text-[#888]">
-          排隊中
-        </span>
-        <span v-else-if="entry.allDone" class="text-sm text-[#22c55e]">
-          完成
-        </span>
-
-        <!-- Phase dots (exclude phase 0) -->
-        <div class="ml-auto flex items-center gap-1.5">
+        <!-- Phase dots -->
+        <div class="flex items-center gap-1.5">
           <div
             v-for="p in visiblePhases(entry.phases)"
             :key="p.phase"
@@ -183,13 +184,12 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
             :class="{
               'bg-[#22c55e]': p.status === 'done',
               'animate-pulse bg-[#8b5cf6]': p.status === 'running',
-              'bg-[#444]': p.status === 'pending',
+              'bg-[#333]': p.status === 'pending',
             }"
             :title="p.label"
           ></div>
         </div>
 
-        <!-- Chevron -->
         <UIcon
           name="i-lucide-chevron-down"
           class="shrink-0 text-[#444] transition-transform duration-200"
@@ -197,70 +197,115 @@ function visiblePhases(phases: (typeof issueEntries.value)[0]['phases']) {
         />
       </div>
 
-      <!-- Expanded content -->
+      <!-- Expanded: Phase Timeline -->
       <div
         v-if="expandedKeys.has(entry.key)"
-        class="border-t border-[rgb(255_255_255/4%)] bg-[#0a0a0f]"
+        class="border-t border-[rgb(255_255_255/4%)] px-4 py-3"
+        style="background: rgb(255 255 255 / 1%)"
       >
-        <!-- Phase progress bar (exclude phase 0) -->
-        <div class="flex items-center gap-4 px-4 py-2.5">
+        <!-- Phase timeline (vertical) -->
+        <div class="relative pl-7">
+          <!-- Vertical line -->
           <div
-            v-for="(p, i) in visiblePhases(entry.phases)"
+            class="absolute left-[9px] top-2 bottom-2 w-px"
+            style="background: rgb(255 255 255 / 6%)"
+          ></div>
+
+          <div
+            v-for="p in visiblePhases(entry.phases)"
             :key="p.phase"
-            class="flex items-center gap-2"
+            class="relative mb-3 last:mb-0"
           >
-            <!-- Step circle -->
+            <!-- Status dot -->
             <div
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+              class="absolute -left-7 top-[3px] flex h-[18px] w-[18px] items-center justify-center rounded-full"
               :class="{
-                'bg-[#22c55e] text-[#fafafa]': p.status === 'done',
-                'animate-pulse bg-[#8b5cf6] text-[#fafafa]':
-                  p.status === 'running',
-                'border border-[rgb(255_255_255/8%)] text-transparent':
-                  p.status === 'pending',
+                'bg-[rgb(34_197_94/10%)]': p.status === 'done',
+                'bg-[rgb(139_92_246/15%)]': p.status === 'running',
+                'bg-[rgb(255_255_255/4%)]': p.status === 'pending',
               }"
             >
-              {{
-                p.status === 'done' ? '✓' : p.status === 'running' ? '●' : ''
-              }}
+              <span v-if="p.status === 'done'" class="text-[10px] text-[#22c55e]">✓</span>
+              <span v-else-if="p.status === 'running'" class="text-[10px] text-[#8b5cf6] animate-pulse">●</span>
+              <span v-else class="text-[10px] text-[#444]">○</span>
             </div>
-            <!-- Label -->
-            <span
-              class="text-xs"
+
+            <!-- Phase card -->
+            <div
+              class="rounded-lg border p-2.5"
               :class="{
-                'text-[#22c55e]': p.status === 'done',
-                'font-semibold text-[#8b5cf6]': p.status === 'running',
-                'text-[#444]': p.status === 'pending',
+                'border-[rgb(34_197_94/10%)]': p.status === 'done',
+                'border-[rgb(139_92_246/15%)]': p.status === 'running',
+                'border-[rgb(255_255_255/4%)]': p.status === 'pending',
+              }"
+              :style="{
+                background: p.status === 'running' ? 'rgb(139 92 246 / 3%)' : 'rgb(255 255 255 / 1%)',
               }"
             >
-              {{ p.label }}
-            </span>
-            <!-- Connector -->
-            <div
-              v-if="i < visiblePhases(entry.phases).length - 1"
-              class="h-px w-6"
-              :class="
-                p.status === 'done'
-                  ? 'bg-[rgb(34_197_94/15%)]'
-                  : 'bg-[rgb(255_255_255/4%)]'
-              "
-            ></div>
+              <div class="flex items-center gap-2">
+                <span
+                  class="text-xs font-medium"
+                  :class="{
+                    'text-[#22c55e]': p.status === 'done',
+                    'text-[#8b5cf6]': p.status === 'running',
+                    'text-[#444]': p.status === 'pending',
+                  }"
+                >
+                  {{ p.label }}
+                </span>
+                <span
+                  class="rounded px-1.5 py-0.5 text-[9px]"
+                  :class="{
+                    'bg-[rgb(34_197_94/8%)] text-[#22c55e]': p.status === 'done',
+                    'bg-[rgb(139_92_246/10%)] text-[#8b5cf6]': p.status === 'running',
+                    'bg-[rgb(255_255_255/4%)] text-[#444]': p.status === 'pending',
+                  }"
+                >
+                  {{ p.status === 'done' ? 'done' : p.status === 'running' ? 'running...' : 'pending' }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Log output -->
-        <pre
-          :ref="(el) => setLogRef(entry.key, el as HTMLElement)"
-          class="text-log max-h-80 overflow-y-auto border-t border-[rgb(255_255_255/4%)] px-4 py-3 font-mono leading-relaxed break-all whitespace-pre-wrap text-[#888]"
-          >{{ entry.output ? stripAnsi(entry.output) : '等待輸出...' }}</pre
+        <!-- Running log (only for current phase) -->
+        <div
+          v-if="entry.output && !entry.allDone"
+          class="mt-3 rounded-lg border border-[rgb(139_92_246/10%)] p-3"
+          style="background: rgb(139 92 246 / 2%)"
         >
+          <div class="mb-2 flex items-center gap-2 text-[10px] text-[#8b5cf6]">
+            <UIcon name="i-lucide-terminal" class="text-[10px]" />
+            <span class="font-medium">即時輸出</span>
+            <div class="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-[#8b5cf6]"></div>
+          </div>
+          <pre
+            :ref="(el) => setLogRef(entry.key, el as HTMLElement)"
+            class="max-h-48 overflow-y-auto font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap text-[#888]"
+          >{{ stripAnsi(entry.output.slice(-2000)) }}</pre>
+        </div>
+
+        <!-- Completed: show raw log toggle -->
+        <div v-if="entry.allDone && entry.output" class="mt-3">
+          <button
+            class="interactive flex items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] text-[#555] hover:text-[#888]"
+            @click="toggleRawLog(entry.key)"
+          >
+            <UIcon name="i-lucide-terminal" class="text-[10px]" />
+            完整 Log
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="text-[10px] transition-transform duration-150"
+              :class="{ 'rotate-180': showRawLog.has(entry.key) }"
+            />
+          </button>
+          <pre
+            v-if="showRawLog.has(entry.key)"
+            class="mt-2 max-h-60 overflow-y-auto rounded-lg p-3 font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap text-[#666]"
+            style="background: rgb(0 0 0 / 30%)"
+          >{{ stripAnsi(entry.output) }}</pre>
+        </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.text-log {
-  font-size: 0.875em;
-}
-</style>
