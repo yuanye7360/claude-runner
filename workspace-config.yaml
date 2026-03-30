@@ -1,0 +1,9 @@
+# Workspace Root Config — Company Routing
+# Skills read this file first to find company directories,
+# then read {base_dir}/workspace-config.yaml for full settings.
+#
+# After running /init, this file will be populated with your companies.
+
+companies:
+  - name: kkday
+    base_dir: "/Users/yeyuan/KKday/polaris/kkday"

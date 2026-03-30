@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Read(//Users/<USERNAME>/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/<USERNAME>/.claude",
+      "/Users/<USERNAME>/.claude/projects/-Users-<USERNAME>-work/memory",
+      "/Users/<USERNAME>/work/.claude"
+    ]
+  }
+}
