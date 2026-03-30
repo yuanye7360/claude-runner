@@ -10,9 +10,8 @@ export default {
         sans: ['Inter', ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        cyber: {
+        linear: {
           base: 'var(--bg-base)',
-          'base-end': 'var(--bg-base-end)',
           sidebar: 'var(--bg-sidebar)',
           surface: 'var(--bg-surface)',
           'surface-hover': 'var(--bg-surface-hover)',
@@ -21,13 +20,13 @@ export default {
           success: 'var(--color-success)',
           warning: 'var(--color-warning)',
           text: 'var(--color-text)',
-          'text-active': 'var(--color-text-active)',
+          'text-secondary': 'var(--color-text-secondary)',
           'text-muted': 'var(--color-text-muted)',
         },
       },
       borderColor: {
-        glow: 'var(--border-glow)',
-        'glow-strong': 'var(--border-glow-strong)',
+        DEFAULT: 'var(--border)',
+        hover: 'var(--border-hover)',
       },
       borderRadius: {
         lg: 'var(--radius-lg)',
