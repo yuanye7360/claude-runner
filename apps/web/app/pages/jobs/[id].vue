@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import type { RunResult } from '~/composables/useRunnerJob';
-
 import { stripAnsi } from '~/composables/useOutputParser';
+
+interface JobDetailResult {
+  issueKey: string;
+  output?: string;
+  error?: string;
+  prUrl?: string;
+  phases?: { phase: number; label: string }[] | null;
+}
 
 interface JobDetail {
   id: string;
@@ -11,7 +17,7 @@ interface JobDetail {
   durationSecs?: number;
   issues: Array<{ key: string; summary: string }>;
   output?: string;
-  results: RunResult[];
+  results: JobDetailResult[];
 }
 
 const route = useRoute();
@@ -207,6 +213,7 @@ const statusColor: Record<string, string> = {
             <JobPhaseTimeline
               :output="result.output"
               :error="result.error"
+              :phases="result.phases"
               :pr-url="result.prUrl"
             />
           </div>

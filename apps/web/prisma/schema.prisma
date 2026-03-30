@@ -36,6 +36,7 @@ model JobResult {
   output   String?
   error    String?
   prUrl    String?
+  phases   Json?
 }
 
 model PrReview {

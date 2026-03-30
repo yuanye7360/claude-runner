@@ -139,6 +139,18 @@ async function persistJob(job: Job) {
     .filter((e): e is { data: string; type: 'chunk' } => e.type === 'chunk')
     .map((e) => e.data)
     .join('');
+
+  // Collect phases per issue from phase events
+  const phasesByIssue = new Map<string, { label: string; phase: number }[]>();
+  for (const event of job.events) {
+    if (event.type === 'phase') {
+      const key = event.issueKey;
+      if (!phasesByIssue.has(key)) phasesByIssue.set(key, []);
+      const entry = phasesByIssue.get(key);
+      if (entry) entry.push({ phase: event.phase, label: event.label });
+    }
+  }
+
   await prisma.job.create({
     data: {
       id: job.id,
@@ -155,6 +167,7 @@ async function persistJob(job: Job) {
           output: r.output,
           error: r.error,
           prUrl: r.prUrl,
+          phases: phasesByIssue.get(r.issueKey) ?? null,
         })),
       },
     },
