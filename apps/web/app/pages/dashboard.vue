@@ -91,7 +91,7 @@ const typeLabels: {
 
 <template>
   <div
-    class="flex h-screen flex-col bg-gray-950 text-gray-100"
+    class="flex flex-1 flex-col overflow-auto"
     style="font-family: 'JetBrains Mono', ui-monospace, monospace"
   >
     <!-- Nav bar -->

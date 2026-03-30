@@ -72,7 +72,7 @@ async function onDelete(id: string) {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-gray-950 text-gray-100">
+  <div class="flex flex-1 flex-col overflow-auto">
     <!-- Top nav -->
     <div
       class="flex h-12 shrink-0 items-center gap-3 border-b border-gray-800 px-4"
