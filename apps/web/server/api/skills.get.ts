@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import process from 'node:process';
 
 import matter from 'gray-matter';
 
@@ -46,15 +47,27 @@ export default defineEventHandler(() => {
     new URL('.', import.meta.url).pathname,
     '../skills',
   );
+  // Project skills: .claude/skills/ (project-level, including Polaris symlinks)
+  const projectDir = resolve(process.cwd(), '.claude', 'skills');
   // External skills: global ~/.claude/skills/ (shared with Claude Code CLI)
   const externalDir = join(homedir(), '.claude', 'skills');
 
   const custom = scanSkillDir(customDir, 'custom');
+  const project = scanSkillDir(projectDir, 'custom');
   const external = scanSkillDir(externalDir, 'external');
 
-  // Deduplicate: custom wins over external with same name
+  // Deduplicate: custom > project > external (same name)
   const seen = new Set(custom.map((s) => s.name));
-  const merged = [...custom, ...external.filter((s) => !seen.has(s.name))];
+  const projectFiltered = project.filter((s) => {
+    if (seen.has(s.name)) return false;
+    seen.add(s.name);
+    return true;
+  });
+  const merged = [
+    ...custom,
+    ...projectFiltered,
+    ...external.filter((s) => !seen.has(s.name)),
+  ];
 
   return merged;
 });
