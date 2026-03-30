@@ -3,6 +3,7 @@ import type { JiraCredentials } from './jira-client';
 
 import { getSetting } from './app-settings';
 import { searchJiraIssues } from './jira-client';
+import { listActiveJobs } from './jobStore';
 import prisma from './prisma';
 
 export interface AutoRunCandidate {
@@ -55,28 +56,53 @@ export async function getStoredJiraLabels(): Promise<string[]> {
 }
 
 /**
- * Find issue keys that already have a successful auto-run job (status = 'done')
- * or are currently running. These should be skipped.
+ * Find issue keys that already have a successful auto-run job (persisted in DB)
+ * or are currently active in memory. These should be skipped.
  */
 async function getCompletedOrRunningAutoRunKeys(
   issueKeys: string[],
 ): Promise<Set<string>> {
   if (issueKeys.length === 0) return new Set();
 
-  // Check DB for completed successful auto-run jobs
+  const skipKeys = new Set<string>();
+
+  // 1. Check in-memory active jobs (not yet persisted to DB)
+  //    Job issue keys may have @repoName suffix (e.g. "KB2CW-419@kkday-b2c-web"),
+  //    so strip it before comparing with plain JIRA keys.
+  const activeJobs = listActiveJobs({ trigger: 'auto' });
+  for (const job of activeJobs) {
+    for (const issue of job.issues) {
+      const bareKey = issue.key.replace(/@.*$/, '');
+      if (issueKeys.includes(bareKey)) {
+        skipKeys.add(bareKey);
+      }
+    }
+  }
+
+  // 2. Check DB for persisted auto-run jobs that completed successfully
+  //    DB issue keys may also have @repoName suffix, so search with both
+  //    plain keys and wildcard patterns.
   const dbJobs = await prisma.job.findMany({
     where: {
       trigger: 'auto',
-      status: { in: ['done', 'running'] },
-      issues: { some: { key: { in: issueKeys } } },
+      status: 'done',
+      issues: {
+        some: {
+          OR: issueKeys.map((k) => ({
+            key: { startsWith: k },
+          })),
+        },
+      },
     },
     include: { issues: { select: { key: true } } },
   });
 
-  const skipKeys = new Set<string>();
   for (const job of dbJobs) {
     for (const issue of job.issues) {
-      skipKeys.add(issue.key);
+      const bareKey = issue.key.replace(/@.*$/, '');
+      if (issueKeys.includes(bareKey)) {
+        skipKeys.add(bareKey);
+      }
     }
   }
 
