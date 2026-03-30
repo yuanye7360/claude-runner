@@ -45,10 +45,7 @@ defineExpose({ mode, fontSize });
   <aside
     class="flex shrink-0 flex-col border-r transition-[width] duration-200 ease-in-out"
     :class="collapsed ? 'w-[60px]' : 'w-[220px]'"
-    style="
-      background: var(--bg-sidebar);
-      border-color: rgba(139, 92, 246, 0.12);
-    "
+    style="background: var(--bg-sidebar); border-color: rgb(139 92 246 / 12%)"
   >
     <!-- ── Header: Logo + Mode Toggle ── -->
     <div
@@ -84,7 +81,7 @@ defineExpose({ mode, fontSize });
     >
       <button
         class="flex h-5 w-5 items-center justify-center rounded-[5px] text-[10px] text-[#8b5cf6] transition-colors hover:bg-[rgba(139,92,246,0.1)]"
-        style="border: 1px solid rgba(139, 92, 246, 0.15)"
+        style="border: 1px solid rgb(139 92 246 / 15%)"
         @click="emit('toggle')"
       >
         {{ collapsed ? '»' : '«' }}
@@ -149,7 +146,7 @@ defineExpose({ mode, fontSize });
     <!-- ── Footer ── -->
     <div
       class="flex shrink-0 flex-col gap-1 border-t px-3 py-3"
-      style="border-color: rgba(139, 92, 246, 0.1)"
+      style="border-color: rgb(139 92 246 / 10%)"
     >
       <!-- Font size (expanded only) -->
       <div

@@ -15,7 +15,7 @@ const isActive = computed(() => route.path === props.to);
 <template>
   <NuxtLink
     :to="to"
-    class="group flex items-center gap-2 transition-all duration-150"
+    class="group relative flex items-center gap-2 transition-all duration-150"
     :class="[
       collapsed
         ? 'mx-auto w-[38px] justify-center rounded-[8px] px-0 py-2'

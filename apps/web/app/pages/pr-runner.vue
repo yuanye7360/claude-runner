@@ -43,9 +43,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex flex-1 overflow-hidden">
-    <PrRunnerTab
-      ref="prTab"
-      :cr-created-pr-urls="crCreatedPrUrls"
-    />
+    <PrRunnerTab ref="prTab" :cr-created-pr-urls="crCreatedPrUrls" />
   </div>
 </template>

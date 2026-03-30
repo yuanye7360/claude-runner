@@ -8,11 +8,8 @@ export function useSidebar() {
     if (!import.meta.client) return;
 
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored !== null) {
-      isCollapsed.value = stored === 'true';
-    } else {
-      isCollapsed.value = window.innerWidth < BREAKPOINT;
-    }
+    isCollapsed.value =
+      stored === null ? window.innerWidth < BREAKPOINT : stored === 'true';
   }
 
   function toggle() {

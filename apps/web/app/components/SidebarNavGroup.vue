@@ -9,7 +9,7 @@ defineProps<{
   <div v-if="!collapsed" class="mt-4 mb-2 px-3 first:mt-0">
     <span
       class="text-[9px] font-medium tracking-[2px] uppercase"
-      style="color: rgba(139, 92, 246, 0.45)"
+      style="color: rgb(139 92 246 / 45%)"
     >
       {{ label }}
     </span>
@@ -17,6 +17,6 @@ defineProps<{
   <div
     v-else
     class="mx-auto my-2 h-px w-6"
-    style="background: rgba(139, 92, 246, 0.1)"
+    style="background: rgb(139 92 246 / 10%)"
   ></div>
 </template>

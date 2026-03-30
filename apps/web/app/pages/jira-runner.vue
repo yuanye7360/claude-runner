@@ -16,7 +16,9 @@ const mode = ref<'normal' | 'smart'>(
 const crCreatedPrUrls = ref<string[]>([]);
 
 // ── Child ref ──
-type RunnerJob = ReturnType<typeof import('~/composables/useRunnerJob').useRunnerJob>;
+type RunnerJob = ReturnType<
+  typeof import('~/composables/useRunnerJob').useRunnerJob
+>;
 
 const jiraTab = ref<{
   cr: RunnerJob;
