@@ -8,12 +8,10 @@ useHead({ title: 'Claude Runner — Skills' });
 const {
   skills: skillList,
   loaded,
-  modePresets,
   enabledSkillNames,
   fetchSkills,
   fetchSkillDetail,
   toggle: toggleSkill,
-  updatePreset,
   createSkill,
   updateSkill,
   deleteSkill,
@@ -68,7 +66,7 @@ const avgSuccessRate = computed(() => {
 });
 
 const topSkill = computed(() => {
-  let top: SkillStat | null = null;
+  let top: null | SkillStat = null;
   for (const s of skillStats.value.values()) {
     if (!top || s.triggerCount > top.triggerCount) top = s;
   }
@@ -123,19 +121,17 @@ const groupedSkills = computed<SkillGroup[]>(() => {
 });
 
 // ── Selected skill detail ────────────────────────────────
-const selectedSkill = ref<null | SkillDetail>(null);
+const selectedSkill = ref<null | (SkillDetail & { enabled: boolean })>(null);
 const selectedName = ref('');
 const loadingDetail = ref(false);
+const showDetail = ref(false);
 
 async function selectSkill(skill: SkillItem) {
-  if (selectedName.value === skill.name) {
-    selectedName.value = '';
-    selectedSkill.value = null;
-    return;
-  }
   selectedName.value = skill.name;
   loadingDetail.value = true;
-  selectedSkill.value = await fetchSkillDetail(skill.name);
+  showDetail.value = true;
+  const detail = await fetchSkillDetail(skill.name);
+  selectedSkill.value = detail ? { ...detail, enabled: skill.enabled } : null;
   loadingDetail.value = false;
 }
 
@@ -201,7 +197,12 @@ async function doCreate() {
   createError.value = '';
   try {
     await createSkill(newSkill.value);
-    newSkill.value = { content: '', description: '', inject: 'context', name: '' };
+    newSkill.value = {
+      content: '',
+      description: '',
+      inject: 'context',
+      name: '',
+    };
     showCreate.value = false;
   } catch (error: unknown) {
     const msg =
@@ -213,28 +214,6 @@ async function doCreate() {
   }
 }
 
-const editingPresets = ref(false);
-const presetDraft = ref<Record<string, string[]>>({});
-
-function startEditPresets() {
-  presetDraft.value = structuredClone(toRaw(modePresets.value));
-  editingPresets.value = true;
-}
-
-function togglePresetSkill(mode: string, skillName: string) {
-  const arr = presetDraft.value[mode] || [];
-  const idx = arr.indexOf(skillName);
-  if (idx === -1) arr.push(skillName);
-  else arr.splice(idx, 1);
-  presetDraft.value[mode] = [...arr];
-}
-
-function savePresets() {
-  for (const [mode, names] of Object.entries(presetDraft.value)) {
-    updatePreset(mode, names);
-  }
-  editingPresets.value = false;
-}
 
 const INJECT_OPTIONS = [
   { label: '通用 (context)', value: 'context' },
@@ -255,42 +234,96 @@ onMounted(() => {
   <div class="flex flex-1 flex-col overflow-auto p-6">
     <!-- ══════ KPI Header ══════ -->
     <div class="mb-6 grid grid-cols-4 gap-3">
-      <div class="rounded-lg border p-4" style="background: rgb(255 255 255 / 2%); border-color: rgb(255 255 255 / 6%)">
-        <div class="text-[10px] font-medium tracking-wider text-[#888] uppercase">Total Skills</div>
-        <div class="mt-1 text-2xl font-bold tracking-tight text-[#fafafa] tabular-nums">{{ skillList.length }}</div>
-        <div class="mt-0.5 text-[10px] text-[#555]">{{ enabledSkillNames.length }} enabled</div>
+      <div
+        class="rounded-lg border p-4"
+        style="
+          background: rgb(255 255 255 / 2%);
+          border-color: rgb(255 255 255 / 6%);
+        "
+      >
+        <div
+          class="text-[10px] font-medium tracking-wider text-[#888] uppercase"
+        >
+          Total Skills
+        </div>
+        <div
+          class="mt-1 text-2xl font-bold tracking-tight text-[#fafafa] tabular-nums"
+        >
+          {{ skillList.length }}
+        </div>
+        <div class="mt-0.5 text-[10px] text-[#555]">
+          {{ enabledSkillNames.length }} enabled
+        </div>
       </div>
-      <div class="rounded-lg border p-4" style="background: rgb(139 92 246 / 4%); border-color: rgb(139 92 246 / 12%)">
-        <div class="text-[10px] font-medium tracking-wider text-[#888] uppercase">Total Triggers</div>
-        <div class="mt-1 text-2xl font-bold tracking-tight text-[#8b5cf6] tabular-nums">{{ totalTriggers }}</div>
+      <div
+        class="rounded-lg border p-4"
+        style="
+          background: rgb(139 92 246 / 4%);
+          border-color: rgb(139 92 246 / 12%);
+        "
+      >
+        <div
+          class="text-[10px] font-medium tracking-wider text-[#888] uppercase"
+        >
+          Total Triggers
+        </div>
+        <div
+          class="mt-1 text-2xl font-bold tracking-tight text-[#8b5cf6] tabular-nums"
+        >
+          {{ totalTriggers }}
+        </div>
         <div class="mt-0.5 text-[10px] text-[#555]">across all skills</div>
       </div>
-      <div class="rounded-lg border p-4" style="background: rgb(34 197 94 / 4%); border-color: rgb(34 197 94 / 12%)">
-        <div class="text-[10px] font-medium tracking-wider text-[#888] uppercase">Success Rate</div>
-        <div class="mt-1 text-2xl font-bold tracking-tight text-[#22c55e] tabular-nums">{{ avgSuccessRate }}%</div>
+      <div
+        class="rounded-lg border p-4"
+        style="
+          background: rgb(34 197 94 / 4%);
+          border-color: rgb(34 197 94 / 12%);
+        "
+      >
+        <div
+          class="text-[10px] font-medium tracking-wider text-[#888] uppercase"
+        >
+          Success Rate
+        </div>
+        <div
+          class="mt-1 text-2xl font-bold tracking-tight text-[#22c55e] tabular-nums"
+        >
+          {{ avgSuccessRate }}%
+        </div>
         <div class="mt-0.5 text-[10px] text-[#555]">average</div>
       </div>
-      <div class="rounded-lg border p-4" style="background: rgb(6 182 212 / 4%); border-color: rgb(6 182 212 / 12%)">
-        <div class="text-[10px] font-medium tracking-wider text-[#888] uppercase">Most Active</div>
-        <div class="mt-1 truncate text-sm font-bold text-[#06b6d4]">{{ topSkill?.name || '—' }}</div>
-        <div class="mt-0.5 text-[10px] text-[#555]">{{ topSkill?.triggerCount || 0 }} triggers</div>
+      <div
+        class="rounded-lg border p-4"
+        style="
+          background: rgb(6 182 212 / 4%);
+          border-color: rgb(6 182 212 / 12%);
+        "
+      >
+        <div
+          class="text-[10px] font-medium tracking-wider text-[#888] uppercase"
+        >
+          Most Active
+        </div>
+        <div class="mt-1 truncate text-sm font-bold text-[#06b6d4]">
+          {{ topSkill?.name || '—' }}
+        </div>
+        <div class="mt-0.5 text-[10px] text-[#555]">
+          {{ topSkill?.triggerCount || 0 }} triggers
+        </div>
       </div>
     </div>
 
     <!-- ══════ Action Bar ══════ -->
     <div class="mb-4 flex items-center gap-2">
       <span class="text-sm font-semibold text-[#fafafa]">Skills</span>
-      <span class="rounded-full px-2 py-0.5 text-[10px] text-[#888] tabular-nums" style="background: rgb(255 255 255 / 4%)">
+      <span
+        class="rounded-full px-2 py-0.5 text-[10px] text-[#888] tabular-nums"
+        style="background: rgb(255 255 255 / 4%)"
+      >
         {{ enabledSkillNames.length }} / {{ skillList.length }}
       </span>
       <div class="ml-auto flex items-center gap-2">
-        <button
-          class="interactive flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-[#888] hover:bg-[rgb(255_255_255/4%)] hover:text-[#fafafa]"
-          @click="startEditPresets"
-        >
-          <UIcon name="i-lucide-sliders-horizontal" />
-          模式預設
-        </button>
         <button
           class="interactive flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-[#8b5cf6] hover:bg-[rgb(139_92_246/8%)]"
           @click="showCreate = true"
@@ -302,13 +335,17 @@ onMounted(() => {
     </div>
 
     <!-- ══════ Skill Groups (Accordion + Cards) ══════ -->
-    <div v-if="!loaded" class="py-8 text-center text-sm text-[#444]">載入中...</div>
-    <div v-else-if="skillList.length === 0" class="py-8 text-center text-sm text-[#444]">尚無 Skill</div>
+    <div v-if="!loaded" class="py-8 text-center text-sm text-[#444]">
+      載入中...
+    </div>
+    <div
+      v-else-if="skillList.length === 0"
+      class="py-8 text-center text-sm text-[#444]"
+    >
+      尚無 Skill
+    </div>
     <div v-else class="space-y-4">
-      <div
-        v-for="group in groupedSkills"
-        :key="group.key"
-      >
+      <div v-for="group in groupedSkills" :key="group.key">
         <!-- Group header -->
         <button
           class="interactive mb-2 flex w-full items-center gap-2 text-left"
@@ -325,10 +362,16 @@ onMounted(() => {
           >
             {{ group.label }}
           </span>
-          <span class="rounded-full px-1.5 py-0.5 text-[9px] text-[#666] tabular-nums" style="background: rgb(255 255 255 / 4%)">
+          <span
+            class="rounded-full px-1.5 py-0.5 text-[9px] text-[#666] tabular-nums"
+            style="background: rgb(255 255 255 / 4%)"
+          >
             {{ group.skills.length }}
           </span>
-          <div class="ml-auto h-px flex-1" style="background: rgb(255 255 255 / 4%)"></div>
+          <div
+            class="ml-auto h-px flex-1"
+            style="background: rgb(255 255 255 / 4%)"
+          ></div>
         </button>
 
         <!-- Skill cards grid -->
@@ -340,21 +383,28 @@ onMounted(() => {
             v-for="skill in group.skills"
             :key="skill.name"
             class="card-glow interactive cursor-pointer rounded-lg border p-3"
-            :class="selectedName === skill.name ? 'border-l-2' : 'border-l-2 border-l-transparent'"
+            :class="
+              selectedName === skill.name
+                ? 'border-l-2'
+                : 'border-l-2 border-l-transparent'
+            "
             :style="{
-              borderColor: selectedName === skill.name ? group.color : 'rgb(255 255 255 / 6%)',
-              background: selectedName === skill.name ? 'rgb(139 92 246 / 4%)' : 'rgb(255 255 255 / 2%)',
+              borderColor:
+                selectedName === skill.name
+                  ? group.color
+                  : 'rgb(255 255 255 / 6%)',
+              background:
+                selectedName === skill.name
+                  ? 'rgb(139 92 246 / 4%)'
+                  : 'rgb(255 255 255 / 2%)',
             }"
             @click="selectSkill(skill)"
           >
-            <!-- Top row: name + toggle -->
+            <!-- Top row: name -->
             <div class="flex items-center gap-2">
-              <UCheckbox
-                :model-value="skill.enabled"
-                class="shrink-0"
-                @click.stop="toggleSkill(skill.name)"
-              />
-              <span class="flex-1 truncate text-[13px] font-medium text-[#fafafa]">
+              <span
+                class="flex-1 truncate text-[13px] font-medium text-[#fafafa]"
+              >
                 {{ skill.name }}
               </span>
               <UBadge
@@ -368,12 +418,17 @@ onMounted(() => {
             </div>
 
             <!-- Description -->
-            <p class="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[#666]">
+            <p
+              class="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[#666]"
+            >
               {{ skill.description }}
             </p>
 
             <!-- Stats bar -->
-            <div class="mt-2 flex items-center gap-3 border-t pt-2 text-[10px]" style="border-color: rgb(255 255 255 / 4%)">
+            <div
+              class="mt-2 flex items-center gap-3 border-t pt-2 text-[10px]"
+              style="border-color: rgb(255 255 255 / 4%)"
+            >
               <span class="flex items-center gap-1 text-[#8b5cf6]">
                 <UIcon name="i-lucide-zap" class="text-[9px]" />
                 {{ getStats(skill.name).triggerCount }}
@@ -395,13 +450,17 @@ onMounted(() => {
                 {{ fmtTimeAgo(getStats(skill.name).lastUsedAt) }}
               </span>
               <!-- Mini progress bar -->
-              <div class="ml-auto h-1 w-12 overflow-hidden rounded-full" style="background: rgb(255 255 255 / 4%)">
+              <div
+                class="ml-auto h-1 w-12 overflow-hidden rounded-full"
+                style="background: rgb(255 255 255 / 4%)"
+              >
                 <div
                   class="h-full rounded-full transition-all duration-300"
                   :style="{
-                    width: getStats(skill.name).triggerCount > 0
-                      ? `${Math.round((getStats(skill.name).successCount / getStats(skill.name).triggerCount) * 100)}%`
-                      : '0%',
+                    width:
+                      getStats(skill.name).triggerCount > 0
+                        ? `${Math.round((getStats(skill.name).successCount / getStats(skill.name).triggerCount) * 100)}%`
+                        : '0%',
                     background: group.color,
                   }"
                 ></div>
@@ -412,29 +471,141 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ══════ Detail Drawer (bottom sheet) ══════ -->
-    <Transition name="slide-up">
-      <div
-        v-if="selectedSkill && !loadingDetail"
-        class="mt-6 rounded-xl border"
-        style="background: rgb(255 255 255 / 2%); border-color: rgb(255 255 255 / 6%)"
-      >
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b px-5 py-3" style="border-color: rgb(255 255 255 / 4%)">
-          <div class="flex items-center gap-3">
-            <h2 class="text-base font-semibold text-[#fafafa]">{{ selectedSkill.name }}</h2>
-            <UBadge
-              :color="selectedSkill.source === 'project' ? 'primary' : selectedSkill.source === 'custom' ? 'info' : 'neutral'"
-              variant="soft"
-              size="xs"
-            >
-              {{ selectedSkill.source === 'project' ? 'Project' : selectedSkill.source === 'custom' ? 'Server' : 'Global' }}
-            </UBadge>
+    <!-- ══════ Detail Modal ══════ -->
+    <UModal v-model:open="showDetail">
+      <template #content>
+        <div
+          v-if="selectedSkill"
+          style="background: rgb(15 15 25 / 95%)"
+          class="flex max-h-[80vh] flex-col"
+        >
+          <!-- Header -->
+          <div
+            class="flex shrink-0 items-center justify-between border-b px-5 py-4"
+            style="border-color: rgb(255 255 255 / 6%)"
+          >
+            <div class="flex items-center gap-3">
+              <h2 class="text-base font-semibold text-[#fafafa]">
+                {{ selectedSkill.name }}
+              </h2>
+              <UBadge
+                :color="
+                  selectedSkill.source === 'project'
+                    ? 'primary'
+                    : selectedSkill.source === 'custom'
+                      ? 'info'
+                      : 'neutral'
+                "
+                variant="soft"
+                size="xs"
+              >
+                {{
+                  selectedSkill.source === 'project'
+                    ? 'Project'
+                    : selectedSkill.source === 'custom'
+                      ? 'Server'
+                      : 'Global'
+                }}
+              </UBadge>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Enable toggle -->
+              <button
+                class="interactive rounded-lg px-2.5 py-1 text-xs"
+                :class="
+                  selectedSkill.enabled
+                    ? 'bg-[rgb(34_197_94/10%)] text-[#22c55e]'
+                    : 'text-[#555] hover:text-[#888]'
+                "
+                style="border: 1px solid rgb(255 255 255 / 8%)"
+                @click="
+                  toggleSkill(selectedName);
+                  if (selectedSkill)
+                    selectedSkill.enabled = !selectedSkill.enabled;
+                "
+              >
+                {{ selectedSkill.enabled ? '✓ Enabled' : 'Disabled' }}
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
+
+          <!-- Stats row -->
+          <div
+            class="flex shrink-0 items-center gap-6 border-b px-5 py-3 text-[11px]"
+            style="border-color: rgb(255 255 255 / 4%)"
+          >
+            <span class="flex items-center gap-1.5 text-[#8b5cf6]">
+              <UIcon name="i-lucide-zap" class="text-[10px]" />
+              {{ getStats(selectedName).triggerCount }} triggers
+            </span>
+            <span class="flex items-center gap-1.5 text-[#22c55e]">
+              <UIcon name="i-lucide-check" class="text-[10px]" />
+              {{
+                getStats(selectedName).triggerCount > 0
+                  ? Math.round(
+                      (getStats(selectedName).successCount /
+                        getStats(selectedName).triggerCount) *
+                        100,
+                    )
+                  : 0
+              }}% success
+            </span>
+            <span class="flex items-center gap-1.5 text-[#555]">
+              <UIcon name="i-lucide-clock" class="text-[10px]" />
+              {{ fmtTimeAgo(getStats(selectedName).lastUsedAt) }}
+            </span>
+          </div>
+
+          <!-- Content -->
+          <div class="flex-1 overflow-y-auto p-5">
+            <p class="mb-3 text-sm text-[#888]">
+              {{ selectedSkill.description }}
+            </p>
+            <template v-if="!editing">
+              <pre
+                class="rounded-lg p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#ccc]"
+                style="background: rgb(0 0 0 / 30%)"
+                >{{ selectedSkill.content }}</pre
+              >
+            </template>
+            <template v-else>
+              <div class="space-y-3">
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-[#888]"
+                    >說明</label
+                  >
+                  <input
+                    v-model="editForm.description"
+                    class="w-full rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                    style="background: rgb(0 0 0 / 30%)"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-[#888]"
+                    >內容 (Markdown)</label
+                  >
+                  <textarea
+                    v-model="editForm.content"
+                    rows="15"
+                    class="w-full rounded px-3 py-2 font-mono text-sm leading-relaxed text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                    style="background: rgb(0 0 0 / 30%)"
+                  ></textarea>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Footer actions -->
+          <div
+            class="flex shrink-0 items-center gap-2 border-t px-5 py-3"
+            style="border-color: rgb(255 255 255 / 6%)"
+          >
             <template v-if="!editing">
               <UButton
-                v-if="selectedSkill.source === 'project' || selectedSkill.source === 'custom'"
+                v-if="
+                  selectedSkill.source === 'project' ||
+                  selectedSkill.source === 'custom'
+                "
                 size="xs"
                 variant="soft"
                 @click="startEdit"
@@ -442,7 +613,10 @@ onMounted(() => {
                 <UIcon name="i-lucide-pencil" class="mr-1" /> 編輯
               </UButton>
               <UButton
-                v-if="selectedSkill.source === 'project' || selectedSkill.source === 'custom'"
+                v-if="
+                  selectedSkill.source === 'project' ||
+                  selectedSkill.source === 'custom'
+                "
                 size="xs"
                 color="error"
                 variant="soft"
@@ -452,36 +626,21 @@ onMounted(() => {
               </UButton>
             </template>
             <template v-else>
-              <UButton size="xs" :loading="saving" @click="saveEdit">儲存</UButton>
-              <UButton size="xs" color="neutral" variant="ghost" @click="cancelEdit">取消</UButton>
+              <UButton size="xs" :loading="saving" @click="saveEdit"
+                >儲存</UButton
+              >
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                @click="cancelEdit"
+                >取消</UButton
+              >
             </template>
-            <button class="ml-2 text-[#555] hover:text-[#fafafa]" @click="selectedName = ''; selectedSkill = null">
-              <UIcon name="i-lucide-x" />
-            </button>
           </div>
         </div>
-
-        <!-- Content -->
-        <div class="max-h-80 overflow-y-auto p-5">
-          <p class="mb-3 text-sm text-[#888]">{{ selectedSkill.description }}</p>
-          <template v-if="!editing">
-            <pre class="rounded-lg p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#ccc]" style="background: rgb(0 0 0 / 30%)">{{ selectedSkill.content }}</pre>
-          </template>
-          <template v-else>
-            <div class="space-y-3">
-              <div>
-                <label class="mb-1 block text-xs font-medium text-[#888]">說明</label>
-                <input v-model="editForm.description" class="w-full rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)" />
-              </div>
-              <div>
-                <label class="mb-1 block text-xs font-medium text-[#888]">內容 (Markdown)</label>
-                <textarea v-model="editForm.content" rows="15" class="w-full rounded px-3 py-2 font-mono text-sm leading-relaxed text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)"></textarea>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-    </Transition>
+      </template>
+    </UModal>
 
     <!-- ══════ Modals ══════ -->
     <UModal v-model:open="showCreate">
@@ -491,27 +650,64 @@ onMounted(() => {
           <div class="space-y-3">
             <div>
               <label class="mb-1 block text-xs text-[#888]">名稱</label>
-              <input v-model="newSkill.name" placeholder="my-custom-skill" class="w-full rounded px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)" />
+              <input
+                v-model="newSkill.name"
+                placeholder="my-custom-skill"
+                class="w-full rounded px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                style="background: rgb(0 0 0 / 30%)"
+              />
             </div>
             <div>
               <label class="mb-1 block text-xs text-[#888]">說明</label>
-              <input v-model="newSkill.description" placeholder="這個 skill 做什麼..." class="w-full rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)" />
+              <input
+                v-model="newSkill.description"
+                placeholder="這個 skill 做什麼..."
+                class="w-full rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                style="background: rgb(0 0 0 / 30%)"
+              />
             </div>
             <div>
               <label class="mb-1 block text-xs text-[#888]">注入位置</label>
-              <select v-model="newSkill.inject" class="rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)">
-                <option v-for="opt in INJECT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              <select
+                v-model="newSkill.inject"
+                class="rounded px-3 py-2 text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                style="background: rgb(0 0 0 / 30%)"
+              >
+                <option
+                  v-for="opt in INJECT_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
               </select>
             </div>
             <div>
-              <label class="mb-1 block text-xs text-[#888]">內容 (Markdown)</label>
-              <textarea v-model="newSkill.content" rows="10" placeholder="Skill 的 Markdown 指令內容..." class="w-full rounded px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none" style="background: rgb(0 0 0 / 30%)"></textarea>
+              <label class="mb-1 block text-xs text-[#888]"
+                >內容 (Markdown)</label
+              >
+              <textarea
+                v-model="newSkill.content"
+                rows="10"
+                placeholder="Skill 的 Markdown 指令內容..."
+                class="w-full rounded px-3 py-2 font-mono text-sm text-[#fafafa] ring-1 ring-[rgb(255_255_255/8%)] outline-none"
+                style="background: rgb(0 0 0 / 30%)"
+              ></textarea>
             </div>
           </div>
-          <p v-if="createError" class="mt-2 text-xs text-red-400">{{ createError }}</p>
+          <p v-if="createError" class="mt-2 text-xs text-red-400">
+            {{ createError }}
+          </p>
           <div class="mt-4 flex gap-2">
-            <UButton :loading="creating" :disabled="!newSkill.name.trim() || !newSkill.content.trim()" @click="doCreate">建立</UButton>
-            <UButton color="neutral" variant="ghost" @click="showCreate = false">取消</UButton>
+            <UButton
+              :loading="creating"
+              :disabled="!newSkill.name.trim() || !newSkill.content.trim()"
+              @click="doCreate"
+              >建立</UButton
+            >
+            <UButton color="neutral" variant="ghost" @click="showCreate = false"
+              >取消</UButton
+            >
           </div>
         </div>
       </template>
@@ -522,60 +718,23 @@ onMounted(() => {
         <div style="background: rgb(15 15 25 / 95%)" class="p-6">
           <h3 class="mb-2 text-lg font-semibold text-[#fafafa]">確認刪除</h3>
           <p class="mb-4 text-sm text-[#888]">
-            確定要刪除 skill <span class="font-mono text-red-400">{{ selectedName }}</span>？此操作無法復原。
+            確定要刪除 skill
+            <span class="font-mono text-red-400">{{ selectedName }}</span
+            >？此操作無法復原。
           </p>
           <div class="flex gap-2">
-            <UButton color="error" :loading="deleting" @click="doDelete">刪除</UButton>
-            <UButton color="neutral" variant="ghost" @click="confirmDelete = false">取消</UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <UModal v-model:open="editingPresets">
-      <template #content>
-        <div style="background: rgb(15 15 25 / 95%)" class="p-6">
-          <h3 class="mb-4 text-lg font-semibold text-[#fafafa]">模式預設</h3>
-          <p class="mb-4 text-xs text-[#888]">設定每個模式切換時自動啟用的 skills</p>
-          <div class="space-y-6">
-            <div v-for="mode in Object.keys(presetDraft)" :key="mode" class="rounded-lg border p-4" style="border-color: rgb(255 255 255 / 8%)">
-              <div class="mb-2 text-sm font-medium text-[#ccc] capitalize">{{ mode }} 模式</div>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="skill in skillList"
-                  :key="skill.name"
-                  class="interactive rounded-lg border px-2.5 py-1 text-xs"
-                  :class="(presetDraft[mode] || []).includes(skill.name)
-                    ? 'border-[rgb(139_92_246/40%)] bg-[rgb(139_92_246/10%)] text-[#8b5cf6]'
-                    : 'border-[rgb(255_255_255/8%)] text-[#888]'"
-                  @click="togglePresetSkill(mode, skill.name)"
-                >
-                  {{ skill.name }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4 flex gap-2">
-            <UButton @click="savePresets">儲存</UButton>
-            <UButton color="neutral" variant="ghost" @click="editingPresets = false">取消</UButton>
+            <UButton color="error" :loading="deleting" @click="doDelete"
+              >刪除</UButton
+            >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              @click="confirmDelete = false"
+              >取消</UButton
+            >
           </div>
         </div>
       </template>
     </UModal>
   </div>
 </template>
-
-<style scoped>
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-</style>
