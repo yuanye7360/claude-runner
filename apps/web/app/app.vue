@@ -99,10 +99,7 @@ onMounted(() => {
           <div class="ml-auto flex items-center gap-3">
             <!-- Font size -->
             <div class="flex items-center gap-1.5">
-              <UIcon
-                name="i-lucide-type"
-                class="text-xs text-[#6b6b8a]"
-              />
+              <UIcon name="i-lucide-type" class="text-xs text-[#6b6b8a]" />
               <div class="flex gap-0.5">
                 <button
                   v-for="s in FONT_SIZES"

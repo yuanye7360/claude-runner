@@ -36,7 +36,7 @@ const isActive = computed(() => route.path === props.to);
       class="shrink-0 text-base"
       :class="
         isActive
-          ? 'text-[#a78bfa] neon-text-purple'
+          ? 'neon-text-purple text-[#a78bfa]'
           : 'text-[#6b6b8a] group-hover:text-[#c4b5fd]'
       "
     />
