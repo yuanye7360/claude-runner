@@ -1,8 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
-import process from 'node:process';
-
 import matter from 'gray-matter';
 
 export type SkillSource = 'custom' | 'external';
@@ -48,12 +46,24 @@ export default defineEventHandler(() => {
     '../skills',
   );
   // Project skills: .claude/skills/ (project-level, including Polaris symlinks)
-  const projectDir = resolve(process.cwd(), '.claude', 'skills');
+  // Traverse up from server/api/ to find the project root with .claude/skills/
+  let projectDir = '';
+  let searchDir = resolve(new URL('.', import.meta.url).pathname);
+  for (let i = 0; i < 10; i++) {
+    const candidate = join(searchDir, '.claude', 'skills');
+    if (existsSync(candidate)) {
+      projectDir = candidate;
+      break;
+    }
+    const parent = resolve(searchDir, '..');
+    if (parent === searchDir) break;
+    searchDir = parent;
+  }
   // External skills: global ~/.claude/skills/ (shared with Claude Code CLI)
   const externalDir = join(homedir(), '.claude', 'skills');
 
   const custom = scanSkillDir(customDir, 'custom');
-  const project = scanSkillDir(projectDir, 'custom');
+  const project = projectDir ? scanSkillDir(projectDir, 'custom') : [];
   const external = scanSkillDir(externalDir, 'external');
 
   // Deduplicate: custom > project > external (same name)
