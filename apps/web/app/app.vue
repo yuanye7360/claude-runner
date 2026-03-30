@@ -9,15 +9,40 @@ const onboarding = useOnboarding({
   repoCount: computed(() => repoConfigs.value.length),
   skillCount: computed(() => enabledSkillNames.value.length),
 });
+
+// ── Sidebar ──
+const sidebar = useSidebar();
+const sidebarRef = ref<{ fontSize: Ref<number>; mode: Ref<string> }>();
+
+onMounted(() => {
+  sidebar.init();
+});
+
+const rootFontSize = computed(
+  () => `${sidebarRef.value?.fontSize.value ?? 16}px`,
+);
 </script>
 
 <template>
   <UApp>
-    <NuxtLayout>
-      <NuxtPage />
-    </NuxtLayout>
+    <div
+      class="app-shell bg-cyberpunk flex h-screen text-[#e0e7ff]"
+      :style="{ fontSize: rootFontSize }"
+    >
+      <!-- Sidebar -->
+      <AppSidebar
+        ref="sidebarRef"
+        :collapsed="sidebar.isCollapsed.value"
+        @toggle="sidebar.toggle()"
+      />
 
-    <!-- Floating onboarding checklist (client-only to avoid SSR hydration mismatch) -->
+      <!-- Main content -->
+      <main class="flex flex-1 flex-col overflow-hidden">
+        <NuxtPage />
+      </main>
+    </div>
+
+    <!-- Floating onboarding checklist -->
     <ClientOnly>
       <OnboardingChecklist
         v-if="onboarding.showChecklist.value"
