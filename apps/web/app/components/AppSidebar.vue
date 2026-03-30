@@ -76,6 +76,16 @@ defineExpose({ mode });
 
     <!-- ── Navigation ── -->
     <nav class="flex-1 overflow-y-auto px-2">
+      <!-- Dashboard (top) -->
+      <div class="mb-1 flex flex-col gap-0.5">
+        <SidebarNavItem
+          to="/dashboard"
+          icon="i-lucide-chart-bar"
+          label="Dashboard"
+          :collapsed="collapsed"
+        />
+      </div>
+
       <!-- Pipeline group -->
       <SidebarNavGroup label="Pipeline" :collapsed="collapsed" />
       <div class="flex flex-col gap-0.5">
@@ -99,17 +109,6 @@ defineExpose({ mode });
         />
       </div>
 
-      <!-- Analytics group -->
-      <SidebarNavGroup label="Analytics" :collapsed="collapsed" />
-      <div class="flex flex-col gap-0.5">
-        <SidebarNavItem
-          to="/dashboard"
-          icon="i-lucide-chart-bar"
-          label="Dashboard"
-          :collapsed="collapsed"
-        />
-      </div>
-
       <!-- Settings group -->
       <SidebarNavGroup label="Settings" :collapsed="collapsed" />
       <div class="flex flex-col gap-0.5">
@@ -128,6 +127,5 @@ defineExpose({ mode });
         />
       </div>
     </nav>
-
   </aside>
 </template>
