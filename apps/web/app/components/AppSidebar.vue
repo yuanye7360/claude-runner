@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { useSkills } from '~/composables/useSkills';
 
-defineProps<{
-  collapsed: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: 'toggle'): void;
-}>();
-
-const { enabledSkillNames, applyPreset: applySkillPreset } = useSkills();
+const { applyPreset: applySkillPreset } = useSkills();
 
 // ── Mode ──
 const mode = ref<'normal' | 'smart'>(
@@ -27,105 +19,61 @@ defineExpose({ mode });
 
 <template>
   <aside
-    class="flex shrink-0 flex-col border-r transition-[width] duration-200 ease-in-out"
-    :class="collapsed ? 'w-[60px]' : 'w-[220px]'"
-    style="background: var(--bg-sidebar); border-color: rgb(139 92 246 / 12%)"
+    class="flex w-13 shrink-0 flex-col items-center border-r py-3"
+    style="background: var(--bg-sidebar); border-color: rgb(255 255 255 / 6%)"
   >
-    <!-- ── Header: Logo + Mode Toggle ── -->
+    <!-- Logo -->
     <div
-      class="flex shrink-0 items-center gap-2 px-3 pt-4 pb-2"
-      :class="collapsed ? 'justify-center' : ''"
+      class="mb-4 flex h-8 w-8 items-center justify-center rounded-lg"
+      style="background: linear-gradient(135deg, #8b5cf6, #06b6d4)"
     >
-      <div
-        class="neon-glow-logo flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-        style="background: linear-gradient(135deg, #8b5cf6, #06b6d4)"
+      <span class="text-sm text-white">⚡</span>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex flex-1 flex-col items-center gap-1">
+      <SidebarNavItem
+        to="/"
+        icon="i-lucide-layout-dashboard"
+        label="Dashboard"
+      />
+      <SidebarNavItem
+        to="/jira-runner"
+        icon="i-lucide-bug"
+        label="JIRA Runner"
+      />
+      <SidebarNavItem
+        to="/pr-runner"
+        icon="i-lucide-git-pull-request"
+        label="PR Runner"
+      />
+      <SidebarNavItem
+        to="/pr-review"
+        icon="i-lucide-search-code"
+        label="Code Review"
+      />
+    </nav>
+
+    <!-- Bottom: Settings -->
+    <div class="flex flex-col items-center gap-1">
+      <!-- Mode toggle -->
+      <UTooltip
+        :text="mode === 'smart' ? 'Smart Mode' : 'Normal Mode'"
+        :popper="{ placement: 'right' }"
       >
-        <span class="text-sm text-white">⚡</span>
-      </div>
-      <template v-if="!collapsed">
-        <span class="text-sm font-bold tracking-wide text-[#e0e7ff]"
-          >ClaudeRunner</span
-        >
         <button
-          class="ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-medium transition-colors"
-          :class="
-            mode === 'smart'
-              ? 'border border-[rgba(139,92,246,0.25)] bg-[rgba(139,92,246,0.15)] text-[#a78bfa]'
-              : 'border border-[rgba(100,116,139,0.25)] bg-[rgba(100,116,139,0.15)] text-[#64748b]'
-          "
+          class="flex h-9 w-9 items-center justify-center rounded-lg border border-transparent transition-colors hover:bg-[rgba(255,255,255,0.04)]"
           @click="mode = mode === 'smart' ? 'normal' : 'smart'"
         >
-          {{ mode === 'smart' ? 'Smart' : 'Normal' }}
+          <UIcon
+            :name="mode === 'smart' ? 'i-lucide-sparkles' : 'i-lucide-zap'"
+            class="text-[16px]"
+            :class="mode === 'smart' ? 'text-[#8b5cf6]' : 'text-[#555]'"
+          />
         </button>
-      </template>
+      </UTooltip>
+
+      <SidebarNavItem to="/repos" icon="i-lucide-settings" label="Settings" />
     </div>
-
-    <!-- ── Collapse Toggle ── -->
-    <div
-      class="flex px-3 pb-2"
-      :class="collapsed ? 'justify-center' : 'justify-end'"
-    >
-      <button
-        class="flex h-5 w-5 items-center justify-center rounded-[5px] text-[10px] text-[#8b5cf6] transition-colors hover:bg-[rgba(139,92,246,0.1)]"
-        style="border: 1px solid rgb(139 92 246 / 15%)"
-        @click="emit('toggle')"
-      >
-        {{ collapsed ? '»' : '«' }}
-      </button>
-    </div>
-
-    <!-- ── Navigation ── -->
-    <nav class="flex-1 overflow-y-auto px-2">
-      <!-- Dashboard (top) -->
-      <div class="mb-1 flex flex-col gap-0.5">
-        <SidebarNavItem
-          to="/dashboard"
-          icon="i-lucide-chart-bar"
-          label="Dashboard"
-          :collapsed="collapsed"
-        />
-      </div>
-
-      <!-- Pipeline group -->
-      <SidebarNavGroup label="Pipeline" :collapsed="collapsed" />
-      <div class="flex flex-col gap-0.5">
-        <SidebarNavItem
-          to="/jira-runner"
-          icon="i-lucide-bug"
-          label="JIRA Runner"
-          :collapsed="collapsed"
-        />
-        <SidebarNavItem
-          to="/pr-runner"
-          icon="i-lucide-git-pull-request"
-          label="PR Runner"
-          :collapsed="collapsed"
-        />
-        <SidebarNavItem
-          to="/pr-review"
-          icon="i-lucide-search-code"
-          label="PR Review"
-          :collapsed="collapsed"
-        />
-      </div>
-
-      <!-- Settings group -->
-      <SidebarNavGroup label="Settings" :collapsed="collapsed" />
-      <div class="flex flex-col gap-0.5">
-        <SidebarNavItem
-          to="/repos"
-          icon="i-lucide-folder-git-2"
-          label="Repos"
-          :collapsed="collapsed"
-        />
-        <SidebarNavItem
-          to="/skills"
-          icon="i-heroicons-cube"
-          label="Skills"
-          :badge="enabledSkillNames.length"
-          :collapsed="collapsed"
-        />
-      </div>
-    </nav>
   </aside>
 </template>
