@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 
 import matter from 'gray-matter';
 
-export type SkillSource = 'custom' | 'external';
+export type SkillSource = 'custom' | 'external' | 'project';
 
 export interface SkillInfo {
   name: string;
@@ -64,7 +64,7 @@ export default defineEventHandler(() => {
   const externalDir = join(homedir(), '.claude', 'skills');
 
   const custom = scanSkillDir(customDir, 'custom');
-  const project = projectDir ? scanSkillDir(projectDir, 'custom') : [];
+  const project = projectDir ? scanSkillDir(projectDir, 'project') : [];
   const external = scanSkillDir(externalDir, 'external');
 
   // Deduplicate: custom > project > external (same name)

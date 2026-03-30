@@ -1,4 +1,4 @@
-export type SkillSource = 'external' | 'project';
+export type SkillSource = 'custom' | 'external' | 'project';
 
 export interface SkillItem {
   name: string;

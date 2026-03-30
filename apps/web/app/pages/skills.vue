@@ -152,6 +152,38 @@ const INJECT_OPTIONS = [
   { label: 'JIRA (jira)', value: 'jira' },
 ];
 
+// ── Grouped by source (accordion) ────────────────────────
+interface SkillGroup {
+  key: string;
+  label: string;
+  color: string;
+  skills: SkillItem[];
+}
+
+const expandedGroups = ref<Set<string>>(new Set(['project', 'custom', 'external']));
+
+function toggleGroup(key: string) {
+  if (expandedGroups.value.has(key)) expandedGroups.value.delete(key);
+  else expandedGroups.value.add(key);
+}
+
+const groupedSkills = computed<SkillGroup[]>(() => {
+  const groups: Record<string, SkillItem[]> = { project: [], custom: [], external: [] };
+  for (const s of skillList.value) {
+    const key = s.source || 'external';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  }
+  const defs: { key: string; label: string; color: string }[] = [
+    { key: 'project', label: 'Project', color: '#8b5cf6' },
+    { key: 'custom', label: 'Server', color: '#06b6d4' },
+    { key: 'external', label: 'Global', color: '#888' },
+  ];
+  return defs
+    .filter((d) => (groups[d.key] ?? []).length > 0)
+    .map((d) => ({ ...d, skills: groups[d.key] ?? [] }));
+});
+
 // ── Init ─────────────────────────────────────────────────
 onMounted(() => {
   if (!loaded.value) fetchSkills();
@@ -202,47 +234,72 @@ onMounted(() => {
         <div v-else-if="skillList.length === 0" class="p-4 text-sm text-[#444]">
           尚無 Skill
         </div>
-        <div v-else class="divide-y divide-[rgb(255_255_255/4%)]">
+        <div v-else>
+          <!-- Accordion groups -->
           <div
-            v-for="skill in skillList"
-            :key="skill.name"
-            class="flex cursor-pointer items-start gap-3 px-4 py-3 transition-all duration-100"
-            :class="[
-              selectedName === skill.name
-                ? 'bg-primary-500/10 border-l-primary-400 border-l-2'
-                : 'border-l-2 border-l-transparent hover:bg-[rgb(255_255_255/2%)]',
-            ]"
-            @click="selectSkill(skill)"
+            v-for="group in groupedSkills"
+            :key="group.key"
+            class="border-b border-[rgb(255_255_255/4%)]"
           >
-            <UCheckbox
-              :model-value="skill.enabled"
-              class="mt-0.5 shrink-0"
-              @click.stop="toggleSkill(skill.name)"
-            />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="truncate text-sm font-medium text-[#fafafa]">{{
-                  skill.name
-                }}</span>
-                <UBadge
-                  :color="skill.source === 'project' ? 'success' : 'neutral'"
-                  variant="soft"
-                  size="xs"
-                >
-                  {{ skill.source === 'project' ? 'Project' : 'Global' }}
-                </UBadge>
-                <UBadge
-                  v-if="skill.inject && skill.inject !== 'context'"
-                  color="info"
-                  variant="soft"
-                  size="xs"
-                >
-                  {{ skill.inject }}
-                </UBadge>
+            <!-- Group header (click to toggle) -->
+            <button
+              class="interactive flex w-full items-center gap-2.5 px-4 py-2.5 text-left"
+              @click="toggleGroup(group.key)"
+            >
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="shrink-0 text-[12px] text-[#555] transition-transform duration-150"
+                :class="{ 'rotate-90': expandedGroups.has(group.key) }"
+              />
+              <span
+                class="text-[10px] font-semibold tracking-[1.5px] uppercase"
+                :style="{ color: group.color }"
+              >
+                {{ group.label }}
+              </span>
+              <span class="rounded-full px-1.5 py-0.5 text-[9px] tabular-nums text-[#666]" style="background: rgb(255 255 255 / 4%)">
+                {{ group.skills.length }}
+              </span>
+            </button>
+
+            <!-- Group items -->
+            <div v-if="expandedGroups.has(group.key)">
+              <div
+                v-for="skill in group.skills"
+                :key="skill.name"
+                class="flex cursor-pointer items-start gap-3 px-4 py-2.5 transition-all duration-100"
+                :class="[
+                  selectedName === skill.name
+                    ? 'border-l-2 bg-[rgba(139,92,246,0.08)]'
+                    : 'border-l-2 border-l-transparent hover:bg-[rgb(255_255_255/2%)]',
+                ]"
+                :style="selectedName === skill.name ? `border-left-color: ${group.color}` : ''"
+                @click="selectSkill(skill)"
+              >
+                <UCheckbox
+                  :model-value="skill.enabled"
+                  class="mt-0.5 shrink-0"
+                  @click.stop="toggleSkill(skill.name)"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="truncate text-sm font-medium text-[#fafafa]">{{
+                      skill.name
+                    }}</span>
+                    <UBadge
+                      v-if="skill.inject && skill.inject !== 'context'"
+                      color="info"
+                      variant="soft"
+                      size="xs"
+                    >
+                      {{ skill.inject }}
+                    </UBadge>
+                  </div>
+                  <p class="mt-0.5 line-clamp-2 text-xs text-[#888]">
+                    {{ skill.description }}
+                  </p>
+                </div>
               </div>
-              <p class="mt-0.5 line-clamp-2 text-xs text-[#888]">
-                {{ skill.description }}
-              </p>
             </div>
           </div>
         </div>
@@ -289,11 +346,21 @@ onMounted(() => {
             <div class="flex items-center gap-2">
               <UBadge
                 :color="
-                  selectedSkill.source === 'project' ? 'success' : 'neutral'
+                  selectedSkill.source === 'project'
+                    ? 'primary'
+                    : selectedSkill.source === 'custom'
+                      ? 'info'
+                      : 'neutral'
                 "
                 variant="soft"
               >
-                {{ selectedSkill.source === 'project' ? 'Project' : 'Global' }}
+                {{
+                  selectedSkill.source === 'project'
+                    ? 'Project'
+                    : selectedSkill.source === 'custom'
+                      ? 'Server'
+                      : 'Global'
+                }}
               </UBadge>
               <UBadge color="info" variant="soft">
                 inject: {{ selectedSkill.inject || 'context' }}
