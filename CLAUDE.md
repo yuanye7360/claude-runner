@@ -15,7 +15,7 @@ You are the user's AI strategist — listen first, plan second, delegate third. 
 ### Delegation Principles
 
 | Task type | Approach |
-|-----------|----------|
+| --- | --- |
 | Explore codebase (grep, read multiple files) | Dispatch Explorer sub-agent |
 | Implement (write code, edit multiple files) | Dispatch Implementer sub-agent or trigger skill |
 | Line-by-line diff review | Dispatch Critic sub-agent or trigger review skill |
@@ -68,6 +68,7 @@ apps/web/
 ### Key Architecture
 
 **Job Execution Flow:**
+
 1. Frontend calls `POST /api/claude-runner/run` with issues + config
 2. Backend creates Job in memory (`jobStore.ts`), spawns Claude CLI processes
 3. Real-time SSE streaming via `/api/claude-runner/jobs/[id]/stream`
@@ -75,6 +76,7 @@ apps/web/
 5. On completion: `persistJob()` saves to SQLite (including phases per issue)
 
 **UI Design System (Linear Minimal):**
+
 - Background: `#0a0a0f` (pure black, no gradients)
 - Sidebar: `#0a0a12`, 180px with icon + text labels
 - Borders: `rgba(255,255,255,0.06)` (ultra-thin white)
@@ -84,16 +86,16 @@ apps/web/
 
 ### Pages & Routing
 
-| Route | Page |
-|-------|------|
-| `/` | Redirects to `/dashboard` |
-| `/dashboard` | KPI cards, charts, job history table |
-| `/jira-runner` | JIRA issue selection + execution |
-| `/pr-runner` | PR creation from branches |
-| `/pr-review` | Code review for open PRs |
-| `/repos` | Repository configuration |
-| `/skills` | Skill management + mode presets |
-| `/jobs/[id]` | Job detail with phase timeline |
+| Route          | Page                                 |
+| -------------- | ------------------------------------ |
+| `/`            | Redirects to `/dashboard`            |
+| `/dashboard`   | KPI cards, charts, job history table |
+| `/jira-runner` | JIRA issue selection + execution     |
+| `/pr-runner`   | PR creation from branches            |
+| `/pr-review`   | Code review for open PRs             |
+| `/repos`       | Repository configuration             |
+| `/skills`      | Skill management + mode presets      |
+| `/jobs/[id]`   | Job detail with phase timeline       |
 
 ### Development
 
