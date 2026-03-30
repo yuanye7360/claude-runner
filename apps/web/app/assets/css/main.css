@@ -21,6 +21,30 @@
   --radius-sm: 6px;
 }
 
+/* ── Dark scrollbar ── */
+* {
+  scrollbar-color: rgb(255 255 255 / 8%) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 8%);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 15%);
+}
+
 /* ── Micro-interactions ── */
 .hover-lift {
   transition:

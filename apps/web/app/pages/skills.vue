@@ -471,7 +471,7 @@ onMounted(() => {
     </div>
 
     <!-- ══════ Detail Modal ══════ -->
-    <UModal v-model:open="showDetail" :ui="{ width: 'sm:max-w-3xl' }">
+    <UModal v-model:open="showDetail" :ui="{ width: 'sm:max-w-5xl' }">
       <template #content>
         <div
           v-if="selectedSkill"
