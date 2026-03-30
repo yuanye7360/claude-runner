@@ -18,13 +18,18 @@ const onboarding = useOnboarding({
 // ── Sidebar ──
 const sidebar = useSidebar();
 
-// ── Font size (direct state, not via template ref) ──
+// ── Font size ──
+const FONT_SIZES = [
+  { label: '小', value: 14 },
+  { label: '中', value: 16 },
+  { label: '大', value: 18 },
+] as const;
 const fontSize = ref(
   import.meta.client ? Number(localStorage.getItem('cr-font-size') || 16) : 16,
 );
-function onFontSizeChange(v: number) {
-  fontSize.value = v;
-}
+watch(fontSize, (v) => {
+  if (import.meta.client) localStorage.setItem('cr-font-size', String(v));
+});
 const rootFontSize = computed(() => `${fontSize.value}px`);
 
 // ── Route info for header ──
@@ -67,7 +72,6 @@ onMounted(() => {
       <AppSidebar
         :collapsed="sidebar.isCollapsed.value"
         @toggle="sidebar.toggle()"
-        @font-size-change="onFontSizeChange"
       />
 
       <!-- Main content -->
@@ -92,7 +96,37 @@ onMounted(() => {
           </span>
 
           <!-- Right side -->
-          <div class="ml-auto flex items-center gap-2">
+          <div class="ml-auto flex items-center gap-3">
+            <!-- Font size -->
+            <div class="flex items-center gap-1.5">
+              <UIcon
+                name="i-lucide-type"
+                class="text-xs text-[#6b6b8a]"
+              />
+              <div class="flex gap-0.5">
+                <button
+                  v-for="s in FONT_SIZES"
+                  :key="s.value"
+                  class="rounded-md px-2 py-0.5 text-[11px] transition-colors"
+                  :class="
+                    fontSize === s.value
+                      ? 'bg-[rgba(139,92,246,0.2)] font-medium text-[#c4b5fd]'
+                      : 'text-[#6b6b8a] hover:bg-[rgba(139,92,246,0.08)] hover:text-[#c4b5fd]'
+                  "
+                  @click="fontSize = s.value"
+                >
+                  {{ s.label }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div
+              class="h-4 w-px"
+              style="background: rgb(139 92 246 / 15%)"
+            ></div>
+
+            <!-- Onboarding guide -->
             <UTooltip v-if="onboardingIncomplete" text="點擊開始設定指引">
               <button
                 class="relative flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-[#f59e0b] transition-colors hover:bg-[rgba(245,158,11,0.1)]"
@@ -109,6 +143,16 @@ onMounted(() => {
                 設定指引
               </button>
             </UTooltip>
+
+            <!-- Guide button (always visible) -->
+            <button
+              class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[#6b6b8a] transition-colors hover:bg-[rgba(139,92,246,0.08)] hover:text-[#c4b5fd]"
+              @click="requestResetTour = true"
+            >
+              <UIcon name="i-lucide-circle-help" />
+              <span>使用指引</span>
+            </button>
+
             <RepoManager />
           </div>
         </header>
