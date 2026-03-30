@@ -22,11 +22,11 @@ const isActive = computed(() => route.path === props.to);
         : 'rounded-[10px] px-3 py-2',
       isActive
         ? 'border-l-2 border-[#8b5cf6]'
-        : 'border-l-2 border-transparent hover:bg-[rgba(30,30,60,0.5)]',
+        : 'border-l-2 border-transparent hover:bg-[rgba(139,92,246,0.06)]',
     ]"
     :style="
       isActive
-        ? 'background: linear-gradient(90deg, rgba(139,92,246,0.12), transparent)'
+        ? 'background: linear-gradient(90deg, rgba(139,92,246,0.18), transparent); box-shadow: inset 0 0 20px rgba(139,92,246,0.05)'
         : ''
     "
   >
@@ -36,8 +36,8 @@ const isActive = computed(() => route.path === props.to);
       class="shrink-0 text-base"
       :class="
         isActive
-          ? 'text-[#8b5cf6]'
-          : 'text-[#4c4c6d] group-hover:text-[#c4b5fd]'
+          ? 'text-[#a78bfa] neon-text-purple'
+          : 'text-[#6b6b8a] group-hover:text-[#c4b5fd]'
       "
     />
 
@@ -47,8 +47,8 @@ const isActive = computed(() => route.path === props.to);
       class="truncate text-[12px] font-medium transition-colors"
       :class="
         isActive
-          ? 'text-[#c4b5fd]'
-          : 'text-[#4c4c6d] group-hover:text-[#c4b5fd]'
+          ? 'text-[#e0e7ff]'
+          : 'text-[#6b6b8a] group-hover:text-[#c4b5fd]'
       "
     >
       {{ label }}

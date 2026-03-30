@@ -8,6 +8,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'toggle'): void;
+  (e: 'fontSizeChange', value: number): void;
 }>();
 
 const { enabledSkillNames, applyPreset: applySkillPreset } = useSkills();
@@ -35,6 +36,7 @@ const fontSize = ref(
 );
 watch(fontSize, (v) => {
   if (import.meta.client) localStorage.setItem('cr-font-size', String(v));
+  emit('fontSizeChange', v);
 });
 
 // Expose mode and fontSize for parent (app.vue) to use
@@ -59,7 +61,7 @@ defineExpose({ mode, fontSize });
         <span class="text-sm text-white">⚡</span>
       </div>
       <template v-if="!collapsed">
-        <span class="text-xs font-semibold text-[#e0e7ff]">ClaudeRunner</span>
+        <span class="text-sm font-bold tracking-wide text-[#e0e7ff]">ClaudeRunner</span>
         <button
           class="ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-medium transition-colors"
           :class="
@@ -151,18 +153,18 @@ defineExpose({ mode, fontSize });
       <!-- Font size (expanded only) -->
       <div
         v-if="!collapsed"
-        class="flex items-center gap-1.5 text-[10px] text-[#4c4c6d]"
+        class="flex items-center gap-2 text-[11px] text-[#6b6b8a]"
       >
-        <UIcon name="i-lucide-type" class="shrink-0" />
-        <div class="flex gap-0.5">
+        <UIcon name="i-lucide-type" class="shrink-0 text-[#8b5cf6]" />
+        <div class="flex gap-1">
           <button
             v-for="s in FONT_SIZES"
             :key="s.value"
-            class="rounded px-1.5 py-0.5 transition-colors"
+            class="rounded-md px-2 py-0.5 transition-colors"
             :class="
               fontSize === s.value
-                ? 'bg-[rgba(139,92,246,0.15)] text-[#a78bfa]'
-                : 'hover:text-[#c4b5fd]'
+                ? 'bg-[rgba(139,92,246,0.2)] text-[#c4b5fd] font-medium'
+                : 'hover:bg-[rgba(139,92,246,0.08)] hover:text-[#c4b5fd]'
             "
             @click="fontSize = s.value"
           >
