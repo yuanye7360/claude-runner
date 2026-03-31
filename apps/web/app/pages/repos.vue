@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { useJiraConfig } from '~/composables/useJiraConfig';
 import { useRepoConfigs } from '~/composables/useRepoConfigs';
 
 useHead({ title: 'Claude Runner — Settings' });
 
-// ── Tab ──
-const activeTab = ref<'integrations' | 'repos'>('repos');
+// ── Tab (support ?tab= query param) ──
+const route = useRoute();
+const initialTab =
+  route.query.tab === 'integrations' ? 'integrations' : 'repos';
+const activeTab = ref<'integrations' | 'repos'>(initialTab);
 
 // ── Settings (Integrations) ──
 const settings = ref<Record<string, string>>({});
@@ -22,16 +26,128 @@ async function loadSettings() {
   }
 }
 
-async function saveSettings() {
+async function saveSlackSettings() {
   settingsSaving.value = true;
   try {
-    await $fetch('/api/settings', { method: 'POST', body: settings.value });
+    await $fetch('/api/settings', {
+      method: 'PUT',
+      body: {
+        key: 'slack.ai_notifications',
+        value: settings.value['slack.ai_notifications'] ?? '',
+      },
+    });
   } finally {
     settingsSaving.value = false;
   }
 }
 
 onMounted(loadSettings);
+
+// ── JIRA Settings ──
+const { config: jiraConfig, isConfigured: jiraConfigured } = useJiraConfig();
+const jiraSaving = ref(false);
+const jiraAutoRunEnabled = ref(false);
+const jiraAutoRunInterval = ref(2);
+const jiraAutoRunLoading = ref(false);
+const newLabelInput = ref('');
+const intervalOptions = [1, 2, 5, 10, 15, 30];
+
+async function loadJiraAutoRun() {
+  try {
+    const data = await $fetch<{ enabled: boolean; interval: number }>(
+      '/api/settings/jira-auto-run',
+    );
+    jiraAutoRunEnabled.value = data.enabled;
+    jiraAutoRunInterval.value = data.interval;
+  } catch {
+    // ignore
+  }
+}
+
+async function saveJiraSettings() {
+  jiraSaving.value = true;
+  try {
+    const c = jiraConfig.value;
+    await $fetch('/api/settings/jira-creds', {
+      method: 'PUT',
+      body: {
+        baseUrl: c.baseUrl,
+        email: c.email,
+        apiToken: c.apiToken,
+        labels: c.labels,
+      },
+    });
+    await $fetch('/api/settings/jira-auto-run', {
+      method: 'PUT',
+      body: {
+        enabled: jiraAutoRunEnabled.value,
+        interval: jiraAutoRunInterval.value,
+      },
+    });
+    useToast().add({ title: 'JIRA 設定已儲存', color: 'success' });
+  } catch (error) {
+    useToast().add({
+      title: '儲存失敗',
+      description: (error as Error).message,
+      color: 'error',
+    });
+  } finally {
+    jiraSaving.value = false;
+  }
+}
+
+function addLabel() {
+  const val = newLabelInput.value.trim();
+  if (val && !jiraConfig.value.labels.includes(val)) {
+    jiraConfig.value.labels.push(val);
+  }
+  newLabelInput.value = '';
+}
+
+async function toggleAutoRun(val: boolean) {
+  jiraAutoRunLoading.value = true;
+  try {
+    if (val) {
+      const c = jiraConfig.value;
+      await $fetch('/api/settings/jira-creds', {
+        method: 'PUT',
+        body: {
+          baseUrl: c.baseUrl,
+          email: c.email,
+          apiToken: c.apiToken,
+          labels: c.labels,
+        },
+      });
+    }
+    await $fetch('/api/settings/jira-auto-run', {
+      method: 'PUT',
+      body: { enabled: val, interval: jiraAutoRunInterval.value },
+    });
+    jiraAutoRunEnabled.value = val;
+  } catch (error) {
+    useToast().add({
+      title: '設定失敗',
+      description: (error as Error).message,
+      color: 'error',
+    });
+  } finally {
+    jiraAutoRunLoading.value = false;
+  }
+}
+
+async function updateAutoRunInterval(mins: number) {
+  jiraAutoRunInterval.value = mins;
+  try {
+    await $fetch('/api/settings/jira-auto-run', {
+      method: 'PUT',
+      body: { interval: mins },
+    });
+  } catch {
+    // ignore
+  }
+}
+
+onMounted(loadJiraAutoRun);
 
 const {
   repoConfigs,
@@ -196,14 +312,14 @@ async function onDelete(id: string) {
             <button
               class="interactive mt-2 rounded-lg bg-[#06b6d4] px-4 py-2 text-sm font-medium text-[#fafafa] hover:bg-[#0891b2]"
               :disabled="settingsSaving"
-              @click="saveSettings"
+              @click="saveSlackSettings"
             >
               {{ settingsSaving ? '儲存中...' : '儲存' }}
             </button>
           </div>
         </div>
 
-        <!-- JIRA (placeholder for future) -->
+        <!-- JIRA -->
         <div
           class="mt-4 rounded-lg border p-5"
           style="
@@ -211,7 +327,7 @@ async function onDelete(id: string) {
             border-color: rgb(255 255 255 / 6%);
           "
         >
-          <div class="flex items-center gap-3">
+          <div class="mb-4 flex items-center gap-3">
             <div
               class="flex h-9 w-9 items-center justify-center rounded-lg"
               style="background: rgb(139 92 246 / 8%)"
@@ -224,15 +340,177 @@ async function onDelete(id: string) {
             <div>
               <h2 class="text-sm font-semibold text-[#fafafa]">JIRA</h2>
               <p class="text-[11px] text-[#555]">
-                JIRA 連接由左側「JIRA Runner」頁面的 Config 面板管理
+                JIRA Atlassian 連線設定與自動執行
               </p>
             </div>
-            <NuxtLink
-              to="/jira-runner"
-              class="ml-auto text-xs text-[#8b5cf6] hover:underline"
+            <span
+              v-if="jiraConfigured"
+              class="ml-auto rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-[#22c55e]"
             >
-              前往設定 →
-            </NuxtLink>
+              已連線
+            </span>
+            <span
+              v-else
+              class="ml-auto rounded-full bg-orange-500/15 px-2 py-0.5 text-xs text-orange-400"
+            >
+              未設定
+            </span>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Connection -->
+            <div>
+              <div
+                class="mb-2 text-xs font-medium tracking-wide text-[#888] uppercase"
+              >
+                連線資訊
+              </div>
+              <div class="space-y-2">
+                <div>
+                  <label class="mb-1 block text-xs text-[#888]"
+                    >Base URL</label
+                  >
+                  <input
+                    v-model="jiraConfig.baseUrl"
+                    placeholder="https://yourorg.atlassian.net"
+                    class="w-full rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
+                    style="
+                      background: rgb(0 0 0 / 30%);
+                      border-color: rgb(255 255 255 / 8%);
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-[#888]">Email</label>
+                  <input
+                    v-model="jiraConfig.email"
+                    placeholder="you@company.com"
+                    class="w-full rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
+                    style="
+                      background: rgb(0 0 0 / 30%);
+                      border-color: rgb(255 255 255 / 8%);
+                    "
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-[#888]"
+                    >API Token</label
+                  >
+                  <input
+                    v-model="jiraConfig.apiToken"
+                    type="password"
+                    placeholder="ATATT3x..."
+                    class="w-full rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
+                    style="
+                      background: rgb(0 0 0 / 30%);
+                      border-color: rgb(255 255 255 / 8%);
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Labels -->
+            <div>
+              <div
+                class="mb-2 text-xs font-medium tracking-wide text-[#888] uppercase"
+              >
+                JIRA Labels
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span
+                  v-for="(lbl, idx) in jiraConfig.labels"
+                  :key="idx"
+                  class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-[#8b5cf6]"
+                >
+                  {{ lbl }}
+                  <button
+                    class="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-blue-500/20 hover:text-[#8b5cf6]"
+                    @click="jiraConfig.labels.splice(idx, 1)"
+                  >
+                    <UIcon name="i-lucide-x" style="font-size: 0.7em" />
+                  </button>
+                </span>
+                <input
+                  v-model="newLabelInput"
+                  class="w-32 min-w-0 rounded-md border px-2.5 py-1 text-xs text-[#ccc] placeholder-[#444] outline-none"
+                  style="
+                    background: rgb(0 0 0 / 30%);
+                    border-color: rgb(255 255 255 / 8%);
+                  "
+                  placeholder="新增 label..."
+                  @keydown.enter.prevent="addLabel()"
+                />
+              </div>
+              <p class="mt-1 text-[10px] text-[#444]">
+                只會抓取包含這些 label 的 JIRA Issue
+              </p>
+            </div>
+
+            <!-- Auto Run -->
+            <div>
+              <div
+                class="mb-2 text-xs font-medium tracking-wide text-[#888] uppercase"
+              >
+                自動執行
+              </div>
+              <div class="space-y-2">
+                <label
+                  class="flex items-center justify-between rounded-md border px-3 py-2"
+                  style="
+                    background: rgb(0 0 0 / 30%);
+                    border-color: rgb(255 255 255 / 8%);
+                  "
+                  :class="{
+                    'opacity-50': !jiraConfigured || jiraAutoRunLoading,
+                  }"
+                >
+                  <span class="text-xs text-[#ccc]">
+                    狀態切 In Development 時自動觸發
+                  </span>
+                  <USwitch
+                    :model-value="jiraAutoRunEnabled"
+                    :disabled="!jiraConfigured || jiraAutoRunLoading"
+                    @update:model-value="toggleAutoRun($event)"
+                  />
+                </label>
+                <div
+                  class="flex items-center justify-between rounded-md border px-3 py-2"
+                  style="
+                    background: rgb(0 0 0 / 30%);
+                    border-color: rgb(255 255 255 / 8%);
+                  "
+                  :class="{ 'opacity-50': !jiraAutoRunEnabled }"
+                >
+                  <span class="text-xs text-[#888]">輪詢間隔</span>
+                  <div class="flex items-center gap-1">
+                    <button
+                      v-for="opt in intervalOptions"
+                      :key="opt"
+                      class="rounded px-1.5 py-0.5 text-[11px] transition-colors"
+                      :class="
+                        jiraAutoRunInterval === opt
+                          ? 'bg-[#8b5cf6] text-[#fafafa]'
+                          : 'text-[#888] hover:bg-[rgb(255_255_255/6%)] hover:text-[#ccc]'
+                      "
+                      :disabled="!jiraAutoRunEnabled"
+                      @click="updateAutoRunInterval(opt)"
+                    >
+                      {{ opt }}m
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Save -->
+            <button
+              class="interactive rounded-lg bg-[#8b5cf6] px-4 py-2 text-sm font-medium text-[#fafafa] hover:bg-[#7c3aed]"
+              :disabled="jiraSaving"
+              @click="saveJiraSettings"
+            >
+              {{ jiraSaving ? '儲存中...' : '儲存' }}
+            </button>
           </div>
         </div>
       </div>

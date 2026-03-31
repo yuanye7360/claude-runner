@@ -2,7 +2,6 @@
 import { useAutoRun } from '~/composables/useAutoRun';
 import { useJiraConfig } from '~/composables/useJiraConfig';
 import { useJiraRunner } from '~/composables/useJiraRunner';
-import { requestOpenSettings } from '~/composables/useOnboarding';
 import { useTransitionDialog } from '~/composables/useTransitionDialog';
 
 const props = defineProps<{
@@ -24,16 +23,6 @@ const jira = useJiraRunner({
   enabledSkillNames: toRef(props, 'enabledSkillNames'),
   jiraHeaders,
   onPrCreated: (urls) => emit('prCreated', urls),
-});
-
-// ── Config panel toggle ──
-const showConfig = ref(!jiraConfigured.value);
-
-watch(requestOpenSettings, (v) => {
-  if (v) {
-    showConfig.value = true;
-    requestOpenSettings.value = false;
-  }
 });
 
 // ── Auto-run ──
@@ -99,24 +88,6 @@ async function handleCancel() {
   );
 }
 
-// ── Config done ──
-function onDoneConfig() {
-  showConfig.value = false;
-  jira.loadIssues();
-  if (autoRun.enabled.value) {
-    const c = jiraConfig.value;
-    $fetch('/api/settings/jira-creds', {
-      method: 'PUT',
-      body: {
-        baseUrl: c.baseUrl,
-        email: c.email,
-        apiToken: c.apiToken,
-        labels: c.labels,
-      },
-    }).catch(() => {});
-  }
-}
-
 defineExpose({
   loadIssues: jira.loadIssues,
   loadHistory: jira.loadHistory,
@@ -134,20 +105,15 @@ defineExpose({
       <div
         class="flex h-11 shrink-0 items-center gap-2 border-b border-[rgb(255_255_255/6%)] px-4"
       >
-        <span class="text-sm font-medium text-[#ccc]">
-          {{ showConfig ? 'JIRA 設定' : 'JIRA Issues' }}
-        </span>
+        <span class="text-sm font-medium text-[#ccc]">JIRA Issues</span>
         <span
-          v-if="
-            !showConfig && !jira.loading.value && jira.issues.value.length > 0
-          "
+          v-if="!jira.loading.value && jira.issues.value.length > 0"
           class="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-[#8b5cf6]"
         >
           {{ jira.issues.value.length }}
         </span>
         <div class="ml-auto flex items-center gap-1">
           <button
-            v-if="!showConfig"
             class="flex items-center rounded px-1.5 py-1 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
             :class="{ 'pointer-events-none opacity-50': jira.loading.value }"
             @click="jira.loadIssues()"
@@ -159,19 +125,14 @@ defineExpose({
             />
           </button>
           <div class="relative" data-tour="jira-settings">
-            <button
-              class="relative flex items-center rounded px-1.5 py-1 transition-colors"
-              :class="
-                showConfig
-                  ? 'bg-primary-500/10 text-[#8b5cf6]'
-                  : 'text-[#888] hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]'
-              "
+            <NuxtLink
+              to="/repos?tab=integrations"
+              class="relative flex items-center rounded px-1.5 py-1 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
               title="JIRA 設定"
-              @click="showConfig = !showConfig"
             >
               <UIcon name="i-lucide-settings-2" style="font-size: 0.85em" />
               <span
-                v-if="!jiraConfigured && !showConfig"
+                v-if="!jiraConfigured"
                 class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5"
               >
                 <span
@@ -181,58 +142,43 @@ defineExpose({
                   class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"
                 ></span>
               </span>
-            </button>
+            </NuxtLink>
             <div
-              v-if="!jiraConfigured && !showConfig"
+              v-if="!jiraConfigured"
               class="absolute top-full right-0 z-10 mt-2 w-44 rounded-lg border border-orange-500/30 bg-[rgb(255_255_255/2%)] px-3 py-2 text-xs text-orange-300 shadow-lg"
             >
               <div
                 class="absolute -top-1.5 right-2 h-3 w-3 rotate-45 border-t border-l border-orange-500/30 bg-[rgb(255_255_255/2%)]"
               ></div>
-              點此設定 JIRA 連線和 Repos
+              前往 Settings 設定 JIRA 連線
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Config panel -->
-      <JiraConfigPanel
-        v-if="showConfig"
-        :jira-config="jiraConfig"
-        :jira-configured="jiraConfigured"
-        :auto-run-enabled="autoRun.enabled.value"
-        :auto-run-interval="autoRun.interval.value"
-        :auto-run-loading="autoRun.loading.value"
-        @update:jira-config="Object.assign(jiraConfig, $event)"
-        @toggle-auto-run="autoRun.toggle($event)"
-        @update-interval="autoRun.updateInterval($event)"
-        @done="onDoneConfig"
-      />
-
       <!-- Issue list -->
-      <template v-else>
-        <JiraIssueList
-          :issues="jira.issues.value"
-          :selected="jira.selected.value"
-          :selected-count="jira.selectedCount.value"
-          :all-checked="jira.allChecked.value"
-          :indeterminate="jira.indeterminate.value"
-          :loading="jira.loading.value"
-          :load-error="jira.loadError.value"
-          :is-running="jira.cr.isRunning.value"
-          :starting="jira.starting.value"
-          :jira-configured="jiraConfigured"
-          :jira-labels="jiraConfig.labels"
-          :analysing="jira.analyzer.analysing.value"
-          :analysis-result="jira.analyzer.analysisResult.value"
-          :needs-input="jira.analyzer.needsInput.value"
-          :answers="jira.analyzer.answers.value"
-          :jira-url="jira.jiraUrl"
-          @toggle-issue="jira.toggleIssue($event)"
-          @toggle-all="jira.toggleAllIssues()"
-          @load-issues="jira.loadIssues()"
-          @run-claude="jira.runClaude()"
-          @open-config="showConfig = true"
+      <JiraIssueList
+        :issues="jira.issues.value"
+        :selected="jira.selected.value"
+        :selected-count="jira.selectedCount.value"
+        :all-checked="jira.allChecked.value"
+        :indeterminate="jira.indeterminate.value"
+        :loading="jira.loading.value"
+        :load-error="jira.loadError.value"
+        :is-running="jira.cr.isRunning.value"
+        :starting="jira.starting.value"
+        :jira-configured="jiraConfigured"
+        :jira-labels="jiraConfig.labels"
+        :analysing="jira.analyzer.analysing.value"
+        :analysis-result="jira.analyzer.analysisResult.value"
+        :needs-input="jira.analyzer.needsInput.value"
+        :answers="jira.analyzer.answers.value"
+        :jira-url="jira.jiraUrl"
+        @toggle-issue="jira.toggleIssue($event)"
+        @toggle-all="jira.toggleAllIssues()"
+        @load-issues="jira.loadIssues()"
+        @run-claude="jira.runClaude()"
+        @open-config="navigateTo('/repos?tab=integrations')"
           @submit-answer="
             (q: string, a: string) => jira.analyzer.submitAnswer(q, a)
           "
@@ -245,7 +191,6 @@ defineExpose({
           "
           @reset-analysis="jira.analyzer.reset()"
         />
-      </template>
     </div>
 
     <!-- Right: JIRA detail panel -->
