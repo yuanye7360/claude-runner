@@ -32,7 +32,7 @@ You are the user's AI strategist — listen first, plan second, delegate third. 
 
 ## Project: ClaudeRunner Web App
 
-AI-powered development automation platform. Automates JIRA issue implementation, PR creation, and code review via Claude CLI.
+AI-powered development automation platform. Automates JIRA issue implementation, PR review comment fixing, and code review via Claude CLI. Skills-driven architecture — prompts read SKILL.md content at runtime instead of hardcoding workflows.
 
 ### Tech Stack
 
@@ -57,8 +57,27 @@ apps/web/
 │   ├── api/                # Nitro API routes
 │   │   ├── claude-runner/  # Job execution, streaming, history
 │   │   ├── pr-review/      # PR review automation
-│   │   └── pr-runner/      # PR creation automation
-│   └── utils/              # Server utilities (jobStore, prisma)
+│   │   ├── pr-runner/      # PR fix review comments
+│   │   ├── repos/          # Repo CRUD + validation
+│   │   ├── settings/       # App settings + JIRA config
+│   │   └── skills/         # Skill CRUD + usage stats
+│   ├── plugins/            # Nitro server plugins
+│   │   ├── jira-auto-run   # Poll JIRA for new "In Development" issues
+│   │   ├── migrate-config  # DB/config migration on startup
+│   │   └── pr-monitor      # PR comment monitoring
+│   └── utils/              # Server utilities
+│       ├── jobStore        # In-memory job state + SSE + persistence
+│       ├── claude-cli      # Claude CLI path resolution
+│       ├── claude-spawn    # Async Claude CLI process spawning
+│       ├── claude-runner.config # Prompt templates + phase config
+│       ├── load-skill      # Read SKILL.md content by name
+│       ├── skill-inject    # Resolve skill inject targets
+│       ├── repo-mapping    # Repo label ↔ GitHub repo mapping
+│       ├── jira-client     # JIRA API client
+│       ├── jira-auto-run   # JIRA auto-run polling logic
+│       ├── task-analyzer   # Smart mode task analysis
+│       ├── workspaceConfig # AppSetting read/write
+│       └── prisma          # Prisma client singleton
 ├── prisma/
 │   └── schema.prisma       # Database schema
 ├── nuxt.config.ts
@@ -86,16 +105,16 @@ apps/web/
 
 ### Pages & Routing
 
-| Route          | Page                                 |
-| -------------- | ------------------------------------ |
-| `/`            | Redirects to `/dashboard`            |
-| `/dashboard`   | KPI cards, charts, job history table |
-| `/jira-runner` | JIRA issue selection + execution     |
-| `/pr-runner`   | PR creation from branches            |
-| `/pr-review`   | Code review for open PRs             |
-| `/repos`       | Repository configuration             |
-| `/skills`      | Skill management + mode presets      |
-| `/jobs/[id]`   | Job detail with phase timeline       |
+| Route          | Page                                                       |
+| -------------- | ---------------------------------------------------------- |
+| `/`            | Redirects to `/dashboard`                                  |
+| `/dashboard`   | KPI cards, charts, job history (date range filter, bulk delete) |
+| `/jira-runner` | JIRA issue selection + execution                           |
+| `/pr-runner`   | Fix PR review comments                                     |
+| `/pr-review`   | Code review for open PRs                                   |
+| `/repos`       | Settings: Repos tab (CRUD) + Integrations tab (Slack, JIRA) |
+| `/skills`      | Skill management + usage stats                             |
+| `/jobs/[id]`   | Job detail with phase timeline                             |
 
 ### Development
 
@@ -148,4 +167,7 @@ Commitlint enforces scope-enum — only allowed scopes are package names.
 - `useRunnerJob` uses localStorage for active job persistence
 - Mode (Smart/Normal) stored as `cr-mode`, applies skill presets on change
 - Create/modify skills via `/skill-creator`
+- Skill content is read from SKILL.md at runtime via `load-skill.ts` (not hardcoded in prompts)
+- Settings API uses POST (`/api/settings`) with `Record<string, string>` body
+- JIRA auto-run polls via server plugin (`jira-auto-run.ts`), configurable in Settings Integrations
 - Never commit secrets to `.env` — use `.env.local` (gitignored)
