@@ -90,26 +90,44 @@ export function usePrInbox() {
 
   // Actions
 
-  /** Fast refresh: use cached Slack messages + re-query GitHub/DB (2-3s) */
+  let pollTimer: null | ReturnType<typeof setTimeout> = null;
+
+  /** Fetch items from API. If server is syncing Slack, auto-poll every 3s. */
   async function fetchItems() {
     loading.value = true;
     fetchError.value = '';
     try {
       const data = await $fetch<{
-        cachedAt: string;
+        cachedAt: null | string;
         channel: string;
         fetchedAt: string;
         items: PrInboxItem[];
+        syncing?: boolean;
       }>('/api/pr-inbox/fetch', { method: 'POST' });
-      items.value = data.items;
-      fetchedAt.value = data.fetchedAt;
-      cachedAt.value = data.cachedAt;
-      selected.value = new Set();
+
+      if (data.syncing) {
+        // Server is fetching Slack in background — show syncing state and poll
+        syncing.value = true;
+        items.value = [];
+        if (!pollTimer) {
+          pollTimer = setTimeout(() => {
+            pollTimer = null;
+            fetchItems();
+          }, 3000);
+        }
+      } else {
+        syncing.value = false;
+        items.value = data.items;
+        fetchedAt.value = data.fetchedAt;
+        cachedAt.value = data.cachedAt;
+        selected.value = new Set();
+      }
     } catch (error) {
       const msg =
         (error as any)?.data?.message ||
         (error instanceof Error ? error.message : '讀取失敗');
       fetchError.value = msg;
+      syncing.value = false;
     } finally {
       loading.value = false;
     }

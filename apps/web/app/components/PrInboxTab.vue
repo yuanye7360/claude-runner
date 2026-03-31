@@ -115,8 +115,21 @@ function repoShort(repo: string): string {
 
       <!-- PR list -->
       <div class="flex-1 overflow-y-auto">
-        <!-- Loading skeleton -->
-        <div v-if="inbox.loading.value" class="space-y-1.5 p-2">
+        <!-- Syncing from Slack (background) -->
+        <div
+          v-if="inbox.syncing.value"
+          class="flex flex-col items-center justify-center gap-3 p-10 text-center"
+        >
+          <UIcon
+            name="i-lucide-cloud-download"
+            class="animate-pulse text-3xl text-[#8b5cf6]"
+          />
+          <p class="text-sm text-[#888]">正在從 Slack 同步 PR 訊息...</p>
+          <p class="text-[10px] text-[#444]">首次載入約需 30-60 秒，請稍候</p>
+        </div>
+
+        <!-- Loading (fast refresh) -->
+        <div v-else-if="inbox.loading.value" class="space-y-1.5 p-2">
           <div
             v-for="n in 5"
             :key="n"

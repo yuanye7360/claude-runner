@@ -2,7 +2,11 @@ import { execSync } from 'node:child_process';
 
 import pLimit from 'p-limit';
 
-import { getSlackCache, refreshSlackCache } from '../../utils/pr-inbox-cache';
+import {
+  getSlackCache,
+  isSlackFetching,
+  refreshSlackCache,
+} from '../../utils/pr-inbox-cache';
 import prisma from '../../utils/prisma';
 import { getAllRepos } from '../../utils/repo-mapping';
 
@@ -21,10 +25,11 @@ interface PrInboxItem {
 }
 
 interface PrInboxResponse {
-  cachedAt: string;
+  cachedAt: null | string;
   channel: string;
   fetchedAt: string;
   items: PrInboxItem[];
+  syncing?: boolean;
 }
 
 const PR_URL_RE = /https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/g;
@@ -49,18 +54,22 @@ function extractPrUrls(
 }
 
 export default defineEventHandler(async (_event): Promise<PrInboxResponse> => {
-  // 1. Get cached Slack messages (or trigger first fetch)
-  let cache = getSlackCache();
+  // 1. Get cached Slack messages
+  const cache = getSlackCache();
   if (!cache) {
-    const fresh = await refreshSlackCache();
-    if (!fresh) {
-      throw createError({
-        statusCode: 400,
-        message:
-          'PR Inbox Slack channel not configured. Go to Settings → Integrations.',
-      });
+    // No cache yet — trigger background fetch and return syncing status
+    if (!isSlackFetching()) {
+      refreshSlackCache().catch((error) =>
+        console.error('[pr-inbox] Background refresh failed:', error),
+      );
     }
-    cache = fresh;
+    return {
+      cachedAt: null,
+      channel: '',
+      fetchedAt: new Date().toISOString(),
+      items: [],
+      syncing: true,
+    };
   }
 
   // 2. Filter + extract PR URLs, deduplicate by repo#prNumber
