@@ -100,100 +100,51 @@ function injectContextSkills(
 
 // ─── Prompts ─────────────────────────────────────────────────────────────────
 
+/**
+ * Build prompt from skills — skills drive the behavior, this function only
+ * provides the skeleton. If no skills are enabled, uses minimal fallback steps.
+ */
 function buildWorkflow(
   issue: JiraIssue,
   skills: SkillContentMap,
-  smartMode: boolean,
+  _smartMode: boolean,
   injectMap: SkillInjectMap = {},
   slackChannel = '',
 ): string {
+  // Ordered injection targets — each becomes a step if skills are mapped to it
+  const STEP_ORDER: { fallback: string; target: string }[] = [
+    { target: 'jira', fallback: '' },
+    { target: 'branch', fallback: '' },
+    { target: 'implement', fallback: 'Implement the fix for this issue.' },
+    {
+      target: 'test',
+      fallback:
+        'Run the project test suite and linting. Fix failures before proceeding.',
+    },
+    { target: 'pr', fallback: '' },
+    { target: 'worklog', fallback: '' },
+  ];
+
   const steps: string[] = [];
   let n = 1;
 
-  // Step: JIRA lifecycle — transition to In Progress
-  const lifecycle = injectSkillsByTarget('jira', skills, injectMap);
-  if (lifecycle) {
-    steps.push(
-      `${n}. Manage JIRA ticket lifecycle\n${lifecycle}\nTransition the ticket to "In Progress" before starting work.`,
-    );
-    n++;
+  for (const { target, fallback } of STEP_ORDER) {
+    const injected = injectSkillsByTarget(target, skills, injectMap);
+    if (injected) {
+      steps.push(`${n}. ${injected}`);
+      n++;
+    } else if (fallback) {
+      steps.push(`${n}. ${fallback}`);
+      n++;
+    }
   }
 
-  // Step: branch
-  const branch = injectSkillsByTarget('branch', skills, injectMap);
-  if (branch) {
-    steps.push(
-      `${n}. Create a branch for ${issue.key}\n${branch}\nFollow the branch naming instructions above.`,
-    );
-    n++;
-  }
-
-  // Step: implement
-  steps.push(`${n}. Implement the fix`);
-  n++;
-
-  // Step: Run tests
-  steps.push(
-    `${n}. **Run tests**
-   Run the project's test suite before proceeding (e.g., \`npm test\`, \`yarn test\`, \`pnpm test\`).
-   - If tests fail, fix the failing tests before moving on.
-   - If the project has linting configured, run that too.
-   - Do NOT skip this step even if the change seems trivial.`,
-  );
-  n++;
-
-  // Step: Playwright (smart mode only)
-  if (smartMode) {
-    steps.push(
-      `${n}. **Playwright verification (smart mode)**
-   After implementing, assess whether the change affects any UI or browser-visible behavior.
-   - If YES (e.g., changed a Vue component, CSS, page layout, user-facing text, routing):
-     1. Use Playwright MCP to open the relevant page and take a screenshot (save to /tmp/playwright-verify-${issue.key}.png)
-     2. Visually verify the screenshot matches the expected design
-     3. In the PR body's **Screenshots (Test Plan)** section, write a text description of what was verified:
-        - What page/component was checked
-        - What the screenshot showed (layout, colors, states)
-        - Whether it matches the design spec
-     4. Do NOT commit screenshots to the repository (no .github/screenshots/).
-        If the project has a Storybook preview deployed by CI, reference that URL instead.
-   - If NO (e.g., pure API logic, config, types, backend-only change):
-     Write "No UI verification needed — backend/config only change" in the Screenshots section.`,
-    );
-    n++;
-  }
-
-  // Step: PR
-  const pr = injectSkillsByTarget('pr', skills, injectMap);
-  if (pr) {
-    steps.push(
-      `${n}. Create the PR${smartMode ? ' (include Playwright result if applicable)' : ''}\n${pr}\nFollow the PR convention instructions above.`,
-    );
-    n++;
-  }
-
-  // Step: worklog
-  const worklog = injectSkillsByTarget('worklog', skills, injectMap);
-  if (worklog) {
-    steps.push(
-      `${n}. Log work time\n${worklog}\nFollow the worklog instructions above.`,
-    );
-    n++;
-  }
-
-  // Step: Slack notification
+  // Slack notification (not a skill — config-driven)
   if (slackChannel) {
     steps.push(
-      `${n}. **Send Slack notification**
-   After the PR is created, send a NEW message (no thread) to Slack channel ${slackChannel} using slack_send_message MCP tool.
-
-   **Message format:**
-   📋 PR 請求
-   #<PR_NUMBER> [${issue.key}] <PR_TITLE>
-   • 變更：<FILE_COUNT> 檔案，<ADDITIONS> 行新增，<DELETIONS> 行刪除
-   • 影響範圍：<BRIEF_SCOPE>
-   請幫忙 review 🙏
-
-   If MCP tools are not available, skip this step silently.`,
+      `${n}. Send a NEW Slack message to channel ${slackChannel} using slack_send_message MCP tool.
+   Format: 📋 PR 請求 #<PR_NUMBER> [${issue.key}] <PR_TITLE> • 變更摘要 • 影響範圍 — 請幫忙 review 🙏
+   If MCP tools are not available, skip silently.`,
     );
   }
 
@@ -247,91 +198,91 @@ export function buildDynamicPrompt(
   }
 }
 
+/** Medium complexity — analysis summary + skill-driven steps */
 function buildMediumPrompt(
   issue: JiraIssue,
   skills: SkillContentMap,
   analysis: AnalysisResult,
   injectMap: SkillInjectMap = {},
 ): string {
-  const branch = injectSkillsByTarget('branch', skills, injectMap);
-  const pr = injectSkillsByTarget('pr', skills, injectMap);
-  const worklog = injectSkillsByTarget('worklog', skills, injectMap);
   const context = injectContextSkills(skills, injectMap);
   const repoList = analysis.repos.map((r) => r.path).join(', ');
 
-  return `你正在实现以下 JIRA ticket：
+  // Collect all skill-injected steps
+  const skillSteps = ['jira', 'branch', 'implement', 'test', 'pr', 'worklog']
+    .map((target) => injectSkillsByTarget(target, skills, injectMap))
+    .filter(Boolean);
+
+  return `Implement the following JIRA ticket:
+
 Jira Issue: ${issue.key}
 Summary: ${issue.summary ?? ''}
 Description: ${issue.description ?? ''}
-涉及 repo：${repoList}
-分析摘要：${analysis.summary}
+Repos: ${repoList}
+Analysis: ${analysis.summary}
 
-请先用 2-3 句话分析这个需求的核心目标和注意事项，
-然后列出实现步骤（不超过 5 步），
-最后按步骤执行。
+Analyze the core goal in 2-3 sentences, list implementation steps (max 5), then execute.
 
-${branch ? `建立分支：\n${branch}\n` : ''}
-实现完成后，先运行项目的测试套件（npm test / yarn test / pnpm test）确保所有测试通过，有 lint 也一并运行。测试失败必须修复后才能继续。
-
-${pr ? `建立 PR：\n${pr}\n` : ''}
-${worklog ? `记录工时：\n${worklog}\n` : ''}
+${skillSteps.length > 0 ? `Follow these skill guidelines:\n\n${skillSteps.join('\n\n')}` : ''}
 ${context}
 
 IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously and proceed to completion.
 When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
 }
 
+/** Complex multi-repo — checkpoint-driven with skill-injected steps */
 function buildComplexPrompt(
   issue: JiraIssue,
   skills: SkillContentMap,
   analysis: AnalysisResult,
   injectMap: SkillInjectMap = {},
 ): string {
+  const jira = injectSkillsByTarget('jira', skills, injectMap);
   const branch = injectSkillsByTarget('branch', skills, injectMap);
   const pr = injectSkillsByTarget('pr', skills, injectMap);
   const worklog = injectSkillsByTarget('worklog', skills, injectMap);
   const context = injectContextSkills(skills, injectMap);
   const repoList = analysis.repos.map((r) => r.path).join(', ');
 
-  return `你正在实现以下 JIRA ticket：
+  return `Implement the following complex JIRA ticket:
+
 Jira Issue: ${issue.key}
 Summary: ${issue.summary ?? ''}
 Description: ${issue.description ?? ''}
-涉及 repo：${repoList}
-分析摘要：${analysis.summary}
+Repos: ${repoList}
+Analysis: ${analysis.summary}
 
-这是一个复杂任务，请严格按以下流程执行：
+Execute strictly in phases:
 
-## 阶段一：需求分析
-深入分析需求，考虑边界情况、影响范围、风险点。输出分析报告。
-完成后输出标记：[CHECKPOINT:analysis_done]
+## Phase 1: Analysis
+Analyze requirements, edge cases, impact scope, risks.
+[CHECKPOINT:analysis_done]
 
-## 阶段二：实现计划
-制定详细实现计划，包含每个 repo 的改动内容、依赖顺序、测试策略。
-完成后输出标记：[CHECKPOINT:plan_done]
+## Phase 2: Plan
+Create detailed implementation plan for each repo.
+[CHECKPOINT:plan_done]
 
-## 阶段三：建立分支
-${branch || '建立工作分支。'}
-Follow the branch naming instructions above.
+## Phase 3: Branch
+${branch || 'Create working branch.'}
 
-## 阶段四：逐 Repo 执行
-按计划逐个 repo 执行实现。
+## Phase 4: Implementation
+Implement per repo:
 ${analysis.repos
   .map((r) => {
     const name = r.path.split('/').pop() ?? r.path;
-    return `完成 ${name} 后输出标记：[CHECKPOINT:repo_done:${name}]`;
+    return `[CHECKPOINT:repo_done:${name}]`;
   })
   .join('\n')}
 
-## 阶段五：运行测试
-运行每个涉及 repo 的测试套件（npm test / yarn test / pnpm test）和 lint，确保所有测试通过。
-测试失败必须修复后才能继续。
-完成后输出标记：[CHECKPOINT:tests_done]
+## Phase 5: Test
+Run all test suites and linting. Fix failures.
+[CHECKPOINT:tests_done]
 
-## 阶段六：收尾
-${pr ? `建立 PR：\n${pr}\nFollow the PR convention instructions above.` : '建立 PR。'}
-完成后输出标记：[CHECKPOINT:pr_done]
-${worklog ? `\n记录工时：\n${worklog}\nFollow the worklog instructions above.` : ''}
+## Phase 6: Finalize
+${jira || ''}
+${pr || 'Create PR.'}
+[CHECKPOINT:pr_done]
+${worklog || ''}
 ${context}
 
 IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously and proceed to completion.
