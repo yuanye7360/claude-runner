@@ -80,7 +80,7 @@ After completing the review, reply to the original PR request message in Slack.
 **Step 1: Find the original PR request message**
 Use slack_read_channel to read recent messages from channel ${slackChannel}.
 Look for messages containing "#${prNumber}" or the PR URL "/${repo}/pull/${prNumber}".
-If multiple messages match, pick the **earliest one** (smallest ts value) — that's the original PR request.
+If multiple messages match, pick the **most recent one** (largest ts value) — that's the latest PR request for this PR.
 Extract that message's timestamp (ts) — this is the thread_ts you need.
 
 **Step 2: Reply in thread**
