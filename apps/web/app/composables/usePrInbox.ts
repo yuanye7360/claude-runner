@@ -11,7 +11,7 @@ export interface PrInboxItem {
   slackTs: string;
   requestedAt: string;
   reviewStatus: 'closed' | 'not-reviewed' | 'outdated' | 'reviewed';
-  repoLabel: string | null;
+  repoLabel: null | string;
 }
 
 type StatusFilter = 'all' | 'closed' | 'not-reviewed' | 'outdated' | 'reviewed';
@@ -24,8 +24,10 @@ export function usePrInbox() {
   // State
   const items = ref<PrInboxItem[]>([]);
   const loading = ref(false);
+  const syncing = ref(false);
   const fetchError = ref('');
-  const fetchedAt = ref<string | null>(null);
+  const fetchedAt = ref<null | string>(null);
+  const cachedAt = ref<null | string>(null);
   const selected = ref<Set<string>>(new Set());
   const starting = ref(false);
   const statusFilter = ref<StatusFilter>('all');
@@ -75,18 +77,33 @@ export function usePrInbox() {
     return `${mins} 分鐘前`;
   });
 
+  // Computed: "Slack 資料：N 分鐘前" display for cache age
+  const cachedAgo = computed(() => {
+    if (!cachedAt.value) return null;
+    const diff = Date.now() - new Date(cachedAt.value).getTime();
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 1) return '剛剛';
+    if (mins < 60) return `${mins} 分鐘前`;
+    const hours = Math.floor(mins / 60);
+    return `${hours} 小時前`;
+  });
+
   // Actions
+
+  /** Fast refresh: use cached Slack messages + re-query GitHub/DB (2-3s) */
   async function fetchItems() {
     loading.value = true;
     fetchError.value = '';
     try {
       const data = await $fetch<{
-        items: PrInboxItem[];
-        fetchedAt: string;
+        cachedAt: string;
         channel: string;
+        fetchedAt: string;
+        items: PrInboxItem[];
       }>('/api/pr-inbox/fetch', { method: 'POST' });
       items.value = data.items;
       fetchedAt.value = data.fetchedAt;
+      cachedAt.value = data.cachedAt;
       selected.value = new Set();
     } catch (error) {
       const msg =
@@ -95,6 +112,22 @@ export function usePrInbox() {
       fetchError.value = msg;
     } finally {
       loading.value = false;
+    }
+  }
+
+  /** Force re-fetch Slack messages via Claude CLI (15-30s), then fast refresh */
+  async function syncSlack() {
+    syncing.value = true;
+    try {
+      await $fetch('/api/pr-inbox/refresh-slack', { method: 'POST' });
+      await fetchItems();
+    } catch (error) {
+      const msg =
+        (error as any)?.data?.message ||
+        (error instanceof Error ? error.message : '同步失敗');
+      useToast().add({ title: '同步失敗', description: msg, color: 'error' });
+    } finally {
+      syncing.value = false;
     }
   }
 
@@ -125,7 +158,8 @@ export function usePrInbox() {
 
   // Run review — same pattern as usePrReviewer.runReview()
   async function runReview() {
-    if (reviewer.isRunning.value || starting.value || selected.value.size === 0) return;
+    if (reviewer.isRunning.value || starting.value || selected.value.size === 0)
+      return;
 
     const byRepo = new Map<string, PrInboxItem[]>();
     for (const key of selected.value) {
@@ -159,7 +193,8 @@ export function usePrInbox() {
         if (result.jobId) {
           if (!firstJobId) firstJobId = result.jobId;
           const activePrs = prItems.filter((p) => {
-            if (Array.isArray(result.skipped)) return !result.skipped.includes(`#${p.prNumber}`);
+            if (Array.isArray(result.skipped))
+              return !result.skipped.includes(`#${p.prNumber}`);
             return true;
           });
           allIssues.push(
@@ -193,7 +228,9 @@ export function usePrInbox() {
 
   async function loadHistory() {
     try {
-      history.value = await $fetch<HistoryEntry[]>('/api/claude-runner/jobs?type=pr-review');
+      history.value = await $fetch<HistoryEntry[]>(
+        '/api/claude-runner/jobs?type=pr-review',
+      );
     } catch (error) {
       console.error('Failed to load PR inbox history:', error);
     }
@@ -202,9 +239,12 @@ export function usePrInbox() {
   return {
     items,
     loading,
+    syncing,
     fetchError,
     fetchedAt,
     fetchedAgo,
+    cachedAt,
+    cachedAgo,
     selected,
     selectedCount,
     starting,
@@ -215,6 +255,7 @@ export function usePrInbox() {
     rightTab,
     reviewer,
     fetchItems,
+    syncSlack,
     toggleItem,
     selectAllPending,
     clearSelection,

@@ -55,17 +55,34 @@ function repoShort(repo: string): string {
           {{ inbox.items.value.length }}
         </span>
         <span
-          v-if="inbox.fetchedAgo.value"
-          class="text-xs text-[#555]"
+          v-if="inbox.cachedAgo.value"
+          class="text-[10px] text-[#444]"
+          title="Slack 資料快取時間"
         >
-          上次更新：{{ inbox.fetchedAgo.value }}
+          Slack：{{ inbox.cachedAgo.value }}
         </span>
         <div class="ml-auto flex items-center gap-1">
+          <button
+            class="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] text-[#555] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#888]"
+            :class="{
+              'pointer-events-none opacity-50': inbox.syncing.value,
+            }"
+            title="從 Slack 重新抓取訊息（較慢）"
+            @click="inbox.syncSlack()"
+          >
+            <UIcon
+              name="i-lucide-cloud-download"
+              :class="{ 'animate-pulse': inbox.syncing.value }"
+              style="font-size: 0.85em"
+            />
+            {{ inbox.syncing.value ? '同步中...' : '同步 Slack' }}
+          </button>
           <button
             class="flex items-center rounded px-1.5 py-1 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
             :class="{
               'pointer-events-none opacity-50': inbox.loading.value,
             }"
+            title="重新整理狀態（快速）"
             @click="inbox.fetchItems()"
           >
             <UIcon
@@ -78,9 +95,7 @@ function repoShort(repo: string): string {
       </div>
 
       <!-- Status filter tabs -->
-      <div
-        class="shrink-0 border-b border-[rgb(255_255_255/6%)]/60 px-4 py-2"
-      >
+      <div class="shrink-0 border-b border-[rgb(255_255_255/6%)]/60 px-4 py-2">
         <div class="flex items-center gap-1">
           <button
             v-for="opt in statusFilterOptions"
@@ -215,7 +230,10 @@ function repoShort(repo: string): string {
                   <!-- Status badge -->
                   <span
                     class="rounded-full px-2 py-0.5 text-xs"
-                    :class="statusColor[item.reviewStatus] ?? 'text-[#888] bg-gray-500/10'"
+                    :class="
+                      statusColor[item.reviewStatus] ??
+                      'bg-gray-500/10 text-[#888]'
+                    "
                   >
                     {{ statusLabel[item.reviewStatus] ?? item.reviewStatus }}
                   </span>
@@ -237,9 +255,7 @@ function repoShort(repo: string): string {
       </div>
 
       <!-- Bottom action bar -->
-      <div
-        class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2"
-      >
+      <div class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2">
         <div class="flex items-center gap-2">
           <button
             class="rounded-md px-2.5 py-1.5 text-xs text-[#a78bfa] transition-colors hover:bg-purple-500/10 disabled:pointer-events-none disabled:opacity-50"
@@ -264,9 +280,7 @@ function repoShort(repo: string): string {
                 inbox.reviewer.isRunning.value ||
                 inbox.starting.value
               "
-              :loading="
-                inbox.reviewer.isRunning.value || inbox.starting.value
-              "
+              :loading="inbox.reviewer.isRunning.value || inbox.starting.value"
               icon="i-lucide-search-code"
               @click="inbox.runReview()"
             >
