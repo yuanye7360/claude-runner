@@ -184,15 +184,22 @@ function buildWorkflow(
   if (slackChannel) {
     steps.push(
       `${n}. **Send Slack notification**
-   After the PR is created, send a notification to the Slack channel (channel ID: ${slackChannel}) using the slack_send_message MCP tool.
-   Format the message as:
+   After the PR is created, send a notification to Slack channel ${slackChannel} using MCP tools.
+
+   **First, check if there's an existing thread for this issue:**
+   Use slack_read_channel to read recent messages from channel ${slackChannel}.
+   Look for a message containing "${issue.key}" or the PR URL.
+   If found, reply in that thread (use thread_ts parameter).
+   If not found, send as a new message.
+
+   **Message format:**
    📋 PR 請求
    #<PR_NUMBER> [${issue.key}] <PR_TITLE>
    • 變更：<FILE_COUNT> 檔案，<ADDITIONS> 行新增，<DELETIONS> 行刪除
    • 影響範圍：<BRIEF_SCOPE>
    請幫忙 review 🙏
 
-   If the MCP tool is not available, skip this step silently.`,
+   If MCP tools are not available, skip this step silently.`,
     );
   }
 
