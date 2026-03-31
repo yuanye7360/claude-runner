@@ -19,4 +19,3 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function getSlackNotificationChannel(): Promise<string> {
   return getSetting('slack.ai_notifications');
 }
-

@@ -41,8 +41,6 @@ async function saveSlackSettings() {
   }
 }
 
-
-
 onMounted(loadSettings);
 
 // ── JIRA Settings ──
