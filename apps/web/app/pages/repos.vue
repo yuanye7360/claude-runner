@@ -30,10 +30,10 @@ async function saveSlackSettings() {
   settingsSaving.value = true;
   try {
     await $fetch('/api/settings', {
-      method: 'PUT',
+      method: 'POST',
       body: {
-        key: 'slack.ai_notifications',
-        value: settings.value['slack.ai_notifications'] ?? '',
+        'slack.ai_notifications':
+          settings.value['slack.ai_notifications'] ?? '',
       },
     });
   } finally {
@@ -45,10 +45,10 @@ async function savePrInboxSettings() {
   settingsSaving.value = true;
   try {
     await $fetch('/api/settings', {
-      method: 'PUT',
+      method: 'POST',
       body: {
-        key: 'pr_inbox.slack_channel',
-        value: settings.value['pr_inbox.slack_channel'] ?? '',
+        'pr_inbox.slack_channel':
+          settings.value['pr_inbox.slack_channel'] ?? '',
       },
     });
   } finally {
@@ -347,10 +347,7 @@ async function onDelete(id: string) {
               class="flex h-9 w-9 items-center justify-center rounded-lg"
               style="background: rgb(139 92 246 / 8%)"
             >
-              <UIcon
-                name="i-lucide-inbox"
-                class="text-lg text-[#8b5cf6]"
-              />
+              <UIcon name="i-lucide-inbox" class="text-lg text-[#8b5cf6]" />
             </div>
             <div>
               <h2 class="text-sm font-semibold text-[#fafafa]">PR Inbox</h2>
@@ -383,7 +380,8 @@ async function onDelete(id: string) {
                 />
               </div>
               <p class="mt-1 text-[10px] text-[#444]">
-                團隊發送 PR review 請求的 Slack channel ID。PR Inbox 會從此 channel 抓取近 2 天的 PR。
+                團隊發送 PR review 請求的 Slack channel ID。PR Inbox 會從此
+                channel 抓取近 2 天的 PR。
               </p>
             </div>
 
