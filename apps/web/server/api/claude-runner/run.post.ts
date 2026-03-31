@@ -24,7 +24,6 @@ import {
   PROMPT_SMART,
 } from '../../utils/claude-runner.config';
 import { spawnClaude } from '../../utils/claude-spawn';
-import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 import {
   createJob,
   finishJob,
@@ -34,6 +33,7 @@ import {
 import { resolveReposFromLabels } from '../../utils/repo-mapping';
 import { resolveInjectTarget } from '../../utils/skill-inject';
 import { getProjectSkillsDir } from '../../utils/skills-dir';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 
 interface JiraIssue {
   key: string;

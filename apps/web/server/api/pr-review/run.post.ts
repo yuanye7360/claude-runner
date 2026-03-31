@@ -66,7 +66,11 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
   return currentPhase;
 }
 
-function buildPrompt(repo: string, prNumber: number, slackChannel: string): string {
+function buildPrompt(
+  repo: string,
+  prNumber: number,
+  slackChannel: string,
+): string {
   const slackStep = slackChannel
     ? `
 
