@@ -105,16 +105,16 @@ apps/web/
 
 ### Pages & Routing
 
-| Route          | Page                                                       |
-| -------------- | ---------------------------------------------------------- |
-| `/`            | Redirects to `/dashboard`                                  |
-| `/dashboard`   | KPI cards, charts, job history (date range filter, bulk delete) |
-| `/jira-runner` | JIRA issue selection + execution                           |
-| `/pr-runner`   | Fix PR review comments                                     |
-| `/pr-review`   | Code review for open PRs                                   |
-| `/repos`       | Settings: Repos tab (CRUD) + Integrations tab (Slack, JIRA) |
-| `/skills`      | Skill management + usage stats                             |
-| `/jobs/[id]`   | Job detail with phase timeline                             |
+| Route | Page |
+| --- | --- |
+| `/` | Redirects to `/dashboard` |
+| `/dashboard` | KPI cards, charts, job history (date range filter, bulk delete) |
+| `/jira-runner` | JIRA issue selection + execution |
+| `/pr-runner` | Fix PR review comments |
+| `/pr-review` | Code review for open PRs |
+| `/repos` | Settings: Repos tab (CRUD) + Integrations tab (Slack, JIRA) |
+| `/skills` | Skill management + usage stats |
+| `/jobs/[id]` | Job detail with phase timeline |
 
 ### Development
 
