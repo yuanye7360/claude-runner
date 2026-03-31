@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { AnalysisResult } from './task-analyzer';
+import { getSlackNotificationChannel } from './workspaceConfig';
 
 export interface JiraIssue {
   key: string;
@@ -179,19 +180,22 @@ function buildWorkflow(
     n++;
   }
 
-  // Step: Slack notification
-  steps.push(
-    `${n}. **Send Slack notification**
-   After the PR is created, send a notification to the Slack channel (channel ID: C08NJ2GL204) using the slack_send_message MCP tool.
+  // Step: Slack notification (read channel from Polaris workspace config)
+  const slackChannel = getSlackNotificationChannel();
+  if (slackChannel) {
+    steps.push(
+      `${n}. **Send Slack notification**
+   After the PR is created, send a notification to the Slack channel (channel ID: ${slackChannel}) using the slack_send_message MCP tool.
    Format the message as:
    📋 PR 請求
-   #<PR_NUMBER> [<ISSUE_KEY>] <PR_TITLE>
+   #<PR_NUMBER> [${issue.key}] <PR_TITLE>
    • 變更：<FILE_COUNT> 檔案，<ADDITIONS> 行新增，<DELETIONS> 行刪除
    • 影響範圍：<BRIEF_SCOPE>
    請幫忙 review 🙏
 
    If the MCP tool is not available, skip this step silently.`,
-  );
+    );
+  }
 
   const context = injectContextSkills(skills, injectMap);
 

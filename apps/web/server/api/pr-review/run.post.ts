@@ -6,6 +6,7 @@ import process from 'node:process';
 import pLimit from 'p-limit';
 
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 import { spawnClaude } from '../../utils/claude-spawn';
 import {
   createJob,
@@ -64,16 +65,12 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
 }
 
 function buildPrompt(repo: string, prNumber: number): string {
-  return `Use the /pr-reviewer skill to review the following PR.
-
-## PR Info
-Repo: ${repo}
-PR #${prNumber}
-
-Review the PR code and leave your findings as inline comments and a summary comment on GitHub.
+  const slackChannel = getSlackNotificationChannel();
+  const slackStep = slackChannel
+    ? `
 
 ## After Review: Slack Notification
-After completing the review, send a notification to Slack (channel ID: C08NJ2GL204) using the slack_send_message MCP tool.
+After completing the review, send a notification to Slack (channel ID: ${slackChannel}) using the slack_send_message MCP tool.
 Format the message as:
 📋 PR Review 完成
 #${prNumber} <PR_TITLE>
@@ -85,7 +82,16 @@ Format the message as:
 <ONE_LINE_SUMMARY>
 @<PR_AUTHOR> LGTM 👍 (or: 請查看 review comments)
 
-If the MCP tool is not available, skip this step silently.`.trim();
+If the MCP tool is not available, skip this step silently.`
+    : '';
+
+  return `Use the /pr-reviewer skill to review the following PR.
+
+## PR Info
+Repo: ${repo}
+PR #${prNumber}
+
+Review the PR code and leave your findings as inline comments and a summary comment on GitHub.${slackStep}`.trim();
 }
 
 function fetchPrMeta(prNumber: number, ghRepo: string): PrMeta {
