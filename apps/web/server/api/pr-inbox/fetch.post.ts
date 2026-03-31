@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
 import process from 'node:process';
 
+import pLimit from 'p-limit';
+
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
 import prisma from '../../utils/prisma';
 import { getAllRepos } from '../../utils/repo-mapping';
@@ -132,6 +134,12 @@ export default defineEventHandler(async (_event): Promise<PrInboxResponse> => {
   // Step 3: Parse Slack messages
   const messages = parseSlackMessages(stdout);
 
+  if (stdout.trim().length > 0 && messages.length === 0) {
+    console.warn(
+      '[pr-inbox] parseSlackMessages returned empty array for non-empty Claude CLI response. The output format may have changed.',
+    );
+  }
+
   // Step 4: Apply exclusion rules and extract PR URLs
   // Deduplicate by repo+prNumber
   const seen = new Map<
@@ -185,68 +193,79 @@ export default defineEventHandler(async (_event): Promise<PrInboxResponse> => {
     shas.add(r.commitSha);
   }
 
-  const items: PrInboxItem[] = [];
+  const limit = pLimit(5);
 
-  for (const [, { message, prNumber, repo, url }] of seen) {
-    // Fetch PR metadata via gh CLI
-    let prMeta: null | {
-      author: { login: string };
-      headRefOid: string;
-      state: string;
-      title: string;
-      url: string;
-    } = null;
+  const seenEntries = [...seen.values()];
 
-    try {
-      const out = execSync(
-        `gh pr view ${prNumber} --repo ${repo} --json title,author,headRefOid,state,url`,
-        { encoding: 'utf8', timeout: 15_000 },
-      );
-      prMeta = JSON.parse(out);
-    } catch {
-      // If gh fails, skip this PR
-      continue;
-    }
+  const itemResults = await Promise.all(
+    seenEntries.map(({ message, prNumber, repo, url }) =>
+      limit(async () => {
+        // Fetch PR metadata via gh CLI
+        let prMeta: null | {
+          author: { login: string };
+          headRefOid: string;
+          state: string;
+          title: string;
+          url: string;
+        } = null;
 
-    if (!prMeta) continue;
+        try {
+          const out = execSync(
+            `gh pr view ${prNumber} --repo ${repo} --json title,author,headRefOid,state,url`,
+            { encoding: 'utf8', timeout: 15_000 },
+          );
+          prMeta = JSON.parse(out);
+        } catch {
+          // If gh fails, skip this PR
+          return null;
+        }
 
-    const repoLabel = repoLabelMap.get(repo) ?? null;
+        if (!prMeta) return null;
 
-    // Determine review status
-    let reviewStatus: PrInboxItem['reviewStatus'];
-    if (prMeta.state === 'CLOSED' || prMeta.state === 'MERGED') {
-      reviewStatus = 'closed';
-    } else {
-      const byPr = repoLabel ? reviewLookup.get(repoLabel) : undefined;
-      const shas = byPr?.get(prNumber);
-      if (!shas) {
-        reviewStatus = 'not-reviewed';
-      } else if (shas.has(prMeta.headRefOid)) {
-        reviewStatus = 'reviewed';
-      } else {
-        reviewStatus = 'outdated';
-      }
-    }
+        const repoLabel = repoLabelMap.get(repo) ?? null;
 
-    // Convert Slack TS to ISO date (TS is Unix seconds with microseconds)
-    const requestedAt = new Date(
-      Number.parseFloat(message.ts) * 1000,
-    ).toISOString();
+        // Determine review status
+        let reviewStatus: PrInboxItem['reviewStatus'];
+        if (prMeta.state === 'CLOSED' || prMeta.state === 'MERGED') {
+          reviewStatus = 'closed';
+        } else {
+          const byPr = repoLabel ? reviewLookup.get(repoLabel) : undefined;
+          const shas = byPr?.get(prNumber);
+          if (!shas) {
+            reviewStatus = 'not-reviewed';
+          } else if (shas.has(prMeta.headRefOid)) {
+            reviewStatus = 'reviewed';
+          } else {
+            reviewStatus = 'outdated';
+          }
+        }
 
-    items.push({
-      headSha: prMeta.headRefOid,
-      htmlUrl: url,
-      prAuthor: prMeta.author.login,
-      prNumber,
-      prTitle: prMeta.title,
-      repo,
-      repoLabel,
-      requestedAt,
-      reviewStatus,
-      slackTs: message.ts,
-      slackUser: message.userId,
-    });
-  }
+        // Convert Slack TS to ISO date (TS is Unix seconds with microseconds)
+        const requestedAt = new Date(
+          Number.parseFloat(message.ts) * 1000,
+        ).toISOString();
+
+        return {
+          headSha: prMeta.headRefOid,
+          // Use canonical URL from gh pr view; fall back to Slack-extracted URL
+          htmlUrl: prMeta.url || url,
+          prAuthor: prMeta.author.login,
+          prNumber,
+          prTitle: prMeta.title,
+          repo,
+          repoLabel,
+          requestedAt,
+          reviewStatus,
+          slackTs: message.ts,
+          slackUser: message.userId,
+        } satisfies PrInboxItem;
+      }),
+    ),
+  );
+
+  const items: PrInboxItem[] = itemResults.filter(
+    (item): item is PrInboxItem => item !== null,
+  );
 
   // Step 7: Sort by requestedAt desc
   items.sort(
