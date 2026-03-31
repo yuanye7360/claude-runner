@@ -179,18 +179,18 @@ defineExpose({
         @load-issues="jira.loadIssues()"
         @run-claude="jira.runClaude()"
         @open-config="navigateTo('/repos?tab=integrations')"
-          @submit-answer="
-            (q: string, a: string) => jira.analyzer.submitAnswer(q, a)
-          "
-          @analyze-then-run="jira.analyzeThenRun()"
-          @run-with-analysis="
-            jira.runClaudeWithAnalysis(
-              jira.issues.value.filter((i) => jira.selected.value.has(i.key)),
-              jira.analyzer.analysisResult.value!,
-            )
-          "
-          @reset-analysis="jira.analyzer.reset()"
-        />
+        @submit-answer="
+          (q: string, a: string) => jira.analyzer.submitAnswer(q, a)
+        "
+        @analyze-then-run="jira.analyzeThenRun()"
+        @run-with-analysis="
+          jira.runClaudeWithAnalysis(
+            jira.issues.value.filter((i) => jira.selected.value.has(i.key)),
+            jira.analyzer.analysisResult.value!,
+          )
+        "
+        @reset-analysis="jira.analyzer.reset()"
+      />
     </div>
 
     <!-- Right: JIRA detail panel -->

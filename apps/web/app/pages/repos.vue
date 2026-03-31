@@ -367,9 +367,7 @@ async function onDelete(id: string) {
               </div>
               <div class="space-y-2">
                 <div>
-                  <label class="mb-1 block text-xs text-[#888]"
-                    >Base URL</label
-                  >
+                  <label class="mb-1 block text-xs text-[#888]">Base URL</label>
                   <input
                     v-model="jiraConfig.baseUrl"
                     placeholder="https://yourorg.atlassian.net"

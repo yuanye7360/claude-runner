@@ -61,8 +61,7 @@ const DISMISSED_KEY = 'cr-onboarding-dismissed';
 // Module-level shared state — starts hidden (true) to avoid SSR flash
 const dismissed = ref(true);
 
-// Signal for JiraRunnerTab to open its settings panel
-export const requestOpenSettings = ref(false);
+// (removed — JIRA settings now live on /repos?tab=integrations)
 
 // Signal to reset/restart the onboarding tour
 export const requestResetTour = ref(false);
@@ -170,11 +169,10 @@ export function useOnboarding(deps: {
   });
 
   function startTour(fromStep = 0) {
-    // Ensure we're on the home page with settings panel open
-    navigateTo('/');
-    requestOpenSettings.value = true;
+    // Navigate to Settings Integrations tab for JIRA setup steps
+    navigateTo('/repos?tab=integrations');
 
-    // Wait for the panel to render and layout to settle,
+    // Wait for the page to render and layout to settle,
     // then patch overflow and start the tour
     setTimeout(() => {
       const restoreOverflow = patchOverflow();
