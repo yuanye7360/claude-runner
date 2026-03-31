@@ -57,11 +57,6 @@ defineExpose({ mode });
         icon="i-lucide-search-code"
         label="Code Review"
       />
-      <SidebarNavItem
-        to="/pr-inbox"
-        icon="i-lucide-inbox"
-        label="PR Inbox"
-      />
     </nav>
 
     <!-- Bottom -->

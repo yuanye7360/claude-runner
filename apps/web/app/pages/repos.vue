@@ -41,20 +41,7 @@ async function saveSlackSettings() {
   }
 }
 
-async function savePrInboxSettings() {
-  settingsSaving.value = true;
-  try {
-    await $fetch('/api/settings', {
-      method: 'POST',
-      body: {
-        'pr_inbox.slack_channel':
-          settings.value['pr_inbox.slack_channel'] ?? '',
-      },
-    });
-  } finally {
-    settingsSaving.value = false;
-  }
-}
+
 
 onMounted(loadSettings);
 
@@ -328,67 +315,6 @@ async function onDelete(id: string) {
               class="interactive mt-2 rounded-lg bg-[#06b6d4] px-4 py-2 text-sm font-medium text-[#fafafa] hover:bg-[#0891b2]"
               :disabled="settingsSaving"
               @click="saveSlackSettings"
-            >
-              {{ settingsSaving ? '儲存中...' : '儲存' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- PR Inbox -->
-        <div
-          class="mt-4 rounded-lg border p-5"
-          style="
-            background: rgb(255 255 255 / 2%);
-            border-color: rgb(255 255 255 / 6%);
-          "
-        >
-          <div class="mb-4 flex items-center gap-3">
-            <div
-              class="flex h-9 w-9 items-center justify-center rounded-lg"
-              style="background: rgb(139 92 246 / 8%)"
-            >
-              <UIcon name="i-lucide-inbox" class="text-lg text-[#8b5cf6]" />
-            </div>
-            <div>
-              <h2 class="text-sm font-semibold text-[#fafafa]">PR Inbox</h2>
-              <p class="text-[11px] text-[#555]">
-                從 Slack channel 抓取 PR review 請求
-              </p>
-            </div>
-          </div>
-
-          <div
-            v-if="settingsLoading"
-            class="py-4 text-center text-xs text-[#444]"
-          >
-            載入中...
-          </div>
-          <div v-else class="space-y-3">
-            <div>
-              <label class="mb-1 block text-xs text-[#888]"
-                >PR Review Channel ID</label
-              >
-              <div class="flex gap-2">
-                <input
-                  v-model="settings['pr_inbox.slack_channel']"
-                  placeholder="C08NJ2GL204"
-                  class="flex-1 rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
-                  style="
-                    background: rgb(0 0 0 / 30%);
-                    border-color: rgb(255 255 255 / 8%);
-                  "
-                />
-              </div>
-              <p class="mt-1 text-[10px] text-[#444]">
-                團隊發送 PR review 請求的 Slack channel ID。PR Inbox 會從此
-                channel 抓取近 2 天的 PR。
-              </p>
-            </div>
-
-            <button
-              class="interactive mt-2 rounded-lg bg-[#8b5cf6] px-4 py-2 text-sm font-medium text-[#fafafa] hover:bg-[#7c3aed]"
-              :disabled="settingsSaving"
-              @click="savePrInboxSettings"
             >
               {{ settingsSaving ? '儲存中...' : '儲存' }}
             </button>
