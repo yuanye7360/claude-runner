@@ -16,21 +16,21 @@ export interface OnboardingStep {
 
 const TOUR_STEPS = [
   {
-    element: '[data-tour="jira-connection"]',
+    element: '[data-tour="repos"]',
     popover: {
-      title: '步驟 1：設定 JIRA 連線',
+      title: '步驟 1：新增 Repo',
       description:
-        '填寫你的 JIRA URL、Email 和 API Token，連接 JIRA 以取得 Issue。',
+        '新增要自動修復的 Git Repo，設定本機路徑和 GitHub Repo 名稱。',
       side: 'right' as const,
       align: 'start' as const,
     },
   },
   {
-    element: '[data-tour="repos"]',
+    element: '[data-tour="jira-connection"]',
     popover: {
-      title: '步驟 2：新增 Repo',
+      title: '步驟 2：設定 JIRA 連線',
       description:
-        '新增要自動修復的 Git Repo，設定本機路徑和 GitHub Repo 名稱。',
+        '切換到 Integrations 分頁，填寫 JIRA URL、Email 和 API Token。',
       side: 'right' as const,
       align: 'start' as const,
     },
@@ -123,15 +123,15 @@ export function useOnboarding(deps: {
 
   const steps: OnboardingStep[] = [
     {
-      id: 'jira',
-      label: '設定 JIRA 連線',
-      completed: deps.jiraConfigured,
-      tourIndex: 0,
-    },
-    {
       id: 'repos',
       label: '新增 Repo',
       completed: computed(() => deps.repoCount.value > 0),
+      tourIndex: 0,
+    },
+    {
+      id: 'jira',
+      label: '設定 JIRA 連線',
+      completed: deps.jiraConfigured,
       tourIndex: 1,
     },
     {
@@ -169,8 +169,9 @@ export function useOnboarding(deps: {
   });
 
   function startTour(fromStep = 0) {
-    // Navigate to Settings Integrations tab for JIRA setup steps
-    navigateTo('/repos?tab=integrations');
+    // Step 0 = Repos tab, Steps 1-2 = Integrations tab, Step 3 = Skills (header, always visible)
+    const initialTab = fromStep === 0 ? 'repos' : 'integrations';
+    navigateTo(`/repos?tab=${initialTab}`);
 
     // Wait for the page to render and layout to settle,
     // then patch overflow and start the tour
@@ -188,11 +189,18 @@ export function useOnboarding(deps: {
         prevBtnText: '上一步',
         doneBtnText: '完成',
         progressText: '{{current}} / {{total}}',
-        onHighlightStarted: (el) => {
-          (el as HTMLElement)?.scrollIntoView?.({
-            block: 'center',
-            behavior: 'smooth',
-          });
+        onHighlightStarted: (el, step) => {
+          // Switch to Integrations tab when moving from Repos step to JIRA steps
+          const idx = TOUR_STEPS.indexOf(step);
+          if (idx === 1) {
+            navigateTo('/repos?tab=integrations');
+          }
+          setTimeout(() => {
+            (el as HTMLElement)?.scrollIntoView?.({
+              block: 'center',
+              behavior: 'smooth',
+            });
+          }, 100);
         },
         onDestroyed: () => {
           restoreOverflow();

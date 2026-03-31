@@ -359,7 +359,7 @@ async function onDelete(id: string) {
 
           <div class="space-y-4">
             <!-- Connection -->
-            <div>
+            <div data-tour="jira-connection">
               <div
                 class="mb-2 text-xs font-medium tracking-wide text-[#888] uppercase"
               >
@@ -409,7 +409,7 @@ async function onDelete(id: string) {
             </div>
 
             <!-- Labels -->
-            <div>
+            <div data-tour="jira-labels">
               <div
                 class="mb-2 text-xs font-medium tracking-wide text-[#888] uppercase"
               >

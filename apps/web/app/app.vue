@@ -162,6 +162,7 @@ const pageTitle = computed(() => {
 
             <NuxtLink
               to="/skills"
+              data-tour="skills"
               class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[#444] transition-colors hover:bg-[rgba(255,255,255,0.04)] hover:text-[#888]"
             >
               <UIcon name="i-heroicons-cube" />
