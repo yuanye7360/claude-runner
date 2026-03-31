@@ -75,8 +75,19 @@ function buildPrompt(
     ? `
 
 ## After Review: Slack Notification
-After completing the review, send a notification to Slack (channel ID: ${slackChannel}) using the slack_send_message MCP tool.
-Format the message as:
+After completing the review, reply to the original PR request message in Slack.
+
+**Step 1: Find the original message**
+Use slack_read_channel to read recent messages from channel ${slackChannel}.
+Look for a message containing "#${prNumber}" or the PR URL "/${repo}/pull/${prNumber}".
+Extract the message's timestamp (ts) — this is the thread_ts you need.
+
+**Step 2: Reply in thread**
+Use slack_send_message with these parameters:
+- channel_id: "${slackChannel}"
+- thread_ts: <the ts from Step 1>
+- message: Format as below
+
 📋 PR Review 完成
 #${prNumber} <PR_TITLE>
 ✅ 結果：<APPROVE or REQUEST_CHANGES>
@@ -85,9 +96,10 @@ Format the message as:
 • nit：<COUNT> 個
 
 <ONE_LINE_SUMMARY>
-@<PR_AUTHOR> LGTM 👍 (or: 請查看 review comments)
+@<PR_AUTHOR> LGTM 👍 (or: 請查看 review comments 🙏)
 
-If the MCP tool is not available, skip this step silently.`
+**If no matching message found**, send as a new message (no thread_ts).
+**If MCP tools are not available**, skip this step silently.`
     : '';
 
   return `Use the /pr-reviewer skill to review the following PR.
