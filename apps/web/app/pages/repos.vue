@@ -514,7 +514,7 @@ async function onDelete(id: string) {
       </div>
 
       <!-- ══════ Repos Tab ══════ -->
-      <div v-else class="mx-auto max-w-3xl">
+      <div v-else class="mx-auto max-w-3xl" data-tour="repos">
         <!-- Header -->
         <div class="mb-6 flex items-center justify-between">
           <div>

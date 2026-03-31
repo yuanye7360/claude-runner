@@ -30,7 +30,7 @@ const TOUR_STEPS = [
     popover: {
       title: '步驟 2：設定 JIRA 連線',
       description:
-        '切換到 Integrations 分頁，填寫 JIRA URL、Email 和 API Token。',
+        '填寫 JIRA URL、Email 和 API Token，連接 JIRA 以取得 Issue。',
       side: 'right' as const,
       align: 'start' as const,
     },
@@ -47,9 +47,9 @@ const TOUR_STEPS = [
   {
     element: '[data-tour="skills"]',
     popover: {
-      title: '步驟 4：選擇 Skills',
+      title: '步驟 4：管理 Skills',
       description:
-        '點擊前往 Skills 頁面，選擇 Claude 執行時使用的技能，完成後即可開始修復！',
+        '前往 Skills 頁面，查看和管理 Claude 執行時使用的技能模組與執行統計。',
       side: 'bottom' as const,
       align: 'center' as const,
     },
@@ -169,16 +169,16 @@ export function useOnboarding(deps: {
   });
 
   function startTour(fromStep = 0) {
-    // Step 0 = Repos tab, Steps 1-2 = Integrations tab, Step 3 = Skills (header, always visible)
-    const initialTab = fromStep === 0 ? 'repos' : 'integrations';
+    // Step 0 = Repos tab, Steps 1-2 = Integrations tab, Step 3 = Skills (header)
+    const initialTab =
+      fromStep >= 1 && fromStep <= 2 ? 'integrations' : 'repos';
     navigateTo(`/repos?tab=${initialTab}`);
 
-    // Wait for the page to render and layout to settle,
-    // then patch overflow and start the tour
     setTimeout(() => {
       const restoreOverflow = patchOverflow();
+      const ref = { driver: null as null | ReturnType<typeof driver> };
 
-      const driverObj = driver({
+      ref.driver = driver({
         showProgress: true,
         animate: true,
         overlayColor: 'rgba(0, 0, 0, 0.7)',
@@ -189,18 +189,35 @@ export function useOnboarding(deps: {
         prevBtnText: '上一步',
         doneBtnText: '完成',
         progressText: '{{current}} / {{total}}',
-        onHighlightStarted: (el, step) => {
-          // Switch to Integrations tab when moving from Repos step to JIRA steps
-          const idx = TOUR_STEPS.indexOf(step);
-          if (idx === 1) {
+        onHighlightStarted: (el) => {
+          (el as HTMLElement)?.scrollIntoView?.({
+            block: 'center',
+            behavior: 'smooth',
+          });
+        },
+        onNextClick: () => {
+          const currentIdx = ref.driver?.getActiveIndex() ?? 0;
+          if (currentIdx === 0) {
             navigateTo('/repos?tab=integrations');
+            setTimeout(() => {
+              patchOverflow();
+              ref.driver?.moveNext();
+            }, 300);
+            return;
           }
-          setTimeout(() => {
-            (el as HTMLElement)?.scrollIntoView?.({
-              block: 'center',
-              behavior: 'smooth',
-            });
-          }, 100);
+          ref.driver?.moveNext();
+        },
+        onPrevClick: () => {
+          const currentIdx = ref.driver?.getActiveIndex() ?? 0;
+          if (currentIdx === 1) {
+            navigateTo('/repos?tab=repos');
+            setTimeout(() => {
+              patchOverflow();
+              ref.driver?.movePrevious();
+            }, 300);
+            return;
+          }
+          ref.driver?.movePrevious();
         },
         onDestroyed: () => {
           restoreOverflow();
@@ -208,7 +225,7 @@ export function useOnboarding(deps: {
         steps: TOUR_STEPS,
       });
 
-      driverObj.drive(fromStep);
+      ref.driver.drive(fromStep);
     }, 300);
   }
 
