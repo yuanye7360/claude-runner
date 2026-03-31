@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 
 import matter from 'gray-matter';
 
-export type SkillSource = 'custom' | 'external';
+export type SkillSource = 'custom' | 'external' | 'project';
 
 export interface SkillInfo {
   name: string;
@@ -46,15 +46,39 @@ export default defineEventHandler(() => {
     new URL('.', import.meta.url).pathname,
     '../skills',
   );
+  // Project skills: .claude/skills/ (project-level, including Polaris symlinks)
+  // Traverse up from server/api/ to find the project root with .claude/skills/
+  let projectDir = '';
+  let searchDir = resolve(new URL('.', import.meta.url).pathname);
+  for (let i = 0; i < 10; i++) {
+    const candidate = join(searchDir, '.claude', 'skills');
+    if (existsSync(candidate)) {
+      projectDir = candidate;
+      break;
+    }
+    const parent = resolve(searchDir, '..');
+    if (parent === searchDir) break;
+    searchDir = parent;
+  }
   // External skills: global ~/.claude/skills/ (shared with Claude Code CLI)
   const externalDir = join(homedir(), '.claude', 'skills');
 
   const custom = scanSkillDir(customDir, 'custom');
+  const project = projectDir ? scanSkillDir(projectDir, 'project') : [];
   const external = scanSkillDir(externalDir, 'external');
 
-  // Deduplicate: custom wins over external with same name
+  // Deduplicate: custom > project > external (same name)
   const seen = new Set(custom.map((s) => s.name));
-  const merged = [...custom, ...external.filter((s) => !seen.has(s.name))];
+  const projectFiltered = project.filter((s) => {
+    if (seen.has(s.name)) return false;
+    seen.add(s.name);
+    return true;
+  });
+  const merged = [
+    ...custom,
+    ...projectFiltered,
+    ...external.filter((s) => !seen.has(s.name)),
+  ];
 
   return merged;
 });

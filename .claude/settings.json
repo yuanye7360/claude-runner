@@ -1,4 +1,18 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push*)",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-push-quality-gate.sh\""
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "mcp__playwright__browser_evaluate",
@@ -12,6 +26,9 @@
       "Bash(npm install:*)",
       "mcp__n8n-mcp__n8n_get_workflow",
       "mcp__n8n-mcp__n8n_update_partial_workflow"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

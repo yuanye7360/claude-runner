@@ -16,21 +16,21 @@ export interface OnboardingStep {
 
 const TOUR_STEPS = [
   {
-    element: '[data-tour="jira-connection"]',
+    element: '[data-tour="repos"]',
     popover: {
-      title: '步驟 1：設定 JIRA 連線',
+      title: '步驟 1：新增 Repo',
       description:
-        '填寫你的 JIRA URL、Email 和 API Token，連接 JIRA 以取得 Issue。',
+        '新增要自動修復的 Git Repo，設定本機路徑和 GitHub Repo 名稱。',
       side: 'right' as const,
       align: 'start' as const,
     },
   },
   {
-    element: '[data-tour="repos"]',
+    element: '[data-tour="jira-connection"]',
     popover: {
-      title: '步驟 2：新增 Repo',
+      title: '步驟 2：設定 JIRA 連線',
       description:
-        '新增要自動修復的 Git Repo，設定本機路徑和 GitHub Repo 名稱。',
+        '填寫 JIRA URL、Email 和 API Token，連接 JIRA 以取得 Issue。',
       side: 'right' as const,
       align: 'start' as const,
     },
@@ -47,9 +47,9 @@ const TOUR_STEPS = [
   {
     element: '[data-tour="skills"]',
     popover: {
-      title: '步驟 4：選擇 Skills',
+      title: '步驟 4：管理 Skills',
       description:
-        '點擊前往 Skills 頁面，選擇 Claude 執行時使用的技能，完成後即可開始修復！',
+        '前往 Skills 頁面，查看和管理 Claude 執行時使用的技能模組與執行統計。',
       side: 'bottom' as const,
       align: 'center' as const,
     },
@@ -61,8 +61,7 @@ const DISMISSED_KEY = 'cr-onboarding-dismissed';
 // Module-level shared state — starts hidden (true) to avoid SSR flash
 const dismissed = ref(true);
 
-// Signal for JiraRunnerTab to open its settings panel
-export const requestOpenSettings = ref(false);
+// (removed — JIRA settings now live on /repos?tab=integrations)
 
 // Signal to reset/restart the onboarding tour
 export const requestResetTour = ref(false);
@@ -124,15 +123,15 @@ export function useOnboarding(deps: {
 
   const steps: OnboardingStep[] = [
     {
-      id: 'jira',
-      label: '設定 JIRA 連線',
-      completed: deps.jiraConfigured,
-      tourIndex: 0,
-    },
-    {
       id: 'repos',
       label: '新增 Repo',
       completed: computed(() => deps.repoCount.value > 0),
+      tourIndex: 0,
+    },
+    {
+      id: 'jira',
+      label: '設定 JIRA 連線',
+      completed: deps.jiraConfigured,
       tourIndex: 1,
     },
     {
@@ -170,16 +169,16 @@ export function useOnboarding(deps: {
   });
 
   function startTour(fromStep = 0) {
-    // Ensure we're on the home page with settings panel open
-    navigateTo('/');
-    requestOpenSettings.value = true;
+    // Step 0 = Repos tab, Steps 1-2 = Integrations tab, Step 3 = Skills (header)
+    const initialTab =
+      fromStep >= 1 && fromStep <= 2 ? 'integrations' : 'repos';
+    navigateTo(`/repos?tab=${initialTab}`);
 
-    // Wait for the panel to render and layout to settle,
-    // then patch overflow and start the tour
     setTimeout(() => {
       const restoreOverflow = patchOverflow();
+      const ref = { driver: null as null | ReturnType<typeof driver> };
 
-      const driverObj = driver({
+      ref.driver = driver({
         showProgress: true,
         animate: true,
         overlayColor: 'rgba(0, 0, 0, 0.7)',
@@ -196,13 +195,37 @@ export function useOnboarding(deps: {
             behavior: 'smooth',
           });
         },
+        onNextClick: () => {
+          const currentIdx = ref.driver?.getActiveIndex() ?? 0;
+          if (currentIdx === 0) {
+            navigateTo('/repos?tab=integrations');
+            setTimeout(() => {
+              patchOverflow();
+              ref.driver?.moveNext();
+            }, 300);
+            return;
+          }
+          ref.driver?.moveNext();
+        },
+        onPrevClick: () => {
+          const currentIdx = ref.driver?.getActiveIndex() ?? 0;
+          if (currentIdx === 1) {
+            navigateTo('/repos?tab=repos');
+            setTimeout(() => {
+              patchOverflow();
+              ref.driver?.movePrevious();
+            }, 300);
+            return;
+          }
+          ref.driver?.movePrevious();
+        },
         onDestroyed: () => {
           restoreOverflow();
         },
         steps: TOUR_STEPS,
       });
 
-      driverObj.drive(fromStep);
+      ref.driver.drive(fromStep);
     }, 300);
   }
 

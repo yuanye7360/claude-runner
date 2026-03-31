@@ -7,6 +7,7 @@ const props = defineProps<{
   errorCount: number;
   expanded: boolean;
   getItemUrl?: (key: string) => null | string;
+  hideResults?: boolean;
   idleSecs?: number;
   isRunning: boolean;
   successCount: number;
@@ -16,6 +17,14 @@ const emit = defineEmits<{
   cancel: [];
   'update:expanded': [value: boolean];
 }>();
+// If all phases are done but status is still 'running', treat as finishing
+const allPhasesDone = computed(() => {
+  const phases = Object.values(props.activeJob.phasesByIssue).flat();
+  return phases.length > 0 && phases.every((p) => p.status === 'done');
+});
+const effectivelyRunning = computed(
+  () => props.isRunning && !allPhasesDone.value,
+);
 
 const idleLabel = computed(() => {
   const secs = props.idleSecs ?? 0;
@@ -55,10 +64,10 @@ function toggleResult(key: string) {
 </script>
 
 <template>
-  <div class="shrink-0 border-b border-gray-800">
+  <div class="shrink-0 border-b border-[rgb(255_255_255/6%)]">
     <!-- Row header -->
     <div
-      class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-gray-800/40"
+      class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[rgb(255_255_255/4%)]"
       role="button"
       tabindex="0"
       :aria-expanded="expanded"
@@ -66,9 +75,9 @@ function toggleResult(key: string) {
       @keydown.enter.space="toggleExpanded"
     >
       <UIcon
-        v-if="isRunning"
+        v-if="effectivelyRunning"
         name="i-lucide-loader-circle"
-        class="text-primary-400 shrink-0 animate-spin"
+        class="shrink-0 animate-spin text-[#8b5cf6]"
       />
       <UIcon
         v-else-if="activeJob.status === 'cancelled'"
@@ -83,16 +92,18 @@ function toggleResult(key: string) {
       <UIcon
         v-else
         name="i-lucide-circle-check"
-        class="shrink-0 text-green-400"
+        class="shrink-0 text-[#22c55e]"
       />
 
-      <span class="font-medium text-gray-300">
+      <span class="font-medium text-[#ccc]">
         {{
-          isRunning
+          effectivelyRunning
             ? '執行中'
-            : activeJob.status === 'cancelled'
-              ? '已中斷'
-              : '完成'
+            : allPhasesDone && isRunning
+              ? '完成中...'
+              : activeJob.status === 'cancelled'
+                ? '已中斷'
+                : '完成'
         }}
       </span>
       <span class="text-muted">·</span>
@@ -105,7 +116,7 @@ function toggleResult(key: string) {
         }}
       </span>
 
-      <template v-if="isRunning">
+      <template v-if="effectivelyRunning">
         <span class="text-muted">·</span>
         <span class="text-muted shrink-0">已耗時 {{ elapsed }}</span>
 
@@ -115,7 +126,7 @@ function toggleResult(key: string) {
           <span
             class="shrink-0 text-sm"
             :class="{
-              'text-gray-500': idleLevel === 'info',
+              'text-[#888]': idleLevel === 'info',
               'text-yellow-500': idleLevel === 'warn',
               'animate-pulse text-red-400': idleLevel === 'danger',
             }"
@@ -137,7 +148,7 @@ function toggleResult(key: string) {
       </template>
       <template v-else>
         <span class="text-muted">·</span>
-        <span class="shrink-0 text-green-400">{{ successCount }} 成功</span>
+        <span class="shrink-0 text-[#22c55e]">{{ successCount }} 成功</span>
         <span v-if="errorCount" class="shrink-0 text-red-400"
           >{{ errorCount }} 失敗</span
         >
@@ -145,23 +156,30 @@ function toggleResult(key: string) {
 
       <UIcon
         name="i-lucide-chevron-down"
-        class="ml-auto shrink-0 text-gray-600 transition-transform duration-200"
+        class="ml-auto shrink-0 text-[#444] transition-transform duration-200"
         :class="{ 'rotate-180': expanded }"
       />
     </div>
 
     <!-- Expandable output -->
-    <div v-if="expanded" class="border-t border-gray-800 bg-gray-950">
-      <!-- Completed results: collapsible per task -->
-      <template v-if="!isRunning && activeJob.results.length > 0">
+    <div
+      v-if="expanded"
+      class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]"
+    >
+      <!-- Completed results: collapsible per task (hidden when progress panel shows phases) -->
+      <template
+        v-if="
+          !hideResults && !effectivelyRunning && activeJob.results.length > 0
+        "
+      >
         <div
           v-for="r in activeJob.results"
           :key="r.issueKey"
-          class="border-b border-gray-800/60 last:border-b-0"
+          class="border-b border-[rgb(255_255_255/4%)] last:border-b-0"
         >
           <!-- Result header (clickable to toggle log) -->
           <div
-            class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-800/30"
+            class="flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-[rgb(255_255_255/4%)]"
             :class="r.error ? 'bg-red-950/20' : 'bg-green-950/10'"
             role="button"
             tabindex="0"
@@ -171,14 +189,14 @@ function toggleResult(key: string) {
             <UIcon
               :name="r.error ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
               class="shrink-0"
-              :class="r.error ? 'text-red-400' : 'text-green-400'"
+              :class="r.error ? 'text-red-400' : 'text-[#22c55e]'"
             />
             <component
               :is="getItemUrl?.(r.issueKey) ? 'a' : 'span'"
               :href="getItemUrl?.(r.issueKey) ?? undefined"
               target="_blank"
               rel="noopener"
-              class="shrink-0 font-mono text-sm font-semibold text-gray-300"
+              class="shrink-0 font-mono text-sm font-semibold text-[#ccc]"
               :class="{
                 'underline-offset-2 hover:underline': getItemUrl?.(r.issueKey),
               }"
@@ -193,7 +211,7 @@ function toggleResult(key: string) {
               :href="r.prUrl"
               target="_blank"
               rel="noopener"
-              class="shrink-0 font-medium text-blue-400 underline-offset-2 hover:underline"
+              class="shrink-0 font-medium text-[#8b5cf6] underline-offset-2 hover:underline"
               @click.stop
             >
               PR 已建立 ↗
@@ -201,13 +219,13 @@ function toggleResult(key: string) {
             <span
               v-else
               class="shrink-0 font-medium"
-              :class="r.error ? 'text-red-400' : 'text-green-400'"
+              :class="r.error ? 'text-red-400' : 'text-[#22c55e]'"
             >
               {{ r.error ? '失敗' : '完成' }}
             </span>
             <UIcon
               name="i-lucide-chevron-down"
-              class="shrink-0 text-gray-600 transition-transform duration-200"
+              class="shrink-0 text-[#444] transition-transform duration-200"
               :class="{ 'rotate-180': expandedResults.has(r.issueKey) }"
             />
           </div>
@@ -215,10 +233,10 @@ function toggleResult(key: string) {
           <!-- Collapsible log -->
           <div
             v-if="expandedResults.has(r.issueKey)"
-            class="bg-gray-950 px-4 py-3"
+            class="bg-[#0a0a0f] px-4 py-3"
           >
             <pre
-              class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-gray-400"
+              class="text-log max-h-64 overflow-y-auto font-mono leading-relaxed break-all whitespace-pre-wrap text-[#888]"
               >{{ stripAnsi(r.error || r.output || '（無輸出）') }}</pre
             >
           </div>
@@ -226,7 +244,7 @@ function toggleResult(key: string) {
       </template>
 
       <!-- Live: no duplicate log here — RunnerJobProgress shows the full log below -->
-      <div v-else class="px-4 py-3 text-sm text-gray-500">
+      <div v-else class="px-4 py-3 text-sm text-[#888]">
         輸出顯示在下方面板中
       </div>
     </div>
@@ -236,7 +254,7 @@ function toggleResult(key: string) {
 <style scoped>
 .text-muted {
   font-size: 0.875em;
-  color: rgb(107 114 128);
+  color: #888;
 }
 
 .text-log {

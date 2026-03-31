@@ -1,4 +1,4 @@
-export type SkillSource = 'external' | 'project';
+export type SkillSource = 'custom' | 'external' | 'project';
 
 export interface SkillItem {
   name: string;
@@ -18,14 +18,25 @@ const PRESETS_KEY = 'cr-skill-presets';
 /** Default mode presets (used as fallback) */
 const DEFAULT_PRESETS: Record<string, string[]> = {
   normal: [
+    // Global: 基本規範
     'kkday-jira-branch-checkout',
     'kkday-pr-convention',
     'kkday-jira-worklog',
   ],
   smart: [
+    // Global: 基本規範
     'kkday-jira-branch-checkout',
     'kkday-pr-convention',
     'kkday-jira-worklog',
+    // Project (Polaris): 智能工作流
+    'work-on',
+    'fix-bug',
+    'dev-quality-check',
+    'git-pr-workflow',
+    'verify-completion',
+    'tdd',
+    'review-pr',
+    'fix-pr-review',
   ],
 };
 

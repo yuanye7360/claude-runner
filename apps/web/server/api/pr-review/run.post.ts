@@ -13,8 +13,12 @@ import {
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
+import { loadSkill } from '../../utils/load-skill';
 import prisma from '../../utils/prisma';
 import { getRepoByLabel } from '../../utils/repo-mapping';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
+
+let _slackChannel: null | string = null;
 
 interface PrMeta {
   number: number;
@@ -63,14 +67,61 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
   return currentPhase;
 }
 
-function buildPrompt(repo: string, prNumber: number): string {
+function buildPrompt(
+  repo: string,
+  prNumber: number,
+  slackChannel: string,
+): string {
+  const slackStep = slackChannel
+    ? `
+
+## After Review: Slack Notification
+After completing the review, reply to the original PR request message in Slack.
+
+**Step 1: Find the original PR request message**
+Use slack_read_channel to read recent messages from channel ${slackChannel}.
+Look for messages containing "#${prNumber}" or the PR URL "/${repo}/pull/${prNumber}".
+If multiple messages match, pick the **most recent one** (largest ts value).
+Extract that message's timestamp (ts) — this is the thread_ts you need.
+
+**Step 2: Reply in thread**
+Use slack_send_message with these parameters:
+- channel_id: "${slackChannel}"
+- thread_ts: <the ts from Step 1>
+- message: Format as below
+
+📋 PR Review 完成
+#${prNumber} <PR_TITLE>
+✅ 結果：<APPROVE or REQUEST_CHANGES>
+• must-fix：<COUNT> 個
+• should-fix：<COUNT> 個
+• nit：<COUNT> 個
+
+<ONE_LINE_SUMMARY>
+@<PR_AUTHOR> LGTM 👍 (or: 請查看 review comments 🙏)
+
+**If no matching message found, skip this step entirely — do NOT send a new message.**
+**If MCP tools are not available**, skip this step silently.`
+    : '';
+
+  const skillContent = loadSkill('pr-reviewer');
+  if (skillContent) {
+    return `${skillContent}
+
+## PR Info
+Repo: ${repo}
+PR #${prNumber}
+
+Review the PR code and leave your findings as inline comments and a summary comment on GitHub.${slackStep}`.trim();
+  }
+
   return `Use the /pr-reviewer skill to review the following PR.
 
 ## PR Info
 Repo: ${repo}
 PR #${prNumber}
 
-Review the PR code and leave your findings as inline comments and a summary comment on GitHub.`.trim();
+Review the PR code and leave your findings as inline comments and a summary comment on GitHub.${slackStep}`.trim();
 }
 
 function fetchPrMeta(prNumber: number, ghRepo: string): PrMeta {
@@ -125,7 +176,10 @@ async function reviewOnePr(
 
   try {
     let currentPhase = 1;
-    const prompt = buildPrompt(ghRepo, pr.number);
+    if (_slackChannel === null) {
+      _slackChannel = await getSlackNotificationChannel();
+    }
+    const prompt = buildPrompt(ghRepo, pr.number, _slackChannel);
 
     const output = await new Promise<{ ok: boolean; text: string }>(
       (resolve) => {
@@ -375,6 +429,7 @@ export default defineEventHandler(async (event) => {
     })),
     'pr-review',
   );
+  job.enabledSkills = ['review-pr'];
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,

@@ -39,14 +39,14 @@ watch(
 
 <template>
   <div
-    class="fixed right-4 bottom-4 z-50 w-72 rounded-xl border border-gray-700 bg-gray-900/95 shadow-2xl backdrop-blur transition-opacity duration-500"
+    class="fixed right-4 bottom-4 z-50 w-72 rounded-xl border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/2%)] shadow-2xl backdrop-blur transition-opacity duration-500"
     :class="{ 'opacity-0': fadeOut }"
   >
     <!-- Completed state -->
     <template v-if="justCompleted">
       <div class="px-4 py-5 text-center">
         <p class="text-2xl">✅</p>
-        <p class="mt-1 text-sm font-medium text-gray-300">設定完成！</p>
+        <p class="mt-1 text-sm font-medium text-[#ccc]">設定完成！</p>
       </div>
     </template>
 
@@ -54,13 +54,13 @@ watch(
     <template v-else>
       <!-- Header -->
       <div
-        class="flex items-center justify-between border-b border-gray-800 px-4 py-3"
+        class="flex items-center justify-between border-b border-[rgb(255_255_255/6%)] px-4 py-3"
       >
         <div>
-          <p class="text-sm font-medium text-gray-300">👋 快速設定</p>
+          <p class="text-sm font-medium text-[#ccc]">👋 快速設定</p>
         </div>
         <button
-          class="text-xs text-gray-600 hover:text-gray-400"
+          class="text-xs text-[#444] hover:text-[#888]"
           @click="emit('dismiss')"
         >
           跳過
@@ -73,19 +73,23 @@ watch(
           v-for="(step, idx) in steps"
           :key="step.id"
           class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all"
-          :class="step.completed.value ? 'opacity-60' : 'hover:bg-gray-800/60'"
+          :class="
+            step.completed.value
+              ? 'opacity-60'
+              : 'hover:bg-[rgb(255_255_255/4%)]'
+          "
           @click="handleClick(step)"
         >
           <!-- Icon -->
           <span
             v-if="step.completed.value"
-            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-xs text-green-400"
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-xs text-[#22c55e]"
           >
             ✓
           </span>
           <span
             v-else
-            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-500"
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#444] text-xs text-[#888]"
           >
             {{ idx + 1 }}
           </span>
@@ -94,9 +98,7 @@ watch(
           <span
             class="flex-1 text-sm"
             :class="
-              step.completed.value
-                ? 'text-gray-500 line-through'
-                : 'text-gray-300'
+              step.completed.value ? 'text-[#888] line-through' : 'text-[#ccc]'
             "
           >
             {{ step.label }}
@@ -109,21 +111,25 @@ watch(
               steps.findIndex((s) => !s.completed.value) === idx
             "
             name="i-lucide-arrow-right"
-            class="shrink-0 text-blue-400"
+            class="shrink-0 text-[#8b5cf6]"
             style="font-size: 0.85em"
           />
         </button>
       </div>
 
       <!-- Progress bar -->
-      <div class="flex items-center gap-2 border-t border-gray-800 px-4 py-2.5">
-        <div class="h-1 flex-1 overflow-hidden rounded-full bg-gray-800">
+      <div
+        class="flex items-center gap-2 border-t border-[rgb(255_255_255/6%)] px-4 py-2.5"
+      >
+        <div
+          class="h-1 flex-1 overflow-hidden rounded-full bg-[rgb(255_255_255/4%)]"
+        >
           <div
-            class="h-full rounded-full bg-blue-500 transition-all duration-500"
+            class="h-full rounded-full bg-[#8b5cf6] transition-all duration-500"
             :style="{ width: `${(completedCount / steps.length) * 100}%` }"
           ></div>
         </div>
-        <span class="text-xs text-gray-600 tabular-nums">
+        <span class="text-xs text-[#444] tabular-nums">
           {{ completedCount }}/{{ steps.length }}
         </span>
       </div>

@@ -25,19 +25,21 @@ const emit = defineEmits<{
             />
           </div>
           <div>
-            <h3 class="text-sm font-semibold text-gray-200">自動任務已中斷</h3>
-            <p class="text-xs text-gray-500">
+            <h3 class="text-sm font-semibold text-[#fafafa]">自動任務已中斷</h3>
+            <p class="text-xs text-[#888]">
               是否將 JIRA 狀態切回 Open？避免下次輪詢重複觸發
             </p>
           </div>
         </div>
 
-        <div class="mb-5 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+        <div
+          class="mb-5 rounded-lg border border-[rgb(255_255_255/8%)] bg-[rgb(255_255_255/4%)] p-3"
+        >
           <div class="flex flex-wrap gap-1.5">
             <span
               v-for="key in issueKeys"
               :key="key"
-              class="rounded bg-gray-700 px-2 py-0.5 font-mono text-xs text-gray-300"
+              class="rounded bg-[rgb(255_255_255/6%)] px-2 py-0.5 font-mono text-xs text-[#ccc]"
             >
               {{ key }}
             </span>
@@ -46,14 +48,14 @@ const emit = defineEmits<{
 
         <div class="flex justify-end gap-2">
           <button
-            class="rounded-md px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            class="rounded-md px-3 py-1.5 text-xs text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
             :disabled="transitioning"
             @click="emit('dismiss')"
           >
             不用，保持原狀態
           </button>
           <button
-            class="flex items-center gap-1.5 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-yellow-500 disabled:opacity-50"
+            class="flex items-center gap-1.5 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-[#fafafa] transition-colors hover:bg-yellow-500 disabled:opacity-50"
             :disabled="transitioning"
             @click="emit('confirm')"
           >

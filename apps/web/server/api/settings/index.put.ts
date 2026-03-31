@@ -7,6 +7,7 @@ const ALLOWED_KEYS = new Set<string>([
   'jira-creds-base-url',
   'jira-creds-email',
   'jira-creds-labels',
+  'slack.ai_notifications',
 ]);
 
 export default defineEventHandler(async (event) => {

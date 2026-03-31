@@ -39,7 +39,9 @@ const emit = defineEmits<{
 
 <template>
   <!-- Select all -->
-  <div class="flex items-center gap-3 border-b border-gray-800/60 px-4 py-1.5">
+  <div
+    class="flex items-center gap-3 border-b border-[rgb(255_255_255/4%)] px-4 py-1.5"
+  >
     <label
       class="flex cursor-pointer items-center gap-2 select-none"
       :class="{
@@ -51,11 +53,11 @@ const emit = defineEmits<{
         :indeterminate="indeterminate"
         @change="emit('toggleAll')"
       />
-      <span class="text-xs text-gray-500">全選</span>
+      <span class="text-xs text-[#888]">全選</span>
     </label>
     <span
       v-if="selectedCount"
-      class="ml-auto text-xs font-medium text-blue-400"
+      class="ml-auto text-xs font-medium text-[#8b5cf6]"
     >
       已選 {{ selectedCount }}
     </span>
@@ -68,8 +70,8 @@ const emit = defineEmits<{
       v-if="!jiraConfigured"
       class="flex flex-col items-center gap-3 p-6 text-center"
     >
-      <UIcon name="i-lucide-link" class="text-2xl text-gray-600" />
-      <p class="text-xs text-gray-500">尚未設定 JIRA 連線</p>
+      <UIcon name="i-lucide-link" class="text-2xl text-[#444]" />
+      <p class="text-xs text-[#888]">尚未設定 JIRA 連線</p>
       <UButton size="xs" variant="soft" @click="emit('openConfig')">
         前往設定
       </UButton>
@@ -79,17 +81,17 @@ const emit = defineEmits<{
       <div
         v-for="n in 5"
         :key="n"
-        class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+        class="h-12 animate-pulse rounded-lg bg-[rgb(255_255_255/4%)]"
       ></div>
     </div>
 
     <div v-else-if="loadError" class="p-4 text-center">
       <UIcon name="i-lucide-wifi-off" class="mb-2 text-xl text-red-500" />
-      <p class="mb-2 text-xs text-gray-500">{{ loadError }}</p>
+      <p class="mb-2 text-xs text-[#888]">{{ loadError }}</p>
       <UButton size="xs" @click="emit('loadIssues')">重試</UButton>
     </div>
 
-    <div v-else-if="issues.length === 0" class="p-6 text-center text-gray-600">
+    <div v-else-if="issues.length === 0" class="p-6 text-center text-[#444]">
       <UIcon name="i-lucide-inbox" class="mb-2 text-2xl" />
       <p class="text-xs">沒有待處理的 Issue</p>
     </div>
@@ -104,7 +106,7 @@ const emit = defineEmits<{
         :class="[
           isRunning
             ? 'cursor-default opacity-70'
-            : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
+            : 'cursor-pointer hover:-translate-y-px hover:border-[rgb(255_255_255/8%)] hover:bg-[rgb(255_255_255/4%)] hover:shadow-lg hover:shadow-black/20',
           selected.has(issue.key) ? 'border-blue-500/20 bg-blue-500/5' : '',
         ]"
         @click="emit('toggleIssue', issue.key)"
@@ -120,13 +122,13 @@ const emit = defineEmits<{
               :href="issue.url || jiraUrl(issue.key)!"
               target="_blank"
               rel="noopener"
-              class="shrink-0 font-mono text-sm font-semibold text-blue-400 underline-offset-2 hover:underline"
+              class="shrink-0 font-mono text-sm font-semibold text-[#8b5cf6] underline-offset-2 hover:underline"
               @click.stop
               >{{ issue.key }}</a
             >
             <span
               v-else
-              class="shrink-0 font-mono text-sm font-semibold text-blue-400"
+              class="shrink-0 font-mono text-sm font-semibold text-[#8b5cf6]"
               >{{ issue.key }}</span
             >
             <UBadge
@@ -137,7 +139,7 @@ const emit = defineEmits<{
               {{ issue.status }}
             </UBadge>
           </div>
-          <p class="mt-1 truncate text-sm leading-snug text-gray-400">
+          <p class="mt-1 truncate text-sm leading-snug text-[#888]">
             {{ issue.summary }}
           </p>
           <div
@@ -161,8 +163,11 @@ const emit = defineEmits<{
   </div>
 
   <!-- Analysis Result -->
-  <div v-if="analysing" class="shrink-0 border-t border-gray-800 px-3 py-2">
-    <div class="flex items-center gap-2 text-gray-400">
+  <div
+    v-if="analysing"
+    class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2"
+  >
+    <div class="flex items-center gap-2 text-[#888]">
       <UIcon name="i-lucide-loader-circle" class="h-4 w-4 animate-spin" />
       <span>分析中...</span>
     </div>
@@ -170,10 +175,10 @@ const emit = defineEmits<{
 
   <div
     v-if="analysisResult && !analysing"
-    class="shrink-0 space-y-3 border-t border-gray-800 px-3 py-2"
+    class="shrink-0 space-y-3 border-t border-[rgb(255_255_255/6%)] px-3 py-2"
   >
     <div class="flex items-center gap-2">
-      <span class="text-sm text-gray-400">复杂度：</span>
+      <span class="text-sm text-[#888]">复杂度：</span>
       <UBadge
         :color="
           analysisResult.complexity === 'simple'
@@ -187,20 +192,20 @@ const emit = defineEmits<{
       >
         {{ analysisResult.complexity }}
       </UBadge>
-      <span class="ml-2 text-sm text-gray-400">方式：</span>
+      <span class="ml-2 text-sm text-[#888]">方式：</span>
       <UBadge color="info" variant="soft" size="xs">
         {{ analysisResult.suggestedWorkflow }}
       </UBadge>
     </div>
 
-    <p class="text-sm text-gray-300">{{ analysisResult.summary }}</p>
+    <p class="text-sm text-[#ccc]">{{ analysisResult.summary }}</p>
 
     <div v-if="analysisResult.repos.length > 0" class="text-sm">
-      <span class="text-gray-400">Repos：</span>
+      <span class="text-[#888]">Repos：</span>
       <span
         v-for="r in analysisResult.repos"
         :key="r.path"
-        class="ml-1 text-gray-300"
+        class="ml-1 text-[#ccc]"
       >
         {{ r.path.split('/').pop() }}
         <span v-if="r.confidence === 'low'" class="text-yellow-500"
@@ -210,14 +215,17 @@ const emit = defineEmits<{
     </div>
 
     <!-- Missing Info Q&A -->
-    <div v-if="needsInput" class="space-y-2 border-t border-gray-700 pt-3">
+    <div
+      v-if="needsInput"
+      class="space-y-2 border-t border-[rgb(255_255_255/8%)] pt-3"
+    >
       <p class="text-sm font-medium text-yellow-400">需要确认：</p>
       <div
         v-for="(q, idx) in analysisResult.missingInfo"
         :key="idx"
         class="space-y-1"
       >
-        <p class="text-sm text-gray-300">{{ q }}</p>
+        <p class="text-sm text-[#ccc]">{{ q }}</p>
         <UInput
           :model-value="answers.find((a) => a.question === q)?.answer ?? ''"
           placeholder="回答..."
@@ -229,7 +237,10 @@ const emit = defineEmits<{
     </div>
 
     <!-- Proceed button -->
-    <div v-if="!needsInput" class="flex gap-2 border-t border-gray-700 pt-3">
+    <div
+      v-if="!needsInput"
+      class="flex gap-2 border-t border-[rgb(255_255_255/8%)] pt-3"
+    >
       <UButton size="sm" @click="emit('runWithAnalysis')"> 继续执行 </UButton>
       <UButton size="sm" variant="ghost" @click="emit('resetAnalysis')">
         取消
@@ -240,7 +251,7 @@ const emit = defineEmits<{
   <!-- Run button -->
   <div
     data-tour="run-button"
-    class="shrink-0 border-t border-gray-800 px-3 py-2"
+    class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2"
   >
     <UButton
       class="w-full justify-center"

@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const out = execSync(
-      `gh pr list --repo ${repo.githubRepo} --state open --json number,title,author,headRefOid,updatedAt,url --limit 50`,
+      `gh pr list --repo ${repo.githubRepo} --state open --draft=false --json number,title,author,headRefOid,updatedAt,url --limit 50`,
       { encoding: 'utf8', timeout: 15_000 },
     );
     rawPrs = JSON.parse(out);

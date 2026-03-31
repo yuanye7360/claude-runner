@@ -1,5 +1,6 @@
 // apps/web/server/utils/jobStore.ts
 import prisma from './prisma';
+import { recordSkillUsage } from './skillStats';
 
 export interface RunResult {
   issueKey: string;
@@ -38,6 +39,7 @@ export interface Job {
   events: JobEvent[];
   results: RunResult[];
   analysisResult?: unknown;
+  enabledSkills?: string[];
   kill?: () => void;
   subscribers: Set<(event: JobEvent) => void>;
 }
@@ -131,6 +133,12 @@ export function finishJob(
     persistJob(job).catch((error_) =>
       console.error('[jobStore] Failed to persist job to DB:', error_),
     );
+    // Record skill usage stats
+    if (job.enabledSkills && job.enabledSkills.length > 0) {
+      recordSkillUsage(job.enabledSkills, status === 'done').catch((error_) =>
+        console.error('[jobStore] Failed to record skill usage:', error_),
+      );
+    }
   }
 }
 
@@ -139,6 +147,18 @@ async function persistJob(job: Job) {
     .filter((e): e is { data: string; type: 'chunk' } => e.type === 'chunk')
     .map((e) => e.data)
     .join('');
+
+  // Collect phases per issue from phase events
+  const phasesByIssue = new Map<string, { label: string; phase: number }[]>();
+  for (const event of job.events) {
+    if (event.type === 'phase') {
+      const key = event.issueKey;
+      if (!phasesByIssue.has(key)) phasesByIssue.set(key, []);
+      const entry = phasesByIssue.get(key);
+      if (entry) entry.push({ phase: event.phase, label: event.label });
+    }
+  }
+
   await prisma.job.create({
     data: {
       id: job.id,
@@ -155,6 +175,7 @@ async function persistJob(job: Job) {
           output: r.output,
           error: r.error,
           prUrl: r.prUrl,
+          phases: phasesByIssue.get(r.issueKey) ?? null,
         })),
       },
     },

@@ -33,6 +33,7 @@ import {
 import { resolveReposFromLabels } from '../../utils/repo-mapping';
 import { resolveInjectTarget } from '../../utils/skill-inject';
 import { getProjectSkillsDir } from '../../utils/skills-dir';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 
 interface JiraIssue {
   key: string;
@@ -303,13 +304,36 @@ export default defineEventHandler(async (event) => {
     ? generateDynamicPhases(analysisResult)
     : fallbackPhases;
 
+  const slackChannel = await getSlackNotificationChannel();
+
+  // If work-on skill is enabled, delegate to it instead of hardcoded workflow
+  const hasWorkOn = 'work-on' in skills;
+
+  const workOnPrompt = (i: JiraIssue) =>
+    `Use the /work-on skill to implement the following JIRA issue.
+
+Jira Issue: ${i.key}
+Summary: ${i.summary ?? ''}
+Description: ${i.description ?? ''}
+${slackChannel ? `\nAfter the PR is created, send a NEW Slack message to channel ${slackChannel} using slack_send_message MCP tool:\n📋 PR 請求\n#<PR_NUMBER> [${i.key}] <PR_TITLE>\n• 變更：<FILE_COUNT> 檔案\n• 影響範圍：<BRIEF_SCOPE>\n請幫忙 review 🙏\nIf MCP tools are not available, skip Slack silently.` : ''}
+
+IMPORTANT: This is a fully automated pipeline. Do NOT ask the user any questions or wait for confirmation at any step. Make all decisions autonomously and proceed to completion.
+When the PR is created, also print the PR URL on its own line prefixed exactly with "PR: ".`.trim();
+
   const fallbackPrompt =
     mode === 'smart'
-      ? (i: JiraIssue) => PROMPT_SMART(i, skills, injectMap)
-      : (i: JiraIssue) => PROMPT_NORMAL(i, skills, injectMap);
-  const buildPrompt = analysisResult
-    ? (i: JiraIssue) => buildDynamicPrompt(i, skills, analysisResult, injectMap)
-    : fallbackPrompt;
+      ? (i: JiraIssue) => PROMPT_SMART(i, skills, injectMap, slackChannel)
+      : (i: JiraIssue) => PROMPT_NORMAL(i, skills, injectMap, slackChannel);
+
+  let buildPrompt: (i: JiraIssue) => string;
+  if (hasWorkOn) {
+    buildPrompt = workOnPrompt;
+  } else if (analysisResult) {
+    buildPrompt = (i: JiraIssue) =>
+      buildDynamicPrompt(i, skills, analysisResult, injectMap);
+  } else {
+    buildPrompt = fallbackPrompt;
+  }
 
   // When multiple repos, expand issues per repo so frontend can display them separately
   const isMultiRepo = repoCwds.length > 1;
@@ -325,6 +349,7 @@ export default defineEventHandler(async (event) => {
 
   const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const job = createJob(jobId, jobIssues, 'claude-runner', trigger);
+  job.enabledSkills = enabledSkills ?? DEFAULT_SKILLS;
 
   if (analysisResult) {
     job.analysisResult = analysisResult;

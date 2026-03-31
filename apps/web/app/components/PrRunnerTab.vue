@@ -22,13 +22,13 @@ defineExpose({
   <div class="flex flex-1 overflow-hidden">
     <!-- Left: PR list (full height) -->
     <div
-      class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-gray-800"
+      class="flex w-96 shrink-0 flex-col overflow-hidden border-r border-[rgb(255_255_255/6%)]"
     >
       <!-- Header -->
       <div
-        class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-800 px-4"
+        class="flex h-11 shrink-0 items-center gap-2 border-b border-[rgb(255_255_255/6%)] px-4"
       >
-        <span class="text-sm font-medium text-gray-300">PR Reviews</span>
+        <span class="text-sm font-medium text-[#ccc]">PR Reviews</span>
         <span
           v-if="
             !prRunner.loading.value &&
@@ -37,7 +37,7 @@ defineExpose({
               0,
             ) > 0
           "
-          class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400"
+          class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-[#22c55e]"
         >
           {{
             prRunner.filteredGroups.value.reduce((a, g) => a + g.prs.length, 0)
@@ -45,7 +45,7 @@ defineExpose({
         </span>
         <div class="ml-auto flex items-center gap-1">
           <button
-            class="flex items-center rounded px-1.5 py-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
+            class="flex items-center rounded px-1.5 py-1 text-[#888] transition-colors hover:bg-[rgb(255_255_255/4%)] hover:text-[#ccc]"
             :class="{
               'pointer-events-none opacity-50': prRunner.loading.value,
             }"
@@ -63,9 +63,9 @@ defineExpose({
       <!-- Selection count -->
       <div
         v-if="prRunner.selectedCount.value"
-        class="shrink-0 border-b border-gray-800/60 px-4 py-1.5"
+        class="shrink-0 border-b border-[rgb(255_255_255/6%)]/60 px-4 py-1.5"
       >
-        <span class="text-xs font-medium text-green-400">
+        <span class="text-xs font-medium text-[#22c55e]">
           已選 {{ prRunner.selectedCount.value }}
         </span>
       </div>
@@ -76,13 +76,13 @@ defineExpose({
           <div
             v-for="n in 5"
             :key="n"
-            class="h-12 animate-pulse rounded-lg bg-gray-800/50"
+            class="h-12 animate-pulse rounded-lg bg-[rgb(255_255_255/4%)]"
           ></div>
         </div>
 
         <div v-else-if="prRunner.loadError.value" class="p-4 text-center">
           <UIcon name="i-lucide-wifi-off" class="mb-2 text-xl text-red-500" />
-          <p class="mb-2 text-xs text-gray-500">
+          <p class="mb-2 text-xs text-[#888]">
             {{ prRunner.loadError.value }}
           </p>
           <UButton size="xs" @click="prRunner.loadPRs()">重試</UButton>
@@ -90,7 +90,7 @@ defineExpose({
 
         <div
           v-else-if="prRunner.filteredGroups.value.length === 0"
-          class="p-6 text-center text-gray-600"
+          class="p-6 text-center text-[#444]"
         >
           <UIcon name="i-lucide-git-pull-request" class="mb-2 text-2xl" />
           <p class="text-xs">沒有待處理的 PR</p>
@@ -104,7 +104,7 @@ defineExpose({
           >
             <!-- Repo group header -->
             <button
-              class="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-800/50"
+              class="flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-[rgb(255_255_255/4%)]"
               @click="prRunner.toggleRepoCollapse(group.repo)"
             >
               <UIcon
@@ -113,16 +113,16 @@ defineExpose({
                     ? 'i-lucide-chevron-right'
                     : 'i-lucide-chevron-down'
                 "
-                class="shrink-0 text-sm text-gray-500 transition-transform duration-150"
+                class="shrink-0 text-sm text-[#888] transition-transform duration-150"
               />
-              <span class="truncate text-xs font-medium text-gray-300">
+              <span class="truncate text-xs font-medium text-[#ccc]">
                 {{ group.repo.split('/')[1] || group.repo }}
               </span>
-              <span class="truncate text-xs text-gray-600">
+              <span class="truncate text-xs text-[#444]">
                 {{ group.repo.split('/')[0] }}
               </span>
               <span
-                class="ml-auto rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-500 tabular-nums"
+                class="ml-auto rounded-full bg-[rgb(255_255_255/4%)] px-2 py-0.5 text-xs text-[#888] tabular-nums"
               >
                 {{ group.prs.length }}
               </span>
@@ -131,7 +131,7 @@ defineExpose({
             <!-- PR items (indented) -->
             <div
               v-show="!prRunner.collapsedRepos.value.has(group.repo)"
-              class="ml-3 space-y-1 border-l border-gray-800/60 pt-1 pl-2"
+              class="ml-3 space-y-1 border-l border-[rgb(255_255_255/6%)]/60 pt-1 pl-2"
             >
               <div
                 v-for="prItem in group.prs"
@@ -142,7 +142,7 @@ defineExpose({
                 :class="[
                   prRunner.pr.isRunning.value
                     ? 'cursor-default opacity-70'
-                    : 'cursor-pointer hover:-translate-y-px hover:border-gray-700/50 hover:bg-gray-800/60 hover:shadow-lg hover:shadow-black/20',
+                    : 'cursor-pointer hover:-translate-y-px hover:border-[rgb(255_255_255/8%)] hover:bg-[rgb(255_255_255/4%)] hover:shadow-lg hover:shadow-black/20',
                   prRunner.selected.value.has(
                     prRunner.prKey(group.repo, prItem.number),
                   )
@@ -165,7 +165,7 @@ defineExpose({
                       :href="prItem.html_url"
                       target="_blank"
                       rel="noopener"
-                      class="shrink-0 font-mono text-sm font-semibold text-green-400 underline-offset-2 hover:underline"
+                      class="shrink-0 font-mono text-sm font-semibold text-[#22c55e] underline-offset-2 hover:underline"
                       @click.stop
                       >#{{ prItem.number }}</a
                     >
@@ -186,7 +186,7 @@ defineExpose({
                       from JIRA
                     </UBadge>
                   </div>
-                  <p class="mt-1 truncate text-sm leading-snug text-gray-400">
+                  <p class="mt-1 truncate text-sm leading-snug text-[#888]">
                     {{ prItem.title }}
                   </p>
                 </div>
@@ -197,7 +197,7 @@ defineExpose({
       </div>
 
       <!-- Run button (pinned to bottom) -->
-      <div class="shrink-0 border-t border-gray-800 px-3 py-2">
+      <div class="shrink-0 border-t border-[rgb(255_255_255/6%)] px-3 py-2">
         <UButton
           class="w-full justify-center"
           size="sm"
@@ -225,20 +225,22 @@ defineExpose({
     <!-- Right: PR detail panel -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Tab bar -->
-      <div class="flex shrink-0 items-center border-b border-gray-800 px-1">
+      <div
+        class="flex shrink-0 items-center border-b border-[rgb(255_255_255/6%)] px-1"
+      >
         <button
           class="-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
             prRunner.rightTab.value === 'progress'
-              ? 'border-primary-500 font-medium text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-300'
+              ? 'border-primary-500 font-medium text-[#fafafa]'
+              : 'border-transparent text-[#888] hover:text-[#ccc]'
           "
           @click="prRunner.rightTab.value = 'progress'"
         >
           <UIcon
             v-if="prRunner.pr.isRunning.value"
             name="i-lucide-loader-circle"
-            class="text-primary-400 animate-spin"
+            class="animate-spin text-[#8b5cf6]"
             style="font-size: 0.8em"
           />
           執行過程
@@ -247,15 +249,15 @@ defineExpose({
           class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors"
           :class="
             prRunner.rightTab.value === 'history'
-              ? 'border-primary-500 font-medium text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-300'
+              ? 'border-primary-500 font-medium text-[#fafafa]'
+              : 'border-transparent text-[#888] hover:text-[#ccc]'
           "
           @click="prRunner.rightTab.value = 'history'"
         >
           執行紀錄
           <span
             v-if="prRunner.history.value.length > 0"
-            class="rounded-full bg-gray-700 px-1.5 py-0.5 text-xs leading-none text-gray-400"
+            class="rounded-full bg-[#444] px-1.5 py-0.5 text-xs leading-none text-[#888]"
           >
             {{ prRunner.history.value.length }}
           </span>
@@ -272,6 +274,7 @@ defineExpose({
         :elapsed="prRunner.pr.elapsed.value"
         :expanded="prRunner.rowExpanded.value"
         :get-item-url="prRunner.getPrUrl"
+        :hide-results="prRunner.rightTab.value === 'progress'"
         @update:expanded="prRunner.rowExpanded.value = $event"
         @cancel="prRunner.pr.cancelJob"
       />
@@ -285,14 +288,14 @@ defineExpose({
         />
         <div
           v-else
-          class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-700 select-none"
+          class="flex flex-1 flex-col items-center justify-center gap-3 text-[#444] select-none"
         >
           <UIcon name="i-lucide-git-pull-request" class="text-5xl" />
           <div class="text-center">
-            <p class="font-medium text-gray-600">
+            <p class="font-medium text-[#444]">
               從左側選擇 PR，開始自動修復 Review
             </p>
-            <p class="mt-1 text-xs text-gray-600">
+            <p class="mt-1 text-xs text-[#444]">
               Claude 會自動分析 Review 意見、修復程式碼並 Push
             </p>
           </div>
