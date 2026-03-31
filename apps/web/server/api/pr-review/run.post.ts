@@ -77,10 +77,11 @@ function buildPrompt(
 ## After Review: Slack Notification
 After completing the review, reply to the original PR request message in Slack.
 
-**Step 1: Find the original message**
+**Step 1: Find the original PR request message**
 Use slack_read_channel to read recent messages from channel ${slackChannel}.
-Look for a message containing "#${prNumber}" or the PR URL "/${repo}/pull/${prNumber}".
-Extract the message's timestamp (ts) — this is the thread_ts you need.
+Look for messages containing "#${prNumber}" or the PR URL "/${repo}/pull/${prNumber}".
+If multiple messages match, pick the **earliest one** (smallest ts value) — that's the original PR request.
+Extract that message's timestamp (ts) — this is the thread_ts you need.
 
 **Step 2: Reply in thread**
 Use slack_send_message with these parameters:
