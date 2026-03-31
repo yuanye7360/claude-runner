@@ -6,7 +6,6 @@ import process from 'node:process';
 import pLimit from 'p-limit';
 
 import { resolveClaudeCliPath } from '../../utils/claude-cli';
-import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 import { spawnClaude } from '../../utils/claude-spawn';
 import {
   createJob,
@@ -16,6 +15,9 @@ import {
 } from '../../utils/jobStore';
 import prisma from '../../utils/prisma';
 import { getRepoByLabel } from '../../utils/repo-mapping';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
+
+let _slackChannel: null | string = null;
 
 interface PrMeta {
   number: number;
@@ -64,8 +66,7 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
   return currentPhase;
 }
 
-function buildPrompt(repo: string, prNumber: number): string {
-  const slackChannel = getSlackNotificationChannel();
+function buildPrompt(repo: string, prNumber: number, slackChannel: string): string {
   const slackStep = slackChannel
     ? `
 
@@ -146,7 +147,10 @@ async function reviewOnePr(
 
   try {
     let currentPhase = 1;
-    const prompt = buildPrompt(ghRepo, pr.number);
+    if (_slackChannel === null) {
+      _slackChannel = await getSlackNotificationChannel();
+    }
+    const prompt = buildPrompt(ghRepo, pr.number, _slackChannel);
 
     const output = await new Promise<{ ok: boolean; text: string }>(
       (resolve) => {

@@ -12,6 +12,10 @@ const props = defineProps<{
   successCount: number;
 }>();
 
+const emit = defineEmits<{
+  cancel: [];
+  'update:expanded': [value: boolean];
+}>();
 // If all phases are done but status is still 'running', treat as finishing
 const allPhasesDone = computed(() => {
   const phases = Object.values(props.activeJob.phasesByIssue).flat();
@@ -20,11 +24,6 @@ const allPhasesDone = computed(() => {
 const effectivelyRunning = computed(
   () => props.isRunning && !allPhasesDone.value,
 );
-
-const emit = defineEmits<{
-  cancel: [];
-  'update:expanded': [value: boolean];
-}>();
 
 const idleLabel = computed(() => {
   const secs = props.idleSecs ?? 0;

@@ -158,7 +158,9 @@ function toggleRawLog(key: string) {
         <!-- Issue key + summary -->
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
-            <span class="shrink-0 font-mono text-sm font-semibold text-[#fafafa]">
+            <span
+              class="shrink-0 font-mono text-sm font-semibold text-[#fafafa]"
+            >
               {{ entry.key }}
             </span>
             <span
@@ -167,10 +169,17 @@ function toggleRawLog(key: string) {
             >
               {{ entry.currentPhase.label }}
             </span>
-            <span v-else-if="entry.isQueued" class="text-xs text-[#555]">排隊中</span>
-            <span v-else-if="entry.allDone" class="text-xs text-[#22c55e]">完成</span>
+            <span v-else-if="entry.isQueued" class="text-xs text-[#555]"
+              >排隊中</span
+            >
+            <span v-else-if="entry.allDone" class="text-xs text-[#22c55e]"
+              >完成</span
+            >
           </div>
-          <p v-if="entry.summary" class="mt-0.5 truncate text-[11px] text-[#555]">
+          <p
+            v-if="entry.summary"
+            class="mt-0.5 truncate text-[11px] text-[#555]"
+          >
             {{ entry.summary }}
           </p>
         </div>
@@ -207,7 +216,7 @@ function toggleRawLog(key: string) {
         <div class="relative pl-7">
           <!-- Vertical line -->
           <div
-            class="absolute left-[9px] top-2 bottom-2 w-px"
+            class="absolute top-2 bottom-2 left-[9px] w-px"
             style="background: rgb(255 255 255 / 6%)"
           ></div>
 
@@ -218,15 +227,23 @@ function toggleRawLog(key: string) {
           >
             <!-- Status dot -->
             <div
-              class="absolute -left-7 top-[3px] flex h-[18px] w-[18px] items-center justify-center rounded-full"
+              class="absolute top-[3px] -left-7 flex h-[18px] w-[18px] items-center justify-center rounded-full"
               :class="{
                 'bg-[rgb(34_197_94/10%)]': p.status === 'done',
                 'bg-[rgb(139_92_246/15%)]': p.status === 'running',
                 'bg-[rgb(255_255_255/4%)]': p.status === 'pending',
               }"
             >
-              <span v-if="p.status === 'done'" class="text-[10px] text-[#22c55e]">✓</span>
-              <span v-else-if="p.status === 'running'" class="text-[10px] text-[#8b5cf6] animate-pulse">●</span>
+              <span
+                v-if="p.status === 'done'"
+                class="text-[10px] text-[#22c55e]"
+                >✓</span
+              >
+              <span
+                v-else-if="p.status === 'running'"
+                class="animate-pulse text-[10px] text-[#8b5cf6]"
+                >●</span
+              >
               <span v-else class="text-[10px] text-[#444]">○</span>
             </div>
 
@@ -239,7 +256,10 @@ function toggleRawLog(key: string) {
                 'border-[rgb(255_255_255/4%)]': p.status === 'pending',
               }"
               :style="{
-                background: p.status === 'running' ? 'rgb(139 92 246 / 3%)' : 'rgb(255 255 255 / 1%)',
+                background:
+                  p.status === 'running'
+                    ? 'rgb(139 92 246 / 3%)'
+                    : 'rgb(255 255 255 / 1%)',
               }"
             >
               <div class="flex items-center gap-2">
@@ -256,12 +276,21 @@ function toggleRawLog(key: string) {
                 <span
                   class="rounded px-1.5 py-0.5 text-[9px]"
                   :class="{
-                    'bg-[rgb(34_197_94/8%)] text-[#22c55e]': p.status === 'done',
-                    'bg-[rgb(139_92_246/10%)] text-[#8b5cf6]': p.status === 'running',
-                    'bg-[rgb(255_255_255/4%)] text-[#444]': p.status === 'pending',
+                    'bg-[rgb(34_197_94/8%)] text-[#22c55e]':
+                      p.status === 'done',
+                    'bg-[rgb(139_92_246/10%)] text-[#8b5cf6]':
+                      p.status === 'running',
+                    'bg-[rgb(255_255_255/4%)] text-[#444]':
+                      p.status === 'pending',
                   }"
                 >
-                  {{ p.status === 'done' ? 'done' : p.status === 'running' ? 'running...' : 'pending' }}
+                  {{
+                    p.status === 'done'
+                      ? 'done'
+                      : p.status === 'running'
+                        ? 'running...'
+                        : 'pending'
+                  }}
                 </span>
               </div>
             </div>
@@ -277,12 +306,15 @@ function toggleRawLog(key: string) {
           <div class="mb-2 flex items-center gap-2 text-[10px] text-[#8b5cf6]">
             <UIcon name="i-lucide-terminal" class="text-[10px]" />
             <span class="font-medium">即時輸出</span>
-            <div class="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-[#8b5cf6]"></div>
+            <div
+              class="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-[#8b5cf6]"
+            ></div>
           </div>
           <pre
             :ref="(el) => setLogRef(entry.key, el as HTMLElement)"
             class="max-h-48 overflow-y-auto font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap text-[#888]"
-          >{{ stripAnsi(entry.output.slice(-2000)) }}</pre>
+            >{{ stripAnsi(entry.output.slice(-2000)) }}</pre
+          >
         </div>
 
         <!-- Completed: show raw log toggle -->
@@ -303,7 +335,8 @@ function toggleRawLog(key: string) {
             v-if="showRawLog.has(entry.key)"
             class="mt-2 max-h-60 overflow-y-auto rounded-lg p-3 font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap text-[#666]"
             style="background: rgb(0 0 0 / 30%)"
-          >{{ stripAnsi(entry.output) }}</pre>
+            >{{ stripAnsi(entry.output) }}</pre
+          >
         </div>
       </div>
     </div>

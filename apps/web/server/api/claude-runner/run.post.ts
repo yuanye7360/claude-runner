@@ -24,6 +24,7 @@ import {
   PROMPT_SMART,
 } from '../../utils/claude-runner.config';
 import { spawnClaude } from '../../utils/claude-spawn';
+import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 import {
   createJob,
   finishJob,
@@ -303,10 +304,12 @@ export default defineEventHandler(async (event) => {
     ? generateDynamicPhases(analysisResult)
     : fallbackPhases;
 
+  const slackChannel = await getSlackNotificationChannel();
+
   const fallbackPrompt =
     mode === 'smart'
-      ? (i: JiraIssue) => PROMPT_SMART(i, skills, injectMap)
-      : (i: JiraIssue) => PROMPT_NORMAL(i, skills, injectMap);
+      ? (i: JiraIssue) => PROMPT_SMART(i, skills, injectMap, slackChannel)
+      : (i: JiraIssue) => PROMPT_NORMAL(i, skills, injectMap, slackChannel);
   const buildPrompt = analysisResult
     ? (i: JiraIssue) => buildDynamicPrompt(i, skills, analysisResult, injectMap)
     : fallbackPrompt;

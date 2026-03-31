@@ -5,7 +5,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { AnalysisResult } from './task-analyzer';
-import { getSlackNotificationChannel } from './workspaceConfig';
 
 export interface JiraIssue {
   key: string;
@@ -106,6 +105,7 @@ function buildWorkflow(
   skills: SkillContentMap,
   smartMode: boolean,
   injectMap: SkillInjectMap = {},
+  slackChannel = '',
 ): string {
   const steps: string[] = [];
   let n = 1;
@@ -180,8 +180,7 @@ function buildWorkflow(
     n++;
   }
 
-  // Step: Slack notification (read channel from Polaris workspace config)
-  const slackChannel = getSlackNotificationChannel();
+  // Step: Slack notification
   if (slackChannel) {
     steps.push(
       `${n}. **Send Slack notification**
@@ -216,13 +215,15 @@ export const PROMPT_NORMAL = (
   issue: JiraIssue,
   skills: SkillContentMap,
   injectMap: SkillInjectMap = {},
-) => buildWorkflow(issue, skills, false, injectMap);
+  slackChannel = '',
+) => buildWorkflow(issue, skills, false, injectMap, slackChannel);
 
 export const PROMPT_SMART = (
   issue: JiraIssue,
   skills: SkillContentMap,
   injectMap: SkillInjectMap = {},
-) => buildWorkflow(issue, skills, true, injectMap);
+  slackChannel = '',
+) => buildWorkflow(issue, skills, true, injectMap, slackChannel);
 
 // ─── Dynamic Prompt Builders (based on Task Analyzer result) ────────────────
 
