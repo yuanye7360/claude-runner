@@ -19,3 +19,8 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function getSlackNotificationChannel(): Promise<string> {
   return getSetting('slack.ai_notifications');
 }
+
+/** Get the Slack channel ID for PR Inbox */
+export async function getPrInboxChannel(): Promise<string> {
+  return getSetting('pr_inbox.slack_channel');
+}
