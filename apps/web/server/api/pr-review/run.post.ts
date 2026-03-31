@@ -70,7 +70,22 @@ function buildPrompt(repo: string, prNumber: number): string {
 Repo: ${repo}
 PR #${prNumber}
 
-Review the PR code and leave your findings as inline comments and a summary comment on GitHub.`.trim();
+Review the PR code and leave your findings as inline comments and a summary comment on GitHub.
+
+## After Review: Slack Notification
+After completing the review, send a notification to Slack (channel ID: C08NJ2GL204) using the slack_send_message MCP tool.
+Format the message as:
+📋 PR Review 完成
+#${prNumber} <PR_TITLE>
+✅ 結果：<APPROVE or REQUEST_CHANGES>
+• must-fix：<COUNT> 個
+• should-fix：<COUNT> 個
+• nit：<COUNT> 個
+
+<ONE_LINE_SUMMARY>
+@<PR_AUTHOR> LGTM 👍 (or: 請查看 review comments)
+
+If the MCP tool is not available, skip this step silently.`.trim();
 }
 
 function fetchPrMeta(prNumber: number, ghRepo: string): PrMeta {
