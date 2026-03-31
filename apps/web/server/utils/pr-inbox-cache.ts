@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 
 import { resolveClaudeCliPath } from './claude-cli';
@@ -86,9 +86,10 @@ export async function refreshSlackCache(): Promise<null | SlackCache> {
     delete env.CLAUDECODE;
     delete env.CLAUDE_CODE_ENTRYPOINT;
 
-    const stdout = execSync(
-      `${cliPath} --dangerously-skip-permissions -p ${JSON.stringify(prompt)}`,
-      { encoding: 'utf8', timeout: 60_000, env, cwd: process.cwd() },
+    const stdout = execFileSync(
+      cliPath,
+      ['--dangerously-skip-permissions', '-p', prompt],
+      { encoding: 'utf8', timeout: 120_000, env, cwd: process.cwd() },
     );
 
     const messages = parseSlackMessages(stdout);
