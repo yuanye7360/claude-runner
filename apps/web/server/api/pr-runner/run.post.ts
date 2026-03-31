@@ -10,6 +10,7 @@ import {
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
+import { loadSkill } from '../../utils/load-skill';
 import { getAllRepos } from '../../utils/repo-mapping';
 
 interface PRItem {
@@ -41,9 +42,9 @@ function detectPhaseTransition(text: string, currentPhase: number): number {
 }
 
 function buildPrompt(pr: PRItem, reviewComments: string): string {
-  return `Use the /pr-review-fixer skill to handle the following PR review comments.
+  const skillContent = loadSkill('fix-pr-review');
 
-## PR Info
+  const prInfo = `## PR Info
 Repo: ${pr.repo}
 PR #${pr.number}: ${pr.title}
 Branch: ${pr.branch}
@@ -51,7 +52,13 @@ Branch: ${pr.branch}
 ## Review comments
 ${reviewComments}
 
-完成后打印 "PR_FIXED: #${pr.number}"`.trim();
+完成后打印 "PR_FIXED: #${pr.number}"`;
+
+  if (skillContent) {
+    return `${skillContent}\n\n${prInfo}`.trim();
+  }
+
+  return `Use the /pr-review-fixer skill to handle the following PR review comments.\n\n${prInfo}`.trim();
 }
 
 async function resolveBranch(pr: PRItem): Promise<string> {

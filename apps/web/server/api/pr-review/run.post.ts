@@ -14,6 +14,7 @@ import {
   pushPhase,
 } from '../../utils/jobStore';
 import prisma from '../../utils/prisma';
+import { loadSkill } from '../../utils/load-skill';
 import { getRepoByLabel } from '../../utils/repo-mapping';
 import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 
@@ -102,6 +103,17 @@ Use slack_send_message with these parameters:
 **If no matching message found, skip this step entirely — do NOT send a new message.**
 **If MCP tools are not available**, skip this step silently.`
     : '';
+
+  const skillContent = loadSkill('pr-reviewer');
+  if (skillContent) {
+    return `${skillContent}
+
+## PR Info
+Repo: ${repo}
+PR #${prNumber}
+
+Review the PR code and leave your findings as inline comments and a summary comment on GitHub.${slackStep}`.trim();
+  }
 
   return `Use the /pr-reviewer skill to review the following PR.
 
