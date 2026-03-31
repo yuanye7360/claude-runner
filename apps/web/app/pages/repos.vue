@@ -104,10 +104,16 @@ async function onDelete(id: string) {
 <template>
   <div class="flex flex-1 flex-col overflow-auto">
     <!-- Tabs -->
-    <div class="flex shrink-0 gap-4 border-b border-[rgb(255_255_255/6%)] px-6 pt-4">
+    <div
+      class="flex shrink-0 gap-4 border-b border-[rgb(255_255_255/6%)] px-6 pt-4"
+    >
       <button
         class="interactive border-b-2 pb-2 text-sm font-medium transition-colors"
-        :class="activeTab === 'repos' ? 'border-[#8b5cf6] text-[#fafafa]' : 'border-transparent text-[#555] hover:text-[#888]'"
+        :class="
+          activeTab === 'repos'
+            ? 'border-[#8b5cf6] text-[#fafafa]'
+            : 'border-transparent text-[#555] hover:text-[#888]'
+        "
         @click="activeTab = 'repos'"
       >
         <UIcon name="i-lucide-folder-git-2" class="mr-1.5" />
@@ -115,7 +121,11 @@ async function onDelete(id: string) {
       </button>
       <button
         class="interactive border-b-2 pb-2 text-sm font-medium transition-colors"
-        :class="activeTab === 'integrations' ? 'border-[#06b6d4] text-[#fafafa]' : 'border-transparent text-[#555] hover:text-[#888]'"
+        :class="
+          activeTab === 'integrations'
+            ? 'border-[#06b6d4] text-[#fafafa]'
+            : 'border-transparent text-[#555] hover:text-[#888]'
+        "
         @click="activeTab = 'integrations'"
       >
         <UIcon name="i-lucide-plug" class="mr-1.5" />
@@ -131,43 +141,56 @@ async function onDelete(id: string) {
         <p class="mb-6 text-sm text-[#555]">配置外部服務連接</p>
 
         <!-- Slack -->
-        <div class="rounded-lg border p-5" style="background: rgb(255 255 255 / 2%); border-color: rgb(255 255 255 / 6%)">
+        <div
+          class="rounded-lg border p-5"
+          style="
+            background: rgb(255 255 255 / 2%);
+            border-color: rgb(255 255 255 / 6%);
+          "
+        >
           <div class="mb-4 flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgb(6 182 212 / 8%)">
-              <UIcon name="i-simple-icons-slack" class="text-lg text-[#06b6d4]" />
+            <div
+              class="flex h-9 w-9 items-center justify-center rounded-lg"
+              style="background: rgb(6 182 212 / 8%)"
+            >
+              <UIcon
+                name="i-simple-icons-slack"
+                class="text-lg text-[#06b6d4]"
+              />
             </div>
             <div>
               <h2 class="text-sm font-semibold text-[#fafafa]">Slack</h2>
-              <p class="text-[11px] text-[#555]">Job 完成後自動發送通知到 Slack channel</p>
+              <p class="text-[11px] text-[#555]">
+                Job 完成後自動發送通知到 Slack channel
+              </p>
             </div>
           </div>
 
-          <div v-if="settingsLoading" class="py-4 text-center text-xs text-[#444]">載入中...</div>
+          <div
+            v-if="settingsLoading"
+            class="py-4 text-center text-xs text-[#444]"
+          >
+            載入中...
+          </div>
           <div v-else class="space-y-3">
             <div>
-              <label class="mb-1 block text-xs text-[#888]">AI Notifications Channel ID</label>
+              <label class="mb-1 block text-xs text-[#888]"
+                >AI Notifications Channel ID</label
+              >
               <div class="flex gap-2">
                 <input
                   v-model="settings['slack.ai_notifications']"
                   placeholder="C08NJ2GL204"
                   class="flex-1 rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
-                  style="background: rgb(0 0 0 / 30%); border-color: rgb(255 255 255 / 8%)"
+                  style="
+                    background: rgb(0 0 0 / 30%);
+                    border-color: rgb(255 255 255 / 8%);
+                  "
                 />
               </div>
-              <p class="mt-1 text-[10px] text-[#444]">PR 請求和 Review 完成通知會發到這個 channel。留空則不發送。</p>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-xs text-[#888]">PR Review Channel ID</label>
-              <div class="flex gap-2">
-                <input
-                  v-model="settings['slack.pr_review']"
-                  placeholder=""
-                  class="flex-1 rounded-md border px-3 py-2 font-mono text-sm text-[#ccc] placeholder-[#333] outline-none"
-                  style="background: rgb(0 0 0 / 30%); border-color: rgb(255 255 255 / 8%)"
-                />
-              </div>
-              <p class="mt-1 text-[10px] text-[#444]">（可選）PR review 相關通知的專用 channel</p>
+              <p class="mt-1 text-[10px] text-[#444]">
+                PR 請求和 Review 完成通知會發到這個 channel。留空則不發送。
+              </p>
             </div>
 
             <button
@@ -181,16 +204,33 @@ async function onDelete(id: string) {
         </div>
 
         <!-- JIRA (placeholder for future) -->
-        <div class="mt-4 rounded-lg border p-5" style="background: rgb(255 255 255 / 2%); border-color: rgb(255 255 255 / 6%)">
+        <div
+          class="mt-4 rounded-lg border p-5"
+          style="
+            background: rgb(255 255 255 / 2%);
+            border-color: rgb(255 255 255 / 6%);
+          "
+        >
           <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgb(139 92 246 / 8%)">
-              <UIcon name="i-simple-icons-jira" class="text-lg text-[#8b5cf6]" />
+            <div
+              class="flex h-9 w-9 items-center justify-center rounded-lg"
+              style="background: rgb(139 92 246 / 8%)"
+            >
+              <UIcon
+                name="i-simple-icons-jira"
+                class="text-lg text-[#8b5cf6]"
+              />
             </div>
             <div>
               <h2 class="text-sm font-semibold text-[#fafafa]">JIRA</h2>
-              <p class="text-[11px] text-[#555]">JIRA 連接由左側「JIRA Runner」頁面的 Config 面板管理</p>
+              <p class="text-[11px] text-[#555]">
+                JIRA 連接由左側「JIRA Runner」頁面的 Config 面板管理
+              </p>
             </div>
-            <NuxtLink to="/jira-runner" class="ml-auto text-xs text-[#8b5cf6] hover:underline">
+            <NuxtLink
+              to="/jira-runner"
+              class="ml-auto text-xs text-[#8b5cf6] hover:underline"
+            >
               前往設定 →
             </NuxtLink>
           </div>
