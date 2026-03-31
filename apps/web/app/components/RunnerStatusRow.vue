@@ -7,6 +7,7 @@ const props = defineProps<{
   errorCount: number;
   expanded: boolean;
   getItemUrl?: (key: string) => null | string;
+  hideResults?: boolean;
   idleSecs?: number;
   isRunning: boolean;
   successCount: number;
@@ -165,8 +166,8 @@ function toggleResult(key: string) {
       v-if="expanded"
       class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]"
     >
-      <!-- Completed results: collapsible per task -->
-      <template v-if="!effectivelyRunning && activeJob.results.length > 0">
+      <!-- Completed results: collapsible per task (hidden when progress panel shows phases) -->
+      <template v-if="!hideResults && !effectivelyRunning && activeJob.results.length > 0">
         <div
           v-for="r in activeJob.results"
           :key="r.issueKey"

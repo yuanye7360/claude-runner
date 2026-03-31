@@ -364,6 +364,7 @@ async function handleSendToSlack() {
         :error-count="prReviewer.reviewer.errorCount.value"
         :elapsed="prReviewer.reviewer.elapsed.value"
         :expanded="true"
+        :hide-results="prReviewer.rightTab.value === 'progress'"
         @cancel="prReviewer.reviewer.cancelJob"
       />
 

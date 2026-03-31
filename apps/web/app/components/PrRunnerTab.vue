@@ -274,6 +274,7 @@ defineExpose({
         :elapsed="prRunner.pr.elapsed.value"
         :expanded="prRunner.rowExpanded.value"
         :get-item-url="prRunner.getPrUrl"
+        :hide-results="prRunner.rightTab.value === 'progress'"
         @update:expanded="prRunner.rowExpanded.value = $event"
         @cancel="prRunner.pr.cancelJob"
       />

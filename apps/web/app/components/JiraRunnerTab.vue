@@ -245,6 +245,7 @@ defineExpose({
         :elapsed="jira.cr.elapsed.value"
         :expanded="jira.rowExpanded.value"
         :get-item-url="jira.jiraUrl"
+        :hide-results="jira.rightTab.value === 'progress'"
         @update:expanded="jira.rowExpanded.value = $event"
         @cancel="handleCancel"
       />
