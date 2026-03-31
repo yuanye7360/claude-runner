@@ -13,8 +13,8 @@ import {
   pushChunk,
   pushPhase,
 } from '../../utils/jobStore';
-import prisma from '../../utils/prisma';
 import { loadSkill } from '../../utils/load-skill';
+import prisma from '../../utils/prisma';
 import { getRepoByLabel } from '../../utils/repo-mapping';
 import { getSlackNotificationChannel } from '../../utils/workspaceConfig';
 

@@ -167,7 +167,11 @@ function toggleResult(key: string) {
       class="border-t border-[rgb(255_255_255/6%)] bg-[#0a0a0f]"
     >
       <!-- Completed results: collapsible per task (hidden when progress panel shows phases) -->
-      <template v-if="!hideResults && !effectivelyRunning && activeJob.results.length > 0">
+      <template
+        v-if="
+          !hideResults && !effectivelyRunning && activeJob.results.length > 0
+        "
+      >
         <div
           v-for="r in activeJob.results"
           :key="r.issueKey"
